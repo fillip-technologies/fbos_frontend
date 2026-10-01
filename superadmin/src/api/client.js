@@ -187,15 +187,10 @@ export const api = {
 
 // ---------- Auth endpoints ----------
 export const authApi = {
-  login: ({ email, password, organization_code }) =>
-    api.post(
-      `${IDENTITY}/auth/login`,
-      { email, password, ...(organization_code ? { organization_code } : {}) },
-      { auth: false }
-    ),
-
-  verifyMfa: ({ mfa_token, code }) =>
-    api.post(`${IDENTITY}/auth/mfa/verify`, { mfa_token, code }, { auth: false }),
+  // The super-admin lives in `platform_admins` and has its own login endpoint
+  // (no organization code, no MFA, access-token-only).
+  login: ({ email, password }) =>
+    api.post(`${IDENTITY}/auth/platform/login`, { email, password }, { auth: false }),
 
   me: () => api.get(`${IDENTITY}/auth/me`),
 

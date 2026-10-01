@@ -15,6 +15,9 @@ const INITIAL = {
   base_currency: 'INR',
   fiscal_year_start: '04-01',
   timezone: 'Asia/Kolkata',
+  // Quotas controlled exclusively by platform_admin (bounds mirror the backend).
+  max_organizations: 2,
+  max_users_per_org: 50,
 }
 
 export default function ClientCreate() {
@@ -46,8 +49,10 @@ export default function ClientCreate() {
         base_currency: form.base_currency.trim() || 'INR',
         fiscal_year_start: form.fiscal_year_start.trim() || '04-01',
         timezone: form.timezone.trim() || 'Asia/Kolkata',
+        max_organizations: Number(form.max_organizations),
+        max_users_per_org: Number(form.max_users_per_org),
+        contact_email: form.contact_email.trim(),
       }
-      if (form.contact_email.trim()) body.contact_email = form.contact_email.trim()
       if (form.admin_email.trim()) body.admin_email = form.admin_email.trim()
       if (form.admin_name.trim()) body.admin_name = form.admin_name.trim()
 
@@ -107,7 +112,7 @@ export default function ClientCreate() {
         </div>
 
         <div className="field">
-          <label htmlFor="contact_email">Contact email</label>
+          <label htmlFor="contact_email">Contact email *</label>
           <input
             id="contact_email"
             type="email"
@@ -115,8 +120,13 @@ export default function ClientCreate() {
             aria-invalid={!!fieldErrors.contact_email}
             value={form.contact_email}
             onChange={(e) => set('contact_email', e.target.value)}
+            required
           />
-          {fieldErrors.contact_email && <div className="field-error">{fieldErrors.contact_email}</div>}
+          {fieldErrors.contact_email ? (
+            <div className="field-error">{fieldErrors.contact_email}</div>
+          ) : (
+            <div className="hint">Also used as the email of the client's first organization.</div>
+          )}
         </div>
 
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0 16px' }} />
@@ -166,6 +176,50 @@ export default function ClientCreate() {
         <div className="field">
           <label htmlFor="timezone">Timezone</label>
           <input id="timezone" value={form.timezone} onChange={(e) => set('timezone', e.target.value)} />
+        </div>
+
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0 16px' }} />
+        <p className="muted" style={{ marginTop: 0 }}>
+          Quotas — platform-admin controlled. The client admin cannot change these.
+        </p>
+
+        <div className="grid-2">
+          <div className="field">
+            <label htmlFor="max_organizations">Max organizations</label>
+            <input
+              id="max_organizations"
+              type="number"
+              min={1}
+              max={1000}
+              className={fieldErrors.max_organizations ? 'invalid' : ''}
+              aria-invalid={!!fieldErrors.max_organizations}
+              value={form.max_organizations}
+              onChange={(e) => set('max_organizations', e.target.value)}
+            />
+            {fieldErrors.max_organizations ? (
+              <div className="field-error">{fieldErrors.max_organizations}</div>
+            ) : (
+              <div className="hint">Between 1 and 1000.</div>
+            )}
+          </div>
+          <div className="field">
+            <label htmlFor="max_users_per_org">Max users per organization</label>
+            <input
+              id="max_users_per_org"
+              type="number"
+              min={1}
+              max={10000}
+              className={fieldErrors.max_users_per_org ? 'invalid' : ''}
+              aria-invalid={!!fieldErrors.max_users_per_org}
+              value={form.max_users_per_org}
+              onChange={(e) => set('max_users_per_org', e.target.value)}
+            />
+            {fieldErrors.max_users_per_org ? (
+              <div className="field-error">{fieldErrors.max_users_per_org}</div>
+            ) : (
+              <div className="hint">Between 1 and 10000.</div>
+            )}
+          </div>
         </div>
 
         <div className="row-actions" style={{ marginTop: 8 }}>
