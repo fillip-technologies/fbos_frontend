@@ -27,6 +27,8 @@ const FRIENDLY = {
   REFRESH_TOKEN_REUSED: 'Your session was revoked for security reasons. Please sign in again.',
 
   // ---- Clients ----
+  SUBSCRIPTION_EXPIRED: 'Your organization\'s subscription is not active. Please contact support to renew.',
+  INVALID_SUBSCRIPTION_WINDOW: 'Service end must be on or after service start.',
   CLIENT_NOT_FOUND: 'This client no longer exists.',
   CLIENT_CODE_EXISTS: 'A client with this code already exists. Choose a different code.',
   DUPLICATE_CODE: 'That code is already in use. Choose a different one.',

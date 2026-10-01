@@ -4,6 +4,7 @@ import { clientsApi } from '../api/client.js'
 import { friendlyMessage, getFieldErrors } from '../api/errors.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import ErrorBanner from '../components/ErrorBanner.jsx'
+import { addOneYear, todayIso } from '../utils/dates.js'
 
 // Only these fields are editable per ClientUpdateRequest in the Identity service.
 const STATUS_OPTIONS = ['active', 'suspended', 'archived']
@@ -22,11 +23,16 @@ export default function ClientDetail() {
     status: '',
     max_organizations: '',
     max_users_per_org: '',
+    subscription_start: '',
+    subscription_end: '',
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  const fieldErrors = getFieldErrors(error)
+  const fieldErrors = { ...getFieldErrors(error) }
+  if (error && error.code === 'INVALID_SUBSCRIPTION_WINDOW') {
+    fieldErrors.subscription_end = friendlyMessage(error)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -43,6 +49,8 @@ export default function ClientDetail() {
           status: c.status || 'active',
           max_organizations: c.max_organizations ?? '',
           max_users_per_org: c.max_users_per_org ?? '',
+          subscription_start: c.subscription_start || '',
+          subscription_end: c.subscription_end || '',
         })
       })
       .catch((err) => {
@@ -77,6 +85,10 @@ export default function ClientDetail() {
         body.max_organizations = Number(form.max_organizations)
       if (Number(form.max_users_per_org) !== client.max_users_per_org)
         body.max_users_per_org = Number(form.max_users_per_org)
+      if (form.subscription_start && form.subscription_start !== client.subscription_start)
+        body.subscription_start = form.subscription_start
+      if (form.subscription_end && form.subscription_end !== client.subscription_end)
+        body.subscription_end = form.subscription_end
 
       if (Object.keys(body).length === 0) {
         setSaved(true)
@@ -90,6 +102,8 @@ export default function ClientDetail() {
         status: updated.status || 'active',
         max_organizations: updated.max_organizations ?? '',
         max_users_per_org: updated.max_users_per_org ?? '',
+        subscription_start: updated.subscription_start || '',
+        subscription_end: updated.subscription_end || '',
       })
       setSaved(true)
     } catch (err) {
@@ -97,6 +111,12 @@ export default function ClientDetail() {
     } finally {
       setSaving(false)
     }
+  }
+
+  // Renew: one year after the later of the current end date and today.
+  function renewOneYear() {
+    const base = form.subscription_end && form.subscription_end > todayIso() ? form.subscription_end : todayIso()
+    set('subscription_end', addOneYear(base))
   }
 
   if (loading) return <div className="center-note">Loading…</div>
@@ -114,7 +134,8 @@ export default function ClientDetail() {
     <div>
       <div className="page-head">
         <h1>
-          {client.name} <StatusBadge status={client.status} />
+          {client.name} <StatusBadge status={client.status} />{' '}
+          <StatusBadge status={client.subscription_state} />
         </h1>
         <button className="btn secondary" onClick={() => navigate('/clients')}>
           ← Back
@@ -172,6 +193,43 @@ export default function ClientDetail() {
               </option>
             ))}
           </select>
+        </div>
+
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0 16px' }} />
+        <p className="muted" style={{ marginTop: 0 }}>
+          Subscription — platform-admin controlled. Client users are locked out outside this period
+          {client.subscription_state === 'expired' && ' (currently expired)'}.
+        </p>
+
+        <div className="grid-2">
+          <div className="field">
+            <label htmlFor="subscription_start">Service start</label>
+            <input
+              id="subscription_start"
+              type="date"
+              className={fieldErrors.subscription_start ? 'invalid' : ''}
+              value={form.subscription_start}
+              onChange={(e) => set('subscription_start', e.target.value)}
+            />
+            {fieldErrors.subscription_start && <div className="field-error">{fieldErrors.subscription_start}</div>}
+          </div>
+          <div className="field">
+            <label htmlFor="subscription_end">Service end</label>
+            <input
+              id="subscription_end"
+              type="date"
+              min={form.subscription_start}
+              className={fieldErrors.subscription_end ? 'invalid' : ''}
+              value={form.subscription_end}
+              onChange={(e) => set('subscription_end', e.target.value)}
+            />
+            {fieldErrors.subscription_end && <div className="field-error">{fieldErrors.subscription_end}</div>}
+            <div className="hint">
+              <button type="button" className="btn secondary" onClick={renewOneYear}>
+                Renew +1 year
+              </button>
+            </div>
+          </div>
         </div>
 
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0 16px' }} />

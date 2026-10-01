@@ -11,8 +11,10 @@ platform *super-admin* process: platform-admin login and **Clients** management
   accounts are rejected (mirrors the backend `require_platform_admin` check via `/auth/me`).
 - **Clients CRUD** (`/api/identity/v1/clients`):
   - List with cursor pagination
-  - Create (name, code, contact email, optional first client-admin invite, currency/fiscal/timezone defaults) — sends an `Idempotency-Key`
-  - View + edit (name, contact email, status via `PATCH`)
+  - Create (name, code, contact email, optional first client-admin invite, currency/timezone defaults, service start/end dates) — sends an `Idempotency-Key`
+  - View + edit (name, contact email, status, quotas, service start/end via `PATCH`; "Renew +1 year" shortcut)
+  - Fiscal year is **not** set here — the client admin owns it per organization (default `01-04`, DD-MM)
+  - Outside the service window every client user is locked out (`SUBSCRIPTION_EXPIRED`)
 
 Nothing else from the FBOS platform is wired in — this is the super-admin surface only.
 
