@@ -12,6 +12,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    strictPort: true, // fail instead of silently moving to another port (emailed links assume fixed ports)
     proxy: {
       '/api': {
         target: API_URL,

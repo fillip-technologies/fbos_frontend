@@ -3,19 +3,19 @@ import { authApi, ApiError } from '../api/client.js'
 import { endSession, onSessionChange, startSession } from '../api/session.js'
 
 // Older builds kept the access token here; it now lives in memory only.
-const LEGACY_STORAGE_KEY = 'fbos_superadmin_session'
+const LEGACY_STORAGE_KEY = 'fbos_clientadmin_session'
 const AuthContext = createContext(null)
 
-// Only the platform super-admin may use this console; the backend gates every
-// /clients route behind require_platform_admin, so we mirror that check here.
-function isPlatformAdmin(user) {
-  return user?.user_type === 'platform_admin'
+// Only client admins may use this console; the backend gates every /organizations
+// route behind require_client_admin, so we mirror that check client-side.
+function isClientAdmin(user) {
+  return user?.user_type === 'client_admin'
 }
 
-export class NotSuperAdminError extends Error {
+export class NotClientAdminError extends Error {
   constructor() {
-    super('This console is for platform super-admins only.')
-    this.name = 'NotSuperAdminError'
+    super('This console is for client administrators only.')
+    this.name = 'NotClientAdminError'
   }
 }
 
@@ -23,8 +23,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Restore the session from the HttpOnly refresh cookie (`fbos_prt`): reloads and new
-  // tabs stay signed in for as long as the refresh token lives (rotated on every use).
+  // Restore the session from the HttpOnly refresh cookie: a reload or a new tab stays
+  // signed in for as long as the refresh token lives (30 days, rotated on every use).
   useEffect(() => {
     let cancelled = false
     try {
@@ -34,10 +34,10 @@ export function AuthProvider({ children }) {
     }
     authApi
       .restore()
-      .then(() => authApi.me())
-      .then((me) => {
+      .then(async (session) => {
+        const me = session.user ?? (await authApi.me())
         if (cancelled) return
-        if (isPlatformAdmin(me)) setUser(me)
+        if (isClientAdmin(me)) setUser(me)
         else endSession()
       })
       .catch(() => {
@@ -51,28 +51,28 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  // Follow the session manager: sign-outs (here, in another tab, or because the refresh
-  // token died) and sign-ins done in another tab.
+  // Keep React state in line with the session manager: sign-outs (here, in another tab,
+  // or because the refresh token died) and sign-ins done in another tab.
   useEffect(
     () =>
       onSessionChange((event) => {
         if (event.type === 'logout') setUser(null)
+        else if (event.user && isClientAdmin(event.user)) setUser(event.user)
         else if (event.type === 'login' && event.remote) {
-          authApi.me().then((me) => isPlatformAdmin(me) && setUser(me)).catch(() => {})
+          authApi.me().then((me) => isClientAdmin(me) && setUser(me)).catch(() => {})
         }
       }),
     []
   )
 
-  // Establishes the session from a completed login token response, enforcing
-  // the platform_admin requirement before we trust it.
+  // Establishes the session from a completed login / MFA token response.
   const establish = useCallback(async (tokenResponse) => {
     if (!tokenResponse.access_token) throw new ApiError('No access token returned', { status: 500 })
     startSession(tokenResponse)
     const me = tokenResponse.user ?? (await authApi.me())
-    if (!isPlatformAdmin(me)) {
+    if (!isClientAdmin(me)) {
       await authApi.logout()
-      throw new NotSuperAdminError()
+      throw new NotClientAdminError()
     }
     setUser(me)
     return me

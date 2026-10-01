@@ -6,14 +6,12 @@ import { configureSession, endSession, getAccessToken, logoutSession, refreshSes
 
 const IDENTITY = '/api/identity/v1'
 
-// The platform super-admin has its own session endpoints and cookie pair
-// (`fbos_prt` / `fbos_pcsrf`), so it never collides with a client-admin session
-// open in the same browser.
+// Client admins are regular users: refresh cookie `fbos_rt`, CSRF cookie `fbos_csrf`.
 configureSession({
-  refreshPath: `${IDENTITY}/auth/platform/token/refresh`,
-  logoutPath: `${IDENTITY}/auth/platform/logout`,
-  csrfCookie: 'fbos_pcsrf',
-  appKey: 'fbos-superadmin',
+  refreshPath: `${IDENTITY}/auth/token/refresh`,
+  logoutPath: `${IDENTITY}/auth/logout`,
+  csrfCookie: 'fbos_csrf',
+  appKey: 'fbos-clientadmin',
 })
 
 export { getAccessToken }
@@ -185,8 +183,11 @@ async function request(method, path, { body, auth = true, headers = {} } = {}) {
 
   if (!res.ok) {
     const parsed = parseErrorBody(payload, res.status)
-    // Still 401 after a refresh: the session is not usable, sign out.
-    if (auth && res.status === 401) endSession()
+    // A subscription that ends mid-session answers 403 SUBSCRIPTION_EXPIRED: end the
+    // session so the user lands on /login with the reason.
+    if (auth && (res.status === 401 || (res.status === 403 && parsed.code === 'SUBSCRIPTION_EXPIRED'))) {
+      endSession()
+    }
     throw new ApiError(parsed.message, {
       status: res.status,
       code: parsed.code,
@@ -204,16 +205,23 @@ export const api = {
   get: (path, opts) => request('GET', path, opts),
   post: (path, body, opts) => request('POST', path, { ...opts, body }),
   patch: (path, body, opts) => request('PATCH', path, { ...opts, body }),
-  delete: (path, opts) => request('DELETE', path, opts),
+  put: (path, body, opts) => request('PUT', path, { ...opts, body }),
+  del: (path, opts) => request('DELETE', path, opts),
   uuidv4,
 }
 
 // ---------- Auth endpoints ----------
 export const authApi = {
-  // The super-admin lives in `platform_admins` and has its own login endpoint
-  // (no organization code, no MFA). The refresh token arrives as an HttpOnly cookie.
-  login: ({ email, password }) =>
-    api.post(`${IDENTITY}/auth/platform/login`, { email, password }, { auth: false }),
+  // Client admins sign in through the regular user login. `organization_code` is only
+  // needed when the same email exists in more than one organization.
+  login: ({ email, password, organization_code }) => {
+    const body = { email, password }
+    if (organization_code) body.organization_code = organization_code
+    return api.post(`${IDENTITY}/auth/login`, body, { auth: false })
+  },
+
+  verifyMfa: ({ mfa_token, code }) =>
+    api.post(`${IDENTITY}/auth/mfa/verify`, { mfa_token, code }, { auth: false }),
 
   me: () => api.get(`${IDENTITY}/auth/me`),
 
@@ -221,27 +229,86 @@ export const authApi = {
   // signs every open tab out.
   logout: () => logoutSession(),
 
-  // Restores a session from the refresh cookie (page load). Resolves with { access_token }.
+  // Restores a session from the refresh cookie (page load). Resolves with { access_token, user }.
   restore: () => refreshSession(),
-}
 
-// ---------- Clients endpoints (platform-admin only) ----------
-export const clientsApi = {
-  list: ({ limit = 25, cursor } = {}) => {
-    const params = new URLSearchParams({ limit: String(limit) })
-    if (cursor) params.set('cursor', cursor)
-    return api.get(`${IDENTITY}/clients?${params.toString()}`)
+  forgotPassword: ({ email, organization_code }) => {
+    const body = { email }
+    if (organization_code) body.organization_code = organization_code
+    return api.post(`${IDENTITY}/auth/password/forgot`, body, { auth: false })
   },
 
-  get: (id) => api.get(`${IDENTITY}/clients/${id}`),
+  resetPassword: ({ token, new_password }) =>
+    api.post(`${IDENTITY}/auth/password/reset`, { token, new_password }, { auth: false }),
 
+  acceptInvitation: ({ token, password }) =>
+    api.post(`${IDENTITY}/auth/invitations/accept`, { token, password }, { auth: false }),
+}
+
+// ---------- The caller's own client: subscription window + quotas (read-only) ----------
+export const clientApi = {
+  me: () => api.get(`${IDENTITY}/clients/me`),
+}
+
+function pageQuery({ limit = 25, cursor, ...rest } = {}) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  for (const [k, v] of Object.entries(rest)) if (v) params.set(k, v)
+  return params.toString()
+}
+
+// ---------- Organizations (client-admin only; always scoped to the caller's client) ----------
+export const organizationsApi = {
+  list: (opts) => api.get(`${IDENTITY}/organizations?${pageQuery(opts)}`),
+  get: (id) => api.get(`${IDENTITY}/organizations/${id}`),
   create: (body) =>
-    api.post(`${IDENTITY}/clients`, body, {
-      headers: { 'Idempotency-Key': uuidv4() },
+    api.post(`${IDENTITY}/organizations`, body, { headers: { 'Idempotency-Key': uuidv4() } }),
+  update: (id, body) => api.patch(`${IDENTITY}/organizations/${id}`, body),
+}
+
+// ---------- Organization-scoped endpoints ----------
+// A client admin may act in any organization of their client: every call below takes the
+// organization id and sends it as `X-Organization-Id` (omitted -> the admin's own org).
+const inOrg = (orgId, headers = {}) => (orgId ? { ...headers, 'X-Organization-Id': orgId } : headers)
+
+// Walks cursor pagination for small catalogs (units, roles, permissions).
+async function listAll(path, orgId, params = {}) {
+  const items = []
+  let cursor
+  do {
+    const page = await api.get(`${path}?${pageQuery({ limit: 100, cursor, ...params })}`, { headers: inOrg(orgId) })
+    items.push(...page.data)
+    cursor = page.page?.has_more ? page.page.next_cursor : null
+  } while (cursor)
+  return items
+}
+
+// ---------- Users ----------
+export const usersApi = {
+  list: (orgId, opts) => api.get(`${IDENTITY}/users?${pageQuery(opts)}`, { headers: inOrg(orgId) }),
+  get: (orgId, id) => api.get(`${IDENTITY}/users/${id}`, { headers: inOrg(orgId) }),
+  invite: (orgId, body) =>
+    api.post(`${IDENTITY}/users`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
+  update: (orgId, id, version, body) =>
+    api.patch(`${IDENTITY}/users/${id}`, body, { headers: inOrg(orgId, { 'If-Match': `"${version}"` }) }),
+  deactivate: (orgId, id, version, body) =>
+    api.post(`${IDENTITY}/users/${id}/deactivate`, body, { headers: inOrg(orgId, { 'If-Match': `"${version}"` }) }),
+  resendInvitation: (orgId, id) => api.post(`${IDENTITY}/users/${id}/invitations`, undefined, { headers: inOrg(orgId) }),
+  permissions: (orgId, id) => api.get(`${IDENTITY}/users/${id}/permissions`, { headers: inOrg(orgId) }),
+  replacePermissions: (orgId, id, body) =>
+    api.put(`${IDENTITY}/users/${id}/permissions`, body, { headers: inOrg(orgId) }),
+  roleAssignments: (orgId, userId) => listAll(`${IDENTITY}/role-assignments`, orgId, { user_id: userId }),
+}
+
+// ---------- Access catalog: permissions, roles (presets), org units ----------
+export const accessApi = {
+  permissions: (orgId) => listAll(`${IDENTITY}/permissions`, orgId),
+  roles: (orgId) => listAll(`${IDENTITY}/roles`, orgId),
+  createRole: (orgId, body) =>
+    api.post(`${IDENTITY}/roles`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
+  replaceRolePermissions: (orgId, roleId, version, permissions) =>
+    api.put(`${IDENTITY}/roles/${roleId}/permissions`, { permissions }, {
+      headers: inOrg(orgId, { 'If-Match': `"${version}"` }),
     }),
-
-  update: (id, body) => api.patch(`${IDENTITY}/clients/${id}`, body),
-
-  // Permanent: removes the client with its organizations, users and credentials.
-  remove: (id) => api.delete(`${IDENTITY}/clients/${id}`),
+  orgUnits: (orgId) => listAll(`${IDENTITY}/org-units`, orgId, { status: 'active' }),
 }

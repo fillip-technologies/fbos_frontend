@@ -69,16 +69,17 @@ export default function ClientsList() {
               <th>Contact email</th>
               <th>Orgs</th>
               <th>Status</th>
+              <th>Service until</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="center-note">Loading…</td>
+                <td colSpan={6} className="center-note">Loading…</td>
               </tr>
             ) : clients.length === 0 ? (
               <tr>
-                <td colSpan={5} className="center-note">
+                <td colSpan={6} className="center-note">
                   No clients yet. Create the first one.
                 </td>
               </tr>
@@ -95,6 +96,15 @@ export default function ClientsList() {
                   </td>
                   <td>
                     <StatusBadge status={c.status} />
+                  </td>
+                  <td className="mono">
+                    {c.subscription_end ? (
+                      <>
+                        {c.subscription_end} <StatusBadge status={c.subscription_state} />
+                      </>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
                   </td>
                 </tr>
               ))
