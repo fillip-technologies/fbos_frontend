@@ -13,6 +13,7 @@ platform *super-admin* process: platform-admin login and **Clients** management
   - List with cursor pagination
   - Create (name, code, contact email, optional first client-admin invite, currency/timezone defaults, service start/end dates) — sends an `Idempotency-Key`
   - View + edit (name, contact email, status, quotas, service start/end via `PATCH`; "Renew +1 year" shortcut)
+  - Delete a client (permanent; removes its organizations, users and credentials; confirm by typing the client code)
   - Fiscal year is **not** set here — the client admin owns it per organization (default `01-04`, DD-MM)
   - Outside the service window every client user is locked out (`SUBSCRIPTION_EXPIRED`)
 

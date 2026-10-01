@@ -28,6 +28,9 @@ export default function ClientDetail() {
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmCode, setConfirmCode] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const fieldErrors = { ...getFieldErrors(error) }
   if (error && error.code === 'INVALID_SUBSCRIPTION_WINDOW') {
@@ -110,6 +113,18 @@ export default function ClientDetail() {
       setError(err)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    setError(null)
+    setDeleting(true)
+    try {
+      await clientsApi.remove(id)
+      navigate('/clients', { replace: true })
+    } catch (err) {
+      setError(err)
+      setDeleting(false)
     }
   }
 
@@ -290,6 +305,50 @@ export default function ClientDetail() {
           </button>
         </div>
       </form>
+
+      <div className="panel" style={{ marginTop: 24, borderColor: '#fecaca' }}>
+        <h2 style={{ fontSize: 16, margin: '0 0 6px', color: 'var(--danger)' }}>Delete client</h2>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Permanently deletes this client with all of its organizations, users and sign-in credentials.
+          This cannot be undone. To only block access, set the status to suspended instead.
+        </p>
+        {!confirmDelete ? (
+          <button type="button" className="btn secondary" style={{ color: 'var(--danger)' }} onClick={() => setConfirmDelete(true)}>
+            Delete client…
+          </button>
+        ) : (
+          <div>
+            <div className="field" style={{ maxWidth: 360 }}>
+              <label htmlFor="confirm_code">
+                Type <span className="mono">{client.code}</span> to confirm
+              </label>
+              <input id="confirm_code" value={confirmCode} onChange={(e) => setConfirmCode(e.target.value)} autoFocus />
+            </div>
+            <div className="row-actions">
+              <button
+                type="button"
+                className="btn"
+                style={{ background: 'var(--danger)' }}
+                disabled={deleting || confirmCode !== client.code}
+                onClick={handleDelete}
+              >
+                {deleting ? 'Deleting…' : 'Permanently delete'}
+              </button>
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={deleting}
+                onClick={() => {
+                  setConfirmDelete(false)
+                  setConfirmCode('')
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
