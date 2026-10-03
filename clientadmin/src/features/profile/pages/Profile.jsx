@@ -38,7 +38,7 @@ export default function Profile() {
           <Detail label="Timezone">{user.timezone}</Detail>
         </div>
         <p className="muted small" style={{ marginBottom: 0 }}>
-          Your name and email are managed by the platform administrator. Ask them if something here is wrong.
+          Your name and email are managed by your administrator. Ask them if something here is wrong.
         </p>
       </div>
 

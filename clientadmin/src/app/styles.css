@@ -281,3 +281,8 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 .mfa-confirm { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
 .mfa-confirm input { width: 130px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 18px; letter-spacing: 4px; text-align: center; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .recovery-codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; background: #f8fafc; border: 1px dashed var(--border); border-radius: 8px; padding: 14px; font-size: 14px; }
+
+/* ---------- Home (non-client-admin users) ---------- */
+.area-card { display: block; color: inherit; transition: border-color 0.15s ease; }
+.area-card:hover { border-color: var(--primary); text-decoration: none; }
+.area-card .stat-sub { margin-top: 6px; }

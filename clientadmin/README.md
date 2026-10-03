@@ -1,12 +1,15 @@
-# FBOS — Client Admin Console
+# FBOS — Admin Console (clientadmin)
 
-Vite + React 18 (plain JS) app for a **client administrator**: the person a platform admin
-invites when creating a client. Runs on **http://localhost:5174**, next to `superadmin/` (:5173).
+Vite + React 18 (plain JS) admin console for **every user of a client's organizations**. The
+client administrator (the person a platform admin invites when creating a client) sees
+everything; other users see only the pages and actions their permissions allow. Runs on
+**http://localhost:5174**, next to `superadmin/` (:5173).
 
 ## What it does
 
-- **Sign in** (`/auth/login`, optional organization code, MFA step). Only `user_type = client_admin`
-  is accepted, mirroring the backend `require_client_admin` guard.
+- **Sign in** (`/auth/login`, optional organization code, MFA step). Any user who belongs to an
+  organization can sign in (client admin, employee, contractor, client user). The platform
+  super-admin has no organization and is pointed to the super-admin console.
 - **Accept invitation** (`/accept-invitation?token=…`) and **reset password** (`/reset-password?token=…`) —
   the pages the invitation / reset emails link to. **Forgot password** at `/forgot-password`.
 - **Dashboard**: the client's service period (start → end, days left, expiring warning) and quotas,
@@ -49,17 +52,35 @@ rejected with `SUBSCRIPTION_EXPIRED`, and this app returns the user to the sign-
 
 Navigation is driven by access rules, so what a user sees depends on who they are:
 
-- `src/features/auth/access.js` — `hasAccess(user, rule)` and the `ACCESS` map (one rule per page, e.g.
-  `{ permissions: ['identity.user.read'] }` or `{ userTypes: ['client_admin'] }`).
+- `src/features/auth/access.js` — `hasAccess(user, rule)`, `can(user, permission)`,
+  `hasRole(user, roleCode)` and the `ACCESS` map (one rule per page or action). A rule combines
+  any of these, and every condition present must hold:
+  - `userTypes: [...]` — the user's type is one of these (e.g. `['client_admin']`)
+  - `permissions: [...]` — holds **all** of these permission codes (user-based access)
+  - `anyPermissions: [...]` — holds **at least one** of them
+  - `roles: [...]` — has **at least one** of these role presets applied (`/auth/me` → `roles[].role_code`)
 - `src/app/navigation.jsx` — the sidebar items, each with its `access` rule; items the user can't
   open are hidden.
 - `src/features/auth/components/RequireAccess.jsx` — wraps each route in `App.jsx` with the same rule, so a
   typed URL shows "no access" instead of the page.
 
 To add a page: add a rule to `ACCESS`, a sidebar entry in `NAV_ITEMS`, and a `<RequireAccess>` route.
-Client administrators bypass permission checks (tenant superuser, like the backend's
-`require_client_admin`); other user types are checked against `permissions` from `/auth/me`.
-This is UX only — the backend still enforces every call.
+To hide an action, check `hasAccess(user, ACCESS.someAction)` around its button (see the users,
+roles, org-unit and calendar pages).
+
+Who sees what:
+
+| | Client admin | Other users |
+|---|---|---|
+| Dashboard (`/`) | Subscription period and quotas (`/clients/me`) | Home page with links to the areas they can open |
+| Organizations, org switcher | Yes — works across all the client's organizations | No — always their own organization |
+| Users, roles, org units, calendars | Everything | Per permission, e.g. `identity.user.read` to see users |
+| My profile, two-factor setup | Yes | Yes |
+
+Client administrators pass every permission and role check (tenant superuser, like the backend);
+other users are checked against `permissions` and `roles` from `/auth/me`. Lists a user can't
+read are loaded as empty rather than failing the page (`useAccessCatalog`). This is UX only —
+the backend still enforces every call.
 
 ## Run
 

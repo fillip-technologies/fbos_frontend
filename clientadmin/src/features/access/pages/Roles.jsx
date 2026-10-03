@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { accessApi } from '@/features/access/api.js'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { actionLabel, entityLabel, groupCatalog, serviceLabel } from '@/features/access/permissions.js'
 import useAccessCatalog from '@/features/access/useAccessCatalog.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -10,6 +12,9 @@ import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 // Roles are presets: applying one copies its permissions onto a user. Changing a role
 // later affects only users it is applied to from then on.
 export default function Roles() {
+  const { user: me } = useAuth()
+  const canCreate = hasAccess(me, ACCESS.createRoles)
+  const canUpdate = hasAccess(me, ACCESS.updateRoles)
   const { orgId, activeOrg } = useActiveOrg()
   const { catalog, roles, loading, error, reload } = useAccessCatalog(orgId)
   const [editing, setEditing] = useState(null) // role being edited, or 'new'
@@ -33,7 +38,7 @@ export default function Roles() {
         </div>
         <div className="row-actions">
           <OrgSwitcher onChange={() => setEditing(null)} />
-          <button className="btn" onClick={() => setEditing('new')} disabled={editing === 'new'}>+ New role</button>
+          {canCreate && <button className="btn" onClick={() => setEditing('new')} disabled={editing === 'new'}>+ New role</button>}
         </div>
       </div>
 
@@ -61,7 +66,7 @@ export default function Roles() {
                     {role.is_system ? 'Built-in · always holds every permission' : 'Custom role'} · {role.permissions.length} permissions
                   </p>
                 </div>
-                {!role.is_system && (
+                {!role.is_system && canUpdate && (
                   <button className="btn secondary" onClick={() => setEditing(role)}>Edit permissions</button>
                 )}
               </div>

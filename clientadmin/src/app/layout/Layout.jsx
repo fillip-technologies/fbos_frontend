@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { NAV_ITEMS } from '@/app/navigation.jsx'
+import { USER_TYPE_LABELS } from '@/features/users/utils.js'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -24,7 +25,7 @@ export default function Layout() {
     <div className={`app-shell with-sidebar${open ? ' sidebar-open' : ''}`}>
       <aside className="sidebar" aria-label="Main navigation">
         <div className="sidebar-brand">
-          FBOS <small>Client Admin</small>
+          FBOS <small>Admin console</small>
         </div>
         <nav className="sidebar-nav">
           {items.map((item) => (
@@ -36,6 +37,7 @@ export default function Layout() {
         </nav>
         <div className="sidebar-user">
           <div className="sidebar-user-name">{user?.name}</div>
+          <div className="sidebar-user-org">{USER_TYPE_LABELS[user?.user_type] || user?.user_type}</div>
           <div className="mono sidebar-user-email">{user?.email}</div>
           {user?.organization && <div className="sidebar-user-org">{user.organization.name}</div>}
           <NavLink to="/profile" className="sidebar-profile-link">
