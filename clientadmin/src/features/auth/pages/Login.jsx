@@ -65,8 +65,8 @@ export default function Login() {
   return (
     <div className="auth-wrap">
       <div className="panel auth-card">
-        <h1>Client Admin</h1>
-        <p className="sub">Manage your organizations, users and subscription</p>
+        <h1>FBOS Admin console</h1>
+        <p className="sub">Sign in with your work email. What you can manage depends on your access.</p>
 
         {notice && <div className="alert success">{notice}</div>}
         {error && <div className="alert error" role="alert">{error}</div>}

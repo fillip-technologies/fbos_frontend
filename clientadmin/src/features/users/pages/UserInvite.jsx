@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { usersApi } from '@/features/users/api.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import AccessEditor, { EMPTY_ACCESS } from '@/features/access/components/AccessEditor.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
@@ -25,6 +27,9 @@ const blankToNull = (v) => (v && v.trim() ? v.trim() : null)
 
 export default function UserInvite() {
   const navigate = useNavigate()
+  const { user: me } = useAuth()
+  // Granting access on invite needs its own permission; without it the invite carries none.
+  const canGrantAccess = hasAccess(me, ACCESS.manageUserAccess)
   const { orgId, activeOrg } = useActiveOrg()
   const { catalog, roles, units, loading: catalogLoading, error: catalogError, reload } = useAccessCatalog(orgId)
   const [profile, setProfile] = useState(EMPTY_PROFILE)
@@ -60,7 +65,7 @@ export default function UserInvite() {
         user_type: profile.user_type,
         home_unit_id: profile.home_unit_id || null,
         manager_user_id: profile.manager_user_id || null,
-        ...toRequestAccess(access),
+        ...(canGrantAccess ? toRequestAccess(access) : {}),
       })
       navigate(`/users/${created.id}`, {
         state: {
@@ -168,11 +173,18 @@ export default function UserInvite() {
           <p className="muted small" style={{ marginTop: -6 }}>
             Access is set per user. Start from a role preset, adjust individual permissions, and limit each one to a unit if needed.
           </p>
-          <ErrorBanner error={catalogError} onRetry={reload} />
-          {catalogLoading ? (
+          {!canGrantAccess ? (
+            <div className="alert info" style={{ marginBottom: 0 }}>
+              You can invite people but not grant access. They'll be able to sign in, and an administrator with access
+              management can give them permissions afterwards.
+            </div>
+          ) : catalogLoading ? (
             <div className="center-note">Loading permissions…</div>
           ) : (
-            <AccessEditor catalog={catalog} roles={roles} units={units} value={access} onChange={setAccess} fieldErrors={fieldErrors} />
+            <>
+              <ErrorBanner error={catalogError} onRetry={reload} />
+              <AccessEditor catalog={catalog} roles={roles} units={units} value={access} onChange={setAccess} fieldErrors={fieldErrors} />
+            </>
           )}
         </div>
 

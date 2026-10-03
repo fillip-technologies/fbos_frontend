@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { usersApi } from '@/features/users/api.js'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
@@ -14,6 +16,7 @@ const STATUSES = ['', 'invited', 'active', 'suspended', 'deactivated']
 export default function Users() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user: me } = useAuth()
   const { orgId, activeOrg } = useActiveOrg()
   const { roles, units } = useAccessCatalog(orgId)
 
@@ -64,7 +67,7 @@ export default function Users() {
         </div>
         <div className="row-actions">
           <OrgSwitcher onChange={resetPaging} />
-          <Link className="btn" to="/users/new">+ Invite user</Link>
+          {hasAccess(me, ACCESS.inviteUsers) && <Link className="btn" to="/users/new">+ Invite user</Link>}
         </div>
       </div>
 

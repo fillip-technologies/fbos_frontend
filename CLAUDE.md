@@ -9,7 +9,7 @@ Two independent Vite apps live in subdirectories, not the repo root. Run npm com
 - **`superadmin/`** — platform super-admin console (:5173).
 - **`clientadmin/`** — client-admin console (:5174): organizations, users, subscription view, plus the invitation / password-reset pages the emails link to. See `clientadmin/README.md`.
 
-The rest of this file describes `superadmin/`; `clientadmin/` reuses the same `api/client.js` + `api/errors.js` + `auth/AuthContext.jsx` structure plus the same `api/session.js` (refresh cookie `fbos_rt` / CSRF `fbos_csrf`, guard `user_type === 'client_admin'`).
+The rest of this file describes `superadmin/`; `clientadmin/` reuses the same `api/client.js` + `api/errors.js` + `auth/AuthContext.jsx` structure plus the same `api/session.js` (refresh cookie `fbos_rt` / CSRF `fbos_csrf`). clientadmin accepts any user with an organization; pages and actions are gated per user by `features/auth/access.js` (permissions and role presets from `/auth/me`).
 
 ## Source layout
 

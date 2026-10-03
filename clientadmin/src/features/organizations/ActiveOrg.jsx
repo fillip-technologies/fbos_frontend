@@ -1,9 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { organizationsApi } from '@/features/organizations/api.js'
+import { isClientAdmin } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 
-// The organization the users / roles screens work in. A client admin owns several
-// organizations; the choice is remembered per browser and sent as X-Organization-Id.
+// The organization the users / roles / units / calendars screens work in. A client admin
+// owns several organizations; the choice is remembered per browser and sent as
+// X-Organization-Id. Everyone else always works in their own organization (the backend
+// refuses X-Organization-Id for them, and only client admins may list organizations).
 const STORAGE_KEY = 'fbos_clientadmin_active_org'
 const ActiveOrgContext = createContext(null)
 
@@ -17,12 +20,14 @@ function readStored() {
 
 export function ActiveOrgProvider({ children }) {
   const { user } = useAuth()
+  const multiOrg = isClientAdmin(user)
   const [orgs, setOrgs] = useState([])
   const [activeId, setActiveId] = useState(readStored)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(multiOrg)
   const [error, setError] = useState(null)
 
   const load = useCallback(() => {
+    if (!multiOrg) return
     setLoading(true)
     setError(null)
     organizationsApi
@@ -30,7 +35,7 @@ export function ActiveOrgProvider({ children }) {
       .then((res) => setOrgs(res.data))
       .catch(setError)
       .finally(() => setLoading(false))
-  }, [])
+  }, [multiOrg])
   useEffect(load, [load])
 
   // Fall back to the admin's own organization when nothing (or a stale id) is stored.

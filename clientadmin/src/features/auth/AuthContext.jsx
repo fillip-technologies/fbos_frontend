@@ -7,16 +7,18 @@ import { endSession, onSessionChange, startSession } from '@/shared/api/session.
 const LEGACY_STORAGE_KEY = 'fbos_clientadmin_session'
 const AuthContext = createContext(null)
 
-// Only client admins may use this console; the backend gates every /organizations
-// route behind require_client_admin, so we mirror that check client-side.
-function isClientAdmin(user) {
-  return user?.user_type === 'client_admin'
+// Every user who belongs to an organization may use this console; what each one sees is
+// decided per page by their permissions (see access.js). The platform super-admin has
+// no organization and is refused inside organizations by the backend, so they are sent
+// to their own console.
+function canUseConsole(user) {
+  return Boolean(user?.organization) && user.user_type !== 'platform_admin'
 }
 
-export class NotClientAdminError extends Error {
+export class ConsoleNotAvailableError extends Error {
   constructor() {
-    super('This console is for client administrators only.')
-    this.name = 'NotClientAdminError'
+    super('This account has no organization. Platform administrators sign in to the super-admin console.')
+    this.name = 'ConsoleNotAvailableError'
   }
 }
 
@@ -38,7 +40,7 @@ export function AuthProvider({ children }) {
       .then(async (session) => {
         const me = session.user ?? (await authApi.me())
         if (cancelled) return
-        if (isClientAdmin(me)) setUser(me)
+        if (canUseConsole(me)) setUser(me)
         else endSession()
       })
       .catch(() => {
@@ -58,9 +60,9 @@ export function AuthProvider({ children }) {
     () =>
       onSessionChange((event) => {
         if (event.type === 'logout') setUser(null)
-        else if (event.user && isClientAdmin(event.user)) setUser(event.user)
+        else if (event.user && canUseConsole(event.user)) setUser(event.user)
         else if (event.type === 'login' && event.remote) {
-          authApi.me().then((me) => isClientAdmin(me) && setUser(me)).catch(() => {})
+          authApi.me().then((me) => canUseConsole(me) && setUser(me)).catch(() => {})
         }
       }),
     []
@@ -71,9 +73,9 @@ export function AuthProvider({ children }) {
     if (!tokenResponse.access_token) throw new ApiError('No access token returned', { status: 500 })
     startSession(tokenResponse)
     const me = tokenResponse.user ?? (await authApi.me())
-    if (!isClientAdmin(me)) {
+    if (!canUseConsole(me)) {
       await authApi.logout()
-      throw new NotClientAdminError()
+      throw new ConsoleNotAvailableError()
     }
     setUser(me)
     return me
@@ -87,7 +89,7 @@ export function AuthProvider({ children }) {
   // Re-reads /auth/me after the user changes something about their own account (e.g. MFA).
   const reloadUser = useCallback(async () => {
     const me = await authApi.me()
-    if (isClientAdmin(me)) setUser(me)
+    if (canUseConsole(me)) setUser(me)
     return me
   }, [])
 

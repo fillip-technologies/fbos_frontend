@@ -4,6 +4,7 @@ import { usersApi } from '@/features/users/api.js'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import AccessEditor, { accessFromGrants } from '@/features/access/components/AccessEditor.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
 import useAccessCatalog from '@/features/access/useAccessCatalog.js'
@@ -97,6 +98,12 @@ export default function UserDetail() {
   const isSelf = me?.id === user.id
   const isDeactivated = user.status === 'deactivated'
   const isTenantAdmin = user.user_type === 'client_admin'
+  const allowed = {
+    resend: hasAccess(me, ACCESS.inviteUsers),
+    edit: hasAccess(me, ACCESS.updateUsers),
+    deactivate: hasAccess(me, ACCESS.deactivateUsers),
+    editAccess: hasAccess(me, ACCESS.manageUserAccess),
+  }
 
   return (
     <div>
@@ -123,7 +130,7 @@ export default function UserDetail() {
               ? 'The invitation link has expired.'
               : `The link expires ${formatDateTime(user.invitation_expires_at)}.`}
           </span>
-          <button className="btn secondary" onClick={resend}>Resend invitation</button>
+          {allowed.resend && <button className="btn secondary" onClick={resend}>Resend invitation</button>}
         </div>
       )}
 
@@ -133,8 +140,8 @@ export default function UserDetail() {
           <h2>Profile</h2>
           {!isDeactivated && mode !== 'edit' && (
             <div className="row-actions">
-              <button className="btn secondary" onClick={() => setMode('edit')}>Edit profile</button>
-              {!isSelf && (
+              {allowed.edit && <button className="btn secondary" onClick={() => setMode('edit')}>Edit profile</button>}
+              {!isSelf && allowed.deactivate && (
                 <button className="btn danger-outline" onClick={() => setMode('deactivate')}>Deactivate</button>
               )}
             </div>
@@ -169,7 +176,7 @@ export default function UserDetail() {
               What this user can do. Every action is checked against these permissions on the server.
             </p>
           </div>
-          {!isTenantAdmin && !isDeactivated && !isSelf && mode !== 'access' && access && (
+          {allowed.editAccess && !isTenantAdmin && !isDeactivated && !isSelf && mode !== 'access' && access && (
             <button className="btn secondary" onClick={() => setMode('access')}>Edit access</button>
           )}
         </div>
