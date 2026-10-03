@@ -8,7 +8,7 @@ const FRIENDLY = {
   INVALID_CREDENTIALS: 'Invalid email or password.',
   ACCOUNT_LOCKED: 'Too many failed sign-ins. This account is locked for a few minutes — please try again later.',
   ACCOUNT_NOT_ACTIVE: 'This account is invited, suspended, or deactivated. Contact an administrator.',
-  ORGANIZATION_AMBIGUOUS: 'This email exists in more than one organization. Enter your organization code and try again.',
+  ORGANIZATION_AMBIGUOUS: 'This email exists in more than one company. Enter your company code and try again.',
   MFA_CODE_INVALID: 'That verification code is wrong or has already been used.',
   MFA_TOKEN_EXPIRED: 'Your sign-in session expired. Please start again.',
   RESET_TOKEN_INVALID: 'This reset link is invalid or has expired.',
@@ -27,12 +27,12 @@ const FRIENDLY = {
   REFRESH_TOKEN_REUSED: 'Your session was revoked for security reasons. Please sign in again.',
 
   // ---- Subscription / quotas ----
-  CLIENT_ORGANIZATION_LIMIT_REACHED: 'Your plan\'s organization limit has been reached. Contact the platform admin to raise it.',
-  ORGANIZATION_USER_LIMIT_REACHED: 'This organization has reached its user limit. Contact the platform admin to raise it.',
-  ORGANIZATION_CODE_EXISTS: 'An organization with this code already exists. Choose a different code.',
-  ORGANIZATION_NOT_FOUND: 'This organization no longer exists.',
+  CLIENT_ORGANIZATION_LIMIT_REACHED: 'Your plan\'s company limit has been reached. Contact the platform admin to raise it.',
+  ORGANIZATION_USER_LIMIT_REACHED: 'This company has reached its user limit. Contact the platform admin to raise it.',
+  ORGANIZATION_CODE_EXISTS: 'A company with this code already exists. Choose a different code.',
+  ORGANIZATION_NOT_FOUND: 'This company no longer exists.',
   EMAIL_ALREADY_EXISTS: 'A user with this email already exists.',
-  ORGANIZATION_NOT_ACTIVE: 'This organization is not active, so users can\'t be invited into it.',
+  ORGANIZATION_NOT_ACTIVE: 'This company is not active, so users can\'t be invited into it.',
 
   // ---- Users & access ----
   PERMISSION_DENIED: 'You don\'t have permission to do this.',
@@ -44,12 +44,12 @@ const FRIENDLY = {
   ROLE_IS_SYSTEM: 'Built-in roles can\'t be edited. Create a custom role instead.',
 
   // ---- Org units ----
-  ORG_UNIT_HIERARCHY_INVALID: 'That unit can\'t sit there. Companies are at the top; branches go under a company; departments under a company, branch or department; teams under a department.',
-  ORG_UNIT_CYCLE: 'A unit can\'t be moved under itself or one of its own sub-units.',
-  USER_NOT_FOUND: 'That person isn\'t in this organization.',
+  ORG_UNIT_HIERARCHY_INVALID: 'That can\'t sit there. Branches sit directly under the company; departments go under a branch or another department; teams under a department.',
+  ORG_UNIT_CYCLE: 'Nothing can be moved under itself or under something that sits inside it.',
+  USER_NOT_FOUND: 'That person isn\'t in this company.',
 
   // ---- Clients ----
-  SUBSCRIPTION_EXPIRED: 'Your organization\'s subscription is not active. Please contact support to renew.',
+  SUBSCRIPTION_EXPIRED: 'Your account\'s subscription is not active. Please contact support to renew.',
   INVALID_SUBSCRIPTION_WINDOW: 'Service end must be on or after service start.',
   CLIENT_NOT_FOUND: 'This client no longer exists.',
   CLIENT_CODE_EXISTS: 'A client with this code already exists. Choose a different code.',

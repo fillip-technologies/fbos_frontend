@@ -117,9 +117,9 @@ export default function Login() {
             </div>
             {needsOrgCode && (
               <div className="field">
-                <label htmlFor="org">Organization code</label>
+                <label htmlFor="org">Company code</label>
                 <input id="org" value={orgCode} onChange={(e) => setOrgCode(e.target.value.toUpperCase())} required />
-                <div className="hint">This email exists in more than one organization.</div>
+                <div className="hint">This email exists in more than one company.</div>
               </div>
             )}
             <button className="btn" type="submit" disabled={submitting} style={{ width: '100%' }}>

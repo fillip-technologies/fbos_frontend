@@ -17,7 +17,7 @@ function canUseConsole(user) {
 
 export class ConsoleNotAvailableError extends Error {
   constructor() {
-    super('This account has no organization. Platform administrators sign in to the super-admin console.')
+    super('This account has no company. Platform administrators sign in to the super-admin console.')
     this.name = 'ConsoleNotAvailableError'
   }
 }

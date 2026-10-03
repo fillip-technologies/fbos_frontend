@@ -54,7 +54,7 @@ export default function OrganizationCreate() {
   return (
     <div>
       <div className="page-head">
-        <h1>New organization</h1>
+        <h1>New company</h1>
         <button className="btn secondary" onClick={() => navigate('/organizations')}>Cancel</button>
       </div>
       {error && Object.keys(fieldErrors).length === 0 && <ErrorBanner error={error} />}
@@ -63,7 +63,7 @@ export default function OrganizationCreate() {
 
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0 16px' }} />
         <p className="muted" style={{ marginTop: 0 }}>
-          Optional — invite the first administrator of this organization. They'll get an email to set a password.
+          Optional — invite the first administrator of this company. They'll get an email to set a password.
         </p>
         <div className="grid-2">
           <div className="field">
@@ -85,7 +85,7 @@ export default function OrganizationCreate() {
 
         <div className="row-actions" style={{ marginTop: 8 }}>
           <button className="btn" type="submit" disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create organization'}
+            {submitting ? 'Creating…' : 'Create company'}
           </button>
         </div>
       </form>

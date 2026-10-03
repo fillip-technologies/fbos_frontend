@@ -4,9 +4,9 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 
 // What each area lets you do; shown only when the user's access allows that page.
 const AREAS = [
-  { to: '/users', label: 'Users', rule: ACCESS.users, text: 'See the people in your organization and their access.' },
+  { to: '/users', label: 'Users', rule: ACCESS.users, text: 'See the people in your company and their access.' },
   { to: '/users/new', label: 'Invite a user', rule: ACCESS.inviteUsers, text: 'Add someone and choose what they can do.' },
-  { to: '/org-units', label: 'Org units', rule: ACCESS.orgUnits, text: 'Branches, departments and teams.' },
+  { to: '/org-units', label: 'Company structure', rule: ACCESS.orgUnits, text: 'Branches, departments and teams.' },
   { to: '/calendars', label: 'Working calendars', rule: ACCESS.calendars, text: 'Office hours and holidays.' },
   { to: '/roles', label: 'Roles', rule: ACCESS.roles, text: 'Ready-made sets of permissions.' },
 ]
@@ -68,7 +68,7 @@ export default function MyHome() {
             <div className="chips">
               {user.roles.map((r, i) => (
                 <span key={`${r.role_code}-${i}`} className="chip subtle">
-                  {r.role_code} · {r.scope_unit ? `${r.scope_unit.name} and below` : 'whole organization'}
+                  {r.role_code} · {r.scope_unit ? `${r.scope_unit.name} and below` : 'whole company'}
                   {r.self_only ? ' · own records' : ''}
                 </span>
               ))}

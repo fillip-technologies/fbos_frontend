@@ -33,8 +33,8 @@ export default function Profile() {
           <Detail label="Name">{user.name}</Detail>
           <Detail label="Email">{user.email}</Detail>
           <Detail label="Role">{USER_TYPE_LABELS[user.user_type] || user.user_type}</Detail>
-          <Detail label="Organization">{user.organization && `${user.organization.name} (${user.organization.code})`}</Detail>
-          <Detail label="Home unit">{user.home_unit?.name}</Detail>
+          <Detail label="Company">{user.organization && `${user.organization.name} (${user.organization.code})`}</Detail>
+          <Detail label="Works in">{user.home_unit?.name}</Detail>
           <Detail label="Timezone">{user.timezone}</Detail>
         </div>
         <p className="muted small" style={{ marginBottom: 0 }}>

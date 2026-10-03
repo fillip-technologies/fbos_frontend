@@ -5,6 +5,10 @@ client administrator (the person a platform admin invites when creating a client
 everything; other users see only the pages and actions their permissions allow. Runs on
 **http://localhost:5174**, next to `superadmin/` (:5173).
 
+**Naming:** on screen an organization is called a **company**, and its org units (branches,
+departments, teams) the **company structure**; a person's home unit shows as **"Works in"**.
+The API, routes and code keep the original names (`organizations`, `org-units`, `home_unit_id`).
+
 ## What it does
 
 - **Sign in** (`/auth/login`, optional organization code, MFA step). Any user who belongs to an
@@ -22,15 +26,21 @@ everything; other users see only the pages and actions their permissions allow. 
   permissions (scope, source role, granted by / at) with an access editor.
 - **Roles** (`/roles`): the role presets of an organization and their permissions; create custom
   roles and edit their permissions (the built-in `admin` role is read-only).
-- **Org units** (`/org-units`, `/org-units/new`, `/org-units/:id`): the company → branch → department →
-  team tree. Create (only valid parent types are offered: branch under company; department under
-  company, branch or department; team under department), rename, set the head and working calendar,
-  move a unit with everything below it (with a reason), and deactivate / reactivate. The unit page
-  lists its sub-units and the people placed in it or below it.
+- **Org units** (`/org-units`, `/org-units/new`, `/org-units/:id`): the branch → department → team
+  tree. The organization itself is the company, so there is no company unit: branches sit directly
+  under the organization (no parent), departments under a branch or another department, teams under
+  a department. Create (only valid parent types are offered), rename, set the head and working
+  calendar, move a department or team with everything below it (with a reason; branches stay at the
+  top), and deactivate / reactivate. The unit page lists its sub-units and the people placed in it or
+  below it.
 - **Working calendars** (`/calendars`): create a calendar with timezone and weekly hours (several
   ranges per day for breaks), and edit its holiday list. Saving holidays replaces the whole list.
-  The backend can't rename a calendar or change its hours after creation. A new sub-unit takes its
-  parent's calendar unless another is picked.
+  The backend can't rename a calendar or change its hours after creation.
+- **Organization calendar**: each organization picks one of its calendars as its own (organization
+  page, or "Use for organization" on the calendars page; client admins). A new branch starts on it,
+  a new sub-unit takes its parent's calendar unless another is picked, and when the organization
+  calendar changes, units on the previous one (or on none) switch with it. It can be replaced, not
+  removed.
 - **My profile** (`/profile`, linked under your name in the sidebar): account details, "email me a
   password reset link", and two-factor sign-in setup (QR code drawn in the browser from the
   `otpauth_uri`, a manual key, confirm with the first code, then recovery codes shown once).

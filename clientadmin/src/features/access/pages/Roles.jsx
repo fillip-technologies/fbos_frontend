@@ -32,7 +32,7 @@ export default function Roles() {
         <div>
           <h1>Roles</h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
-            Ready-made sets of permissions for {activeOrg ? `“${activeOrg.name}”` : 'this organization'}. Applying a role
+            Ready-made sets of permissions for {activeOrg ? `“${activeOrg.name}”` : 'this company'}. Applying a role
             copies its permissions onto the user; you can then adjust them per user.
           </p>
         </div>
@@ -139,7 +139,7 @@ function RoleForm({ orgId, catalog, role, onCancel, onSaved }) {
           <div className="field">
             <label htmlFor="r-code">Code *</label>
             <input id="r-code" value={code} onChange={(e) => setCode(e.target.value)} required pattern="[A-Za-z0-9_\-]+" placeholder="team_lead" />
-            <div className="hint">Letters, digits, “_” and “-”. Unique in this organization.</div>
+            <div className="hint">Letters, digits, “_” and “-”. Unique in this company.</div>
             {fieldErrors.code && <div className="field-error">{fieldErrors.code}</div>}
           </div>
         </div>

@@ -117,7 +117,7 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
                   <UnitSelect
                     units={units}
                     value={preset.scope_unit_id}
-                    emptyLabel="Whole organization"
+                    emptyLabel="Whole company"
                     onChange={(id) => updatePreset(preset.key, { scope_unit_id: id })}
                   />
                 </div>
@@ -155,7 +155,7 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
         <div className="section-head">
           <div>
             <h3>Individual permissions</h3>
-            <p className="muted">Grant specific actions directly. Each can cover the whole organization or one unit and everything below it.</p>
+            <p className="muted">Grant specific actions directly. Each can cover the whole company or one branch, department or team and everything under it.</p>
           </div>
         </div>
         {groups.map((group) => (
@@ -191,7 +191,7 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
                             <UnitSelect
                               units={units}
                               value={entry.scope_unit_id}
-                              emptyLabel="Whole organization"
+                              emptyLabel="Whole company"
                               onChange={(id) => updateEntry(entry.key, { scope_unit_id: id })}
                             />
                             <label className="inline-check">

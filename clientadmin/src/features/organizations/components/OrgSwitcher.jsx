@@ -8,7 +8,7 @@ export default function OrgSwitcher({ onChange }) {
   }
   return (
     <label className="org-switcher">
-      <span className="muted small">Organization</span>
+      <span className="muted small">Company</span>
       <select
         value={activeOrg?.id || ''}
         onChange={(e) => {

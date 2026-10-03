@@ -155,7 +155,7 @@ export default function UserDetail() {
             <Detail label="Phone">{user.phone}</Detail>
             <Detail label="Employee code">{user.employee_code && <span className="mono">{user.employee_code}</span>}</Detail>
             <Detail label="User type">{USER_TYPE_LABELS[user.user_type] || user.user_type}</Detail>
-            <Detail label="Home unit">{user.home_unit && `${user.home_unit.name} (${user.home_unit.unit_type})`}</Detail>
+            <Detail label="Works in">{user.home_unit && `${user.home_unit.name} (${user.home_unit.unit_type})`}</Detail>
             <Detail label="Reports to">{user.manager && <Link to={`/users/${user.manager.id}`}>{user.manager.name}</Link>}</Detail>
             <Detail label="Two-factor sign-in">{user.mfa_enabled ? 'Enabled' : 'Not set up'}</Detail>
             <Detail label="Last sign-in">{user.last_login_at && formatDateTime(user.last_login_at)}</Detail>
@@ -182,7 +182,7 @@ export default function UserDetail() {
         </div>
 
         {isTenantAdmin ? (
-          <div className="alert info">Client administrators have full access to every organization of your account. Their access can't be narrowed.</div>
+          <div className="alert info">Client administrators have full access to every company of your account. Their access can't be narrowed.</div>
         ) : !access ? (
           <p className="muted">You don't have permission to view this user's access.</p>
         ) : mode === 'access' ? (
@@ -204,7 +204,7 @@ export default function UserDetail() {
                 <div className="chips">
                   {presets.map((a) => (
                     <span key={a.id} className="chip" title={a.granted_by ? `Applied by ${a.granted_by.name}` : undefined}>
-                      {a.role.name} · {a.scope_unit ? `${a.scope_unit.name} and below` : 'whole organization'}
+                      {a.role.name} · {a.scope_unit ? `${a.scope_unit.name} and below` : 'whole company'}
                       {a.self_only ? ' · own records' : ''}
                     </span>
                   ))}
@@ -320,9 +320,9 @@ function ProfileForm({ orgId, user, units, managers, onCancel, onSaved }) {
           {fieldErrors.phone && <div className="field-error">{fieldErrors.phone}</div>}
         </div>
         <div className="field">
-          <label htmlFor="e-unit">Home unit</label>
-          <UnitSelect id="e-unit" units={units} value={form.home_unit_id} emptyLabel="— Not placed in a unit —" onChange={(id) => set('home_unit_id', id)} />
-          <div className="hint">Moving someone needs access in the new unit too.</div>
+          <label htmlFor="e-unit">Works in</label>
+          <UnitSelect id="e-unit" units={units} value={form.home_unit_id} emptyLabel="— Not placed yet —" onChange={(id) => set('home_unit_id', id)} />
+          <div className="hint">Moving someone needs access where they move to as well.</div>
           {fieldErrors.home_unit_id && <div className="field-error">{fieldErrors.home_unit_id}</div>}
         </div>
         <div className="field">

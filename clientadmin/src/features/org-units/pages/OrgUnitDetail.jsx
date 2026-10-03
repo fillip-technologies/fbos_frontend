@@ -10,7 +10,7 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
-import { breadcrumb, childTypesFor, parentCandidates, sortedTree, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
+import { breadcrumb, childTypesFor, isTopLevelType, parentCandidates, sortedTree, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
 import { formatDateTime } from '@/features/users/utils.js'
 
 function Detail({ label, children }) {
@@ -27,7 +27,7 @@ export default function OrgUnitDetail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user: me } = useAuth()
-  const { orgId } = useActiveOrg()
+  const { orgId, activeOrg } = useActiveOrg()
   const canUpdate = hasAccess(me, ACCESS.updateOrgUnit)
   const canMove = hasAccess(me, ACCESS.moveOrgUnit)
   const canCreate = hasAccess(me, ACCESS.createOrgUnit)
@@ -81,7 +81,7 @@ export default function OrgUnitDetail() {
     return (
       <div>
         <ErrorBanner error={error} onRetry={load} />
-        <Link className="btn secondary" to="/org-units">← Back to org units</Link>
+        <Link className="btn secondary" to="/org-units">← Back to company structure</Link>
       </div>
     )
 
@@ -126,7 +126,7 @@ export default function OrgUnitDetail() {
           {mode === null && (
             <div className="row-actions">
               {canUpdate && isActive && <button className="btn secondary" onClick={() => setMode('edit')}>Edit</button>}
-              {canMove && isActive && unit.unit_type !== 'company' && (
+              {canMove && isActive && !isTopLevelType(unit.unit_type) && (
                 <button className="btn secondary" onClick={() => setMode('move')}>Move…</button>
               )}
               {canUpdate && (
@@ -139,14 +139,16 @@ export default function OrgUnitDetail() {
         </div>
 
         {mode === 'edit' ? (
-          <EditForm orgId={orgId} unit={unit} people={people} calendars={calendars} onCancel={() => setMode(null)} onSaved={() => done('Unit saved.')} />
+          <EditForm orgId={orgId} unit={unit} people={people} calendars={calendars} onCancel={() => setMode(null)} onSaved={() => done('Saved.')} />
         ) : (
           <div className="details-grid">
             <Detail label="Name">{unit.name}</Detail>
             <Detail label="Code"><span className="mono">{unit.code}</span></Detail>
             <Detail label="Type">{UNIT_TYPE_LABELS[unit.unit_type] || unit.unit_type}</Detail>
-            <Detail label="Parent">
-              {unit.parent_id && (unitsById[unit.parent_id] ? <Link to={`/org-units/${unit.parent_id}`}>{unitsById[unit.parent_id].name}</Link> : 'Unknown unit')}
+            <Detail label="Sits under">
+              {unit.parent_id
+                ? (unitsById[unit.parent_id] ? <Link to={`/org-units/${unit.parent_id}`}>{unitsById[unit.parent_id].name}</Link> : 'Unknown place')
+                : <span className="muted">Directly under the company</span>}
             </Detail>
             <Detail label="Head">{unit.head_user && <Link to={`/users/${unit.head_user.id}`}>{unit.head_user.name}</Link>}</Detail>
             <Detail label="Working calendar">
@@ -156,6 +158,9 @@ export default function OrgUnitDetail() {
                 ) : (
                   'Assigned'
                 ))}
+              {unit.calendar_id && unit.calendar_id === activeOrg?.calendar_id && (
+                <span className="muted small"> · the company calendar</span>
+              )}
             </Detail>
             <Detail label="Created">{formatDateTime(unit.created_at)}</Detail>
             <Detail label="Last changed">{formatDateTime(unit.updated_at)}</Detail>
@@ -172,7 +177,7 @@ export default function OrgUnitDetail() {
             activeChildren={activeChildren}
             directMemberCount={members?.filter((m) => m.home_unit?.id === unit.id).length}
             onCancel={() => setMode(null)}
-            onDone={(u) => done(u.status === 'active' ? 'Unit reactivated.' : 'Unit deactivated.')}
+            onDone={(u) => done(u.status === 'active' ? 'Reactivated.' : 'Deactivated.')}
           />
         )}
       </div>
@@ -180,7 +185,7 @@ export default function OrgUnitDetail() {
       {/* ---------------- Sub-units ---------------- */}
       <div className="panel form-section">
         <div className="section-head">
-          <h2>Sub-units ({children.length})</h2>
+          <h2>Under {unit.name} ({children.length})</h2>
           {canCreate && childTypes.length > 0 && (
             <button className="btn secondary" onClick={() => navigate(`/org-units/new?parent=${unit.id}`)}>+ Add under {unit.name}</button>
           )}
@@ -189,7 +194,7 @@ export default function OrgUnitDetail() {
           <p className="muted">
             {childTypes.length
               ? `Nothing here yet. A ${UNIT_TYPE_LABELS[unit.unit_type].toLowerCase()} can contain: ${childTypes.map((t) => UNIT_TYPE_LABELS[t].toLowerCase()).join(', ')}.`
-              : 'Teams are the lowest level and have no sub-units.'}
+              : 'Teams are the lowest level; nothing sits under a team.'}
           </p>
         ) : (
           <table className="compact">
@@ -215,11 +220,11 @@ export default function OrgUnitDetail() {
           <div className="section-head">
             <div>
               <h2>People ({members.length}{members.length === 100 ? '+' : ''})</h2>
-              <p className="muted small" style={{ margin: '2px 0 0' }}>Placed in this unit or any unit below it.</p>
+              <p className="muted small" style={{ margin: '2px 0 0' }}>Placed here or anywhere under it.</p>
             </div>
           </div>
           {members.length === 0 ? (
-            <p className="muted">Nobody is placed in this unit or below it.</p>
+            <p className="muted">Nobody is placed here or under it.</p>
           ) : (
             <table className="compact">
               <tbody>
@@ -280,7 +285,7 @@ function EditForm({ orgId, unit, people, calendars, onCancel, onSaved }) {
         </div>
         {headOptions && (
           <div className="field">
-            <label htmlFor="ue-head">Head of unit</label>
+            <label htmlFor="ue-head">Head</label>
             <select id="ue-head" value={headId} onChange={(e) => setHeadId(e.target.value)}>
               {/* The backend can replace a head but not remove one, so "none" is offered only while there is none. */}
               {!unit.head_user && <option value="">— None —</option>}
@@ -302,12 +307,12 @@ function EditForm({ orgId, unit, people, calendars, onCancel, onSaved }) {
                 <option key={c.id} value={c.id}>{c.name} ({c.timezone})</option>
               ))}
             </select>
-            <div className="hint">Changing it here doesn't change sub-units that already exist.</div>
+            <div className="hint">Changing it here doesn't change what already sits under it.</div>
             {fieldErrors.calendar_id && <div className="field-error">{fieldErrors.calendar_id}</div>}
           </div>
         )}
       </div>
-      <p className="muted small">The code and type are fixed. To change where this unit sits, use Move.</p>
+      <p className="muted small">The code and type are fixed. To change where it sits, use Move.</p>
       <div className="row-actions">
         <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         <button className="btn secondary" type="button" onClick={onCancel}>Cancel</button>
@@ -345,7 +350,7 @@ function MoveForm({ orgId, unit, units, onCancel, onMoved }) {
       </p>
       {error && <div className="alert error">{friendlyMessage(error)}</div>}
       {candidates.length === 0 ? (
-        <p className="muted">There is no other unit a {UNIT_TYPE_LABELS[unit.unit_type].toLowerCase()} can be moved under.</p>
+        <p className="muted">There is nowhere else a {UNIT_TYPE_LABELS[unit.unit_type].toLowerCase()} can be moved under.</p>
       ) : (
         <div className="grid-2">
           <div className="field">
@@ -360,7 +365,7 @@ function MoveForm({ orgId, unit, units, onCancel, onMoved }) {
         </div>
       )}
       <div className="row-actions">
-        <button className="btn" type="submit" disabled={saving || !parentId || !reason.trim()}>{saving ? 'Moving…' : 'Move unit'}</button>
+        <button className="btn" type="submit" disabled={saving || !parentId || !reason.trim()}>{saving ? 'Moving…' : 'Move'}</button>
         <button className="btn secondary" type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
@@ -391,23 +396,23 @@ function StatusForm({ orgId, unit, activeChildren, directMemberCount, onCancel, 
       {deactivating ? (
         <>
           <p className="muted small">
-            It disappears from unit pickers, so nobody new can be placed in it. Existing people and access are not changed.
+            It disappears from pickers, so nobody new can be placed in it. Existing people and access are not changed.
           </p>
           {(activeChildren.length > 0 || directMemberCount > 0) && (
             <div className="alert warn">
-              {activeChildren.length > 0 && <div>It still has {activeChildren.length} active sub-unit{activeChildren.length === 1 ? '' : 's'}, which stay active.</div>}
-              {directMemberCount > 0 && <div>{directMemberCount} {directMemberCount === 1 ? 'person has' : 'people have'} it as their home unit.</div>}
+              {activeChildren.length > 0 && <div>{activeChildren.length} active {activeChildren.length === 1 ? 'place sits under it and stays' : 'places sit under it and stay'} active.</div>}
+              {directMemberCount > 0 && <div>{directMemberCount} {directMemberCount === 1 ? 'person is' : 'people are'} placed in it.</div>}
               <div>Consider moving them first.</div>
             </div>
           )}
         </>
       ) : (
-        <p className="muted small">It becomes available in unit pickers again.</p>
+        <p className="muted small">It can be picked again when placing people.</p>
       )}
       {error && <div className="alert error">{friendlyMessage(error)}</div>}
       <div className="row-actions">
         <button className={deactivating ? 'btn danger' : 'btn'} type="submit" disabled={saving}>
-          {saving ? 'Saving…' : deactivating ? 'Deactivate unit' : 'Reactivate unit'}
+          {saving ? 'Saving…' : deactivating ? 'Deactivate' : 'Reactivate'}
         </button>
         <button className="btn secondary" type="button" onClick={onCancel}>Cancel</button>
       </div>

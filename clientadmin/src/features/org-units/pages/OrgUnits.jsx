@@ -9,7 +9,8 @@ import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { breadcrumb, childTypesFor, sortedTree, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
 
-// The organization's structure: company → branch → department → team, as an indented tree.
+// The organization's structure, as an indented tree. The organization itself is the company:
+// branches sit directly under it, then departments and teams.
 export default function OrgUnits() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -54,15 +55,15 @@ export default function OrgUnits() {
     <div>
       <div className="page-head">
         <div>
-          <h1>Org units</h1>
+          <h1>Company structure</h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
-            How {activeOrg ? `“${activeOrg.name}”` : 'this organization'} is structured. Users belong to a unit, and access
-            can be limited to a unit and everything below it.
+            How {activeOrg ? `“${activeOrg.name}”` : 'this company'} is organized into branches, departments and teams. Each person works
+            in one of them, and access can be limited to one and everything under it.
           </p>
         </div>
         <div className="row-actions">
           <OrgSwitcher />
-          {canCreate && units.length > 0 && <Link className="btn" to="/org-units/new">+ New unit</Link>}
+          {canCreate && units.length > 0 && <Link className="btn" to="/org-units/new">+ Add</Link>}
         </div>
       </div>
 
@@ -71,12 +72,13 @@ export default function OrgUnits() {
 
       {!loading && !error && units.length === 0 ? (
         <div className="panel empty-state">
-          <h2>No units yet</h2>
+          <h2>No branches yet</h2>
           <p className="muted">
-            Start with your company. Then add branches, departments and teams under it.
+            Start {activeOrg ? `“${activeOrg.name}”` : 'the company'} with a branch (an office or location), then add
+            departments and teams under it.
           </p>
           {canCreate ? (
-            <Link className="btn" to="/org-units/new?type=company">+ Create the company unit</Link>
+            <Link className="btn" to="/org-units/new?type=branch">+ Create the first branch</Link>
           ) : (
             <p className="muted small">Ask an administrator to set up the structure.</p>
           )}
@@ -97,7 +99,7 @@ export default function OrgUnits() {
             <table>
               <thead>
                 <tr>
-                  <th>Unit</th>
+                  <th>Name</th>
                   <th>Code</th>
                   <th>Type</th>
                   <th>Head</th>
@@ -109,7 +111,7 @@ export default function OrgUnits() {
                 {loading ? (
                   <tr><td colSpan={6} className="center-note">Loading…</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={6} className="center-note">No units match.</td></tr>
+                  <tr><td colSpan={6} className="center-note">Nothing matches.</td></tr>
                 ) : (
                   rows.map((u) => {
                     const childTypes = u.status === 'active' ? childTypesFor(u.unit_type) : []

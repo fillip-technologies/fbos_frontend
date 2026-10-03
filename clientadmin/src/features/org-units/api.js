@@ -2,7 +2,7 @@ import { api, uuidv4 } from '@/shared/api/http.js'
 import { IDENTITY } from '@/shared/api/paths.js'
 import { inOrg, listAll } from '@/shared/api/query.js'
 
-// ---------- Org units: the company → branch → department → team structure ----------
+// ---------- Org units: the branch → department → team structure (the organization is the company) ----------
 export const orgUnitsApi = {
   // Every unit, active and inactive, for the structure screen.
   listAll: (orgId) => listAll(`${IDENTITY}/org-units`, orgId),

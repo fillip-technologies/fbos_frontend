@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { calendarsApi } from '@/features/calendars/api.js'
 import { orgUnitsApi } from '@/features/org-units/api.js'
+import { organizationsApi } from '@/features/organizations/api.js'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
@@ -12,13 +13,16 @@ import { cleanWeek, DAYS, dayError, summarizeWeek, timezones, WEEK_PRESETS } fro
 import { todayIso } from '@/shared/utils/dates.js'
 import { formatDate } from '@/shared/utils/format.js'
 
-// Working calendars: weekly hours and public holidays. Org units point at one (a new
+// Working calendars: weekly hours and public holidays. The organization uses one as its
+// calendar, and org units point at one (a new branch starts on the organization's, a new
 // sub-unit inherits its parent's when none is chosen).
 export default function Calendars() {
   const { user } = useAuth()
-  const { orgId, activeOrg } = useActiveOrg()
+  const { orgId, activeOrg, reload: reloadOrgs } = useActiveOrg()
   const canCreate = hasAccess(user, ACCESS.createCalendar)
   const canUpdate = hasAccess(user, ACCESS.updateCalendar)
+  // Choosing the organization calendar is an organization setting (client admins).
+  const canSetOrgCalendar = hasAccess(user, ACCESS.organizations)
 
   const [calendars, setCalendars] = useState([])
   const [units, setUnits] = useState([])
@@ -53,14 +57,27 @@ export default function Calendars() {
     load()
   }
 
+  async function makeOrganizationCalendar(cal) {
+    setError(null)
+    setNotice('')
+    try {
+      await organizationsApi.update(orgId, { calendar_id: cal.id })
+      reloadOrgs()
+      saved(`“${cal.name}” is now the company calendar. Branches, departments and teams that were on the previous one (or on none) use it too.`)
+    } catch (err) {
+      setError(err)
+    }
+  }
+
   return (
     <div>
       <div className="page-head">
         <div>
           <h1>Working calendars</h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
-            Working hours and holidays for {activeOrg ? `“${activeOrg.name}”` : 'this organization'}. Each org unit can use
-            one; a new sub-unit takes its parent's calendar unless you pick another.
+            Working hours and holidays for {activeOrg ? `“${activeOrg.name}”` : 'this company'}. The company uses one
+            as its calendar and new branches start on it; a new department or team takes the calendar of what it sits
+            under unless you pick another.
           </p>
         </div>
         <div className="row-actions">
@@ -79,7 +96,7 @@ export default function Calendars() {
           orgId={orgId}
           defaultTimezone={activeOrg?.timezone}
           onCancel={() => setEditing(null)}
-          onSaved={(c) => saved(`Calendar “${c.name}” created. Add its holidays below, then pick it on your org units.`)}
+          onSaved={(c) => saved(`Calendar “${c.name}” created. Add its holidays below, then use it for the company or pick it for a branch, department or team.`)}
         />
       )}
 
@@ -88,28 +105,36 @@ export default function Calendars() {
       ) : calendars.length === 0 && editing !== 'new' ? (
         <div className="panel empty-state">
           <h2>No calendars yet</h2>
-          <p className="muted">Create one with your office hours, add the year's holidays, then assign it to your company unit.</p>
+          <p className="muted">Create one with your office hours, add the year's holidays, then use it as the company calendar.</p>
           {canCreate && <button className="btn" onClick={() => setEditing('new')}>+ New calendar</button>}
         </div>
       ) : (
         calendars.map((cal) => {
           const used = unitsByCalendar[cal.id] || []
+          const isOrgCalendar = cal.id === activeOrg?.calendar_id
           return (
             <div key={cal.id} className={`panel role-card${editing === cal.id ? ' editing' : ''}`}>
               <div className="section-head">
                 <div>
-                  <h2>{cal.name}</h2>
+                  <h2>
+                    {cal.name} {isOrgCalendar && <span className="chip subtle">Company calendar</span>}
+                  </h2>
                   <p className="muted small" style={{ margin: '2px 0 0' }}>
                     {cal.timezone} · {summarizeWeek(cal.weekly_hours)}
                   </p>
                 </div>
-                {canUpdate && editing !== cal.id && (
-                  <button className="btn secondary" onClick={() => setEditing(cal.id)}>Edit holidays</button>
+                {editing !== cal.id && (
+                  <div className="row-actions">
+                    {canSetOrgCalendar && !isOrgCalendar && (
+                      <button className="btn secondary" onClick={() => makeOrganizationCalendar(cal)}>Use for company</button>
+                    )}
+                    {canUpdate && <button className="btn secondary" onClick={() => setEditing(cal.id)}>Edit holidays</button>}
+                  </div>
                 )}
               </div>
               <div className="muted small">
                 {used.length === 0
-                  ? 'Not used by any org unit yet.'
+                  ? 'Not used in the company structure yet.'
                   : (
                     <>
                       Used by{' '}

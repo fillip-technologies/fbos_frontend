@@ -17,13 +17,13 @@ export const NAV_ITEMS = [
   },
   {
     to: '/organizations',
-    label: 'Organizations',
+    label: 'Companies',
     access: ACCESS.organizations,
     icon: icon(<><path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16" /><path d="M14 9h5a1 1 0 0 1 1 1v11" /><path d="M8 8h2M8 12h2M8 16h2" /></>),
   },
   {
     to: '/org-units',
-    label: 'Org units',
+    label: 'Company structure',
     access: ACCESS.orgUnits,
     icon: icon(<><rect x="9" y="3" width="6" height="5" rx="1" /><rect x="3" y="16" width="6" height="5" rx="1" /><rect x="15" y="16" width="6" height="5" rx="1" /><path d="M12 8v4M6 16v-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2" /></>),
   },

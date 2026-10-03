@@ -14,10 +14,12 @@ export const ENTITY_LABELS = {
   user_permission: 'User permissions',
   role: 'Roles',
   role_assignment: 'Role presets on users',
-  org_unit: 'Organization units',
+  org_unit: 'Company structure',
   calendar: 'Calendars',
   field_definition: 'Custom fields',
   vertical_pack: 'Vertical packs',
+  session: 'Sign-in sessions',
+  audit_log: 'Security audit log',
   deal: 'Deals',
 }
 
@@ -54,7 +56,7 @@ export function unitTree(units) {
 }
 
 export function scopeLabel(unitId, unitsById, selfOnly) {
-  const where = unitId ? `${unitsById[unitId]?.name || 'Unknown unit'} and below` : 'Whole organization'
+  const where = unitId ? `${unitsById[unitId]?.name || 'Unknown place'} and below` : 'Whole company'
   return selfOnly ? `${where} · own records only` : where
 }
 

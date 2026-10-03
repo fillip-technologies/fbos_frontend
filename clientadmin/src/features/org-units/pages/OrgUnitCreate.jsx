@@ -8,7 +8,7 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
-import { childTypesFor, parentCandidates, sortedTree, UNIT_TYPES, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
+import { childTypesFor, isTopLevelType, parentCandidates, sortedTree, UNIT_TYPES, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
 
 // "Sales Team North" -> "SALES-TEAM-NORTH" (letters, digits and dashes only).
 const suggestCode = (name) =>
@@ -19,24 +19,27 @@ const suggestCode = (name) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 40)
 
-// The "no choice" option: a new unit takes its parent's calendar (backend rule).
-function inheritedLabel(parent, calendars) {
-  if (!parent) return '— None —'
-  const inherited = calendars.find((c) => c.id === parent.calendar_id)
-  return inherited ? `— Same as ${parent.name}: ${inherited.name} —` : `— Same as ${parent.name} (none) —`
+// The "no choice" option: a new unit takes its parent's calendar, and a branch takes the
+// organization's (backend rule).
+function inheritedLabel(parent, org, calendars) {
+  const source = parent || org
+  if (!source) return '— None —'
+  const sourceName = parent ? parent.name : 'the company'
+  const inherited = calendars.find((c) => c.id === source.calendar_id)
+  return inherited ? `— Same as ${sourceName}: ${inherited.name} —` : `— Same as ${sourceName} (none) —`
 }
 
 export default function OrgUnitCreate() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const { orgId } = useActiveOrg()
+  const { orgId, activeOrg } = useActiveOrg()
 
   const [units, setUnits] = useState([])
   const [people, setPeople] = useState([])
   const [calendars, setCalendars] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
-  const [form, setForm] = useState({ unit_type: params.get('type') || '', parent_id: params.get('parent') || null, name: '', code: '', head_user_id: '', calendar_id: '' })
+  const [form, setForm] = useState({ unit_type: UNIT_TYPE_LABELS[params.get('type')] ? params.get('type') : '', parent_id: params.get('parent') || null, name: '', code: '', head_user_id: '', calendar_id: '' })
   const [codeTouched, setCodeTouched] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -74,14 +77,14 @@ export default function OrgUnitCreate() {
 
   const typeOptions = parent ? UNIT_TYPES.filter((t) => childTypesFor(parent.unit_type).includes(t.value)) : UNIT_TYPES
   const candidates = form.unit_type ? parentCandidates(units, form.unit_type) : []
-  const needsParent = form.unit_type && form.unit_type !== 'company'
+  const needsParent = form.unit_type && !isTopLevelType(form.unit_type)
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
   function setType(unitType) {
     setForm((f) => {
       const next = { ...f, unit_type: unitType }
       // Drop a parent the new type can't sit under.
-      if (unitType === 'company' || (f.parent_id && !parentCandidates(units, unitType).some((u) => u.id === f.parent_id))) {
+      if (isTopLevelType(unitType) || (f.parent_id && !parentCandidates(units, unitType).some((u) => u.id === f.parent_id))) {
         next.parent_id = null
       }
       return next
@@ -116,13 +119,13 @@ export default function OrgUnitCreate() {
   if (loading) return <div className="center-note">Loading…</div>
   if (loadError) return <ErrorBanner error={loadError} />
 
-  const hasCompany = units.some((u) => u.unit_type === 'company' && u.status === 'active')
+  const hasBranch = units.some((u) => isTopLevelType(u.unit_type) && u.status === 'active')
 
   return (
     <div>
       <div className="page-head">
         <div>
-          <h1>New org unit</h1>
+          <h1>Add to company structure</h1>
           {parent && <p className="muted small" style={{ margin: '4px 0 0' }}>Under {parent.name} ({UNIT_TYPE_LABELS[parent.unit_type]})</p>}
         </div>
         <div className="row-actions">
@@ -138,7 +141,7 @@ export default function OrgUnitCreate() {
           <label>Type *</label>
           <div className="type-cards">
             {typeOptions.map((t) => {
-              const disabled = t.value !== 'company' && !hasCompany && !parent
+              const disabled = !isTopLevelType(t.value) && !hasBranch && !parent
               return (
                 <label key={t.value} className={`type-card${form.unit_type === t.value ? ' selected' : ''}${disabled ? ' disabled' : ''}`}>
                   <input type="radio" name="unit_type" value={t.value} checked={form.unit_type === t.value} disabled={disabled} onChange={() => setType(t.value)} />
@@ -148,13 +151,13 @@ export default function OrgUnitCreate() {
               )
             })}
           </div>
-          {!hasCompany && !parent && <div className="hint">Create the company unit first; everything else sits under it.</div>}
+          {!hasBranch && !parent && <div className="hint">Create a branch first; departments and teams sit under it.</div>}
           {fieldErrors.unit_type && <div className="field-error">{fieldErrors.unit_type}</div>}
         </div>
 
         {needsParent && (
           <div className="field">
-            <label htmlFor="u-parent">Parent unit *</label>
+            <label htmlFor="u-parent">Sits under *</label>
             <UnitSelect
               id="u-parent"
               units={candidates}
@@ -164,7 +167,7 @@ export default function OrgUnitCreate() {
             />
             <div className="hint">
               A {UNIT_TYPE_LABELS[form.unit_type].toLowerCase()} can sit under:{' '}
-              {{ branch: 'a company', department: 'a company, branch or department', team: 'a department' }[form.unit_type]}.
+              {{ department: 'a branch or another department', team: 'a department' }[form.unit_type]}.
             </div>
             {fieldErrors.parent_id && <div className="field-error">{fieldErrors.parent_id}</div>}
           </div>
@@ -191,7 +194,7 @@ export default function OrgUnitCreate() {
               maxLength={100}
               placeholder="SALES"
             />
-            <div className="hint">Letters, digits and dashes. Unique in this organization; it can't be changed later.</div>
+            <div className="hint">Letters, digits and dashes. Unique in this company; it can't be changed later.</div>
             {fieldErrors.code && <div className="field-error">{fieldErrors.code}</div>}
           </div>
         </div>
@@ -199,7 +202,7 @@ export default function OrgUnitCreate() {
         <div className="grid-2">
           {people && (
             <div className="field">
-              <label htmlFor="u-head">Head of unit</label>
+              <label htmlFor="u-head">Head</label>
               <select id="u-head" value={form.head_user_id} onChange={(e) => set('head_user_id', e.target.value)}>
                 <option value="">— None for now —</option>
                 {people.map((p) => (
@@ -213,7 +216,7 @@ export default function OrgUnitCreate() {
             <div className="field">
               <label htmlFor="u-cal">Working calendar</label>
               <select id="u-cal" value={form.calendar_id} onChange={(e) => set('calendar_id', e.target.value)}>
-                <option value="">{inheritedLabel(needsParent ? parent : null, calendars)}</option>
+                <option value="">{inheritedLabel(needsParent ? parent : null, activeOrg, calendars)}</option>
                 {calendars.map((c) => (
                   <option key={c.id} value={c.id}>{c.name} ({c.timezone})</option>
                 ))}
@@ -226,7 +229,7 @@ export default function OrgUnitCreate() {
 
         <div className="row-actions">
           <button className="btn" type="submit" disabled={saving || !form.unit_type || (needsParent && !form.parent_id)}>
-            {saving ? 'Creating…' : 'Create unit'}
+            {saving ? 'Creating…' : form.unit_type ? `Create ${UNIT_TYPE_LABELS[form.unit_type].toLowerCase()}` : 'Create'}
           </button>
           <Link className="btn secondary" to="/org-units">Cancel</Link>
         </div>

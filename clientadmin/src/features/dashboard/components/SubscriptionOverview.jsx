@@ -54,16 +54,16 @@ export default function SubscriptionOverview() {
           </div>
         </div>
         <div className="panel">
-          <div className="stat-label">Organizations</div>
+          <div className="stat-label">Companies</div>
           <div className="stat-value">
             {orgCount} / {client.max_organizations}
           </div>
           <div className="stat-sub">
-            <Link to="/organizations">Manage organizations</Link>
+            <Link to="/organizations">Manage companies</Link>
           </div>
         </div>
         <div className="panel">
-          <div className="stat-label">Users per organization</div>
+          <div className="stat-label">Users per company</div>
           <div className="stat-value">up to {client.max_users_per_org}</div>
           <div className="stat-sub">
             <Link to="/users">Manage users</Link>

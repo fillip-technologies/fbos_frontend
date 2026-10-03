@@ -61,7 +61,7 @@ export default function Users() {
         <div>
           <h1>Users</h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
-            Employees, contractors and client users of {activeOrg ? `“${activeOrg.name}”` : 'this organization'}, with
+            Employees, contractors and client users of {activeOrg ? `“${activeOrg.name}”` : 'this company'}, with
             the access each one holds.
           </p>
         </div>
@@ -91,7 +91,7 @@ export default function Users() {
             <option key={s} value={s}>{s ? s[0].toUpperCase() + s.slice(1) : 'All statuses'}</option>
           ))}
         </select>
-        <UnitSelect units={units} value={filters.unit_id} emptyLabel="All units" onChange={(id) => setFilter('unit_id', id)} />
+        <UnitSelect units={units} value={filters.unit_id} emptyLabel="Anywhere" onChange={(id) => setFilter('unit_id', id)} />
         <select value={filters.role_code} onChange={(e) => setFilter('role_code', e.target.value)}>
           <option value="">Any role</option>
           {roles.map((r) => (
@@ -108,7 +108,7 @@ export default function Users() {
               <th>User</th>
               <th>Employee code</th>
               <th>Type</th>
-              <th>Home unit</th>
+              <th>Works in</th>
               <th>Manager</th>
               <th>Status</th>
               <th>Last sign-in</th>

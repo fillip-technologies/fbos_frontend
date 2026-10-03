@@ -127,14 +127,14 @@ export default function UserInvite() {
             <div className="field">
               <label htmlFor="employee_code">Employee code</label>
               <input id="employee_code" className={inputClass('employee_code')} placeholder="FT-0142" value={profile.employee_code} onChange={(e) => set('employee_code', e.target.value)} />
-              <div className="hint">Optional. Unique within the organization.</div>
+              <div className="hint">Optional. Unique within the company.</div>
               {fieldError('employee_code')}
             </div>
           </div>
         </div>
 
         <div className="panel form-section">
-          <h2>2. Type and place in {activeOrg ? activeOrg.name : 'the organization'}</h2>
+          <h2>2. Type and place in {activeOrg ? activeOrg.name : 'the company'}</h2>
           <div className="type-cards">
             {INVITABLE_USER_TYPES.map((t) => (
               <label key={t.value} className={`type-card${profile.user_type === t.value ? ' selected' : ''}`}>
@@ -146,10 +146,10 @@ export default function UserInvite() {
           </div>
           <div className="grid-2" style={{ marginTop: 14 }}>
             <div className="field">
-              <label htmlFor="home_unit">Home unit</label>
-              <UnitSelect id="home_unit" className={inputClass('home_unit_id')} units={units} value={profile.home_unit_id} emptyLabel="— Not placed in a unit —" onChange={(id) => set('home_unit_id', id)} />
+              <label htmlFor="home_unit">Works in</label>
+              <UnitSelect id="home_unit" className={inputClass('home_unit_id')} units={units} value={profile.home_unit_id} emptyLabel="— Not placed yet —" onChange={(id) => set('home_unit_id', id)} />
               <div className="hint">
-                {units.length ? 'The team or department they belong to.' : 'This organization has no units yet.'}
+                {units.length ? 'The team or department they belong to.' : 'This company has no branches, departments or teams yet.'}
               </div>
               {fieldError('home_unit_id')}
             </div>
@@ -171,7 +171,7 @@ export default function UserInvite() {
         <div className="panel form-section">
           <h2>3. What can they do?</h2>
           <p className="muted small" style={{ marginTop: -6 }}>
-            Access is set per user. Start from a role preset, adjust individual permissions, and limit each one to a unit if needed.
+            Access is set per user. Start from a role preset, adjust individual permissions, and limit each one to a branch, department or team if needed.
           </p>
           {!canGrantAccess ? (
             <div className="alert info" style={{ marginBottom: 0 }}>

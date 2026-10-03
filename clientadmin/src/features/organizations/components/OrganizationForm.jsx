@@ -32,7 +32,7 @@ export default function OrganizationFields({ form, set, fieldErrors, isCreate })
           {fieldErrors.code ? (
             <div className="field-error">{fieldErrors.code}</div>
           ) : (
-            <div className="hint">{isCreate ? 'Unique slug used to identify the organization.' : 'Cannot be changed.'}</div>
+            <div className="hint">{isCreate ? 'Unique slug used to identify the company.' : 'Cannot be changed.'}</div>
           )}
         </div>
       </div>

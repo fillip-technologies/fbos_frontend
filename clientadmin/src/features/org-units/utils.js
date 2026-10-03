@@ -1,21 +1,23 @@
 // Org-unit structure rules, mirroring the identity backend (org_unit_service.ALLOWED_PARENTS).
+// The organization itself is the company, so the structure starts at branches.
 // The backend still enforces them; these only keep the forms from offering invalid choices.
 
 export const UNIT_TYPES = [
-  { value: 'company', label: 'Company', help: 'The top of the structure. Has no parent.' },
-  { value: 'branch', label: 'Branch', help: 'An office or location. Sits under a company.' },
-  { value: 'department', label: 'Department', help: 'A function such as Sales or Finance. Sits under a company, branch or department.' },
+  { value: 'branch', label: 'Branch', help: 'An office or location. Sits directly under the company.' },
+  { value: 'department', label: 'Department', help: 'A function such as Sales or Finance. Sits under a branch or another department.' },
   { value: 'team', label: 'Team', help: 'A working group. Sits under a department.' },
 ]
 
 export const UNIT_TYPE_LABELS = Object.fromEntries(UNIT_TYPES.map((t) => [t.value, t.label]))
 
 export const ALLOWED_PARENTS = {
-  company: [],
-  branch: ['company'],
-  department: ['company', 'branch', 'department'],
+  branch: [],
+  department: ['branch', 'department'],
   team: ['department'],
 }
+
+// Types that sit directly under the organization, with no parent unit.
+export const isTopLevelType = (unitType) => unitType === 'branch'
 
 // Unit types that can be created directly under a parent of `parentType`.
 export function childTypesFor(parentType) {

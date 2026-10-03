@@ -31,7 +31,7 @@ export default function Organizations() {
   return (
     <div>
       <div className="page-head">
-        <h1>Organizations</h1>
+        <h1>Companies</h1>
         <Link className="btn" to="/organizations/new">
           New organization
         </Link>
@@ -52,7 +52,7 @@ export default function Organizations() {
             {loading ? (
               <tr><td colSpan={5} className="center-note">Loading…</td></tr>
             ) : orgs.length === 0 ? (
-              <tr><td colSpan={5} className="center-note">No organizations yet.</td></tr>
+              <tr><td colSpan={5} className="center-note">No companies yet.</td></tr>
             ) : (
               orgs.map((o) => (
                 <tr key={o.id} onClick={() => navigate(`/organizations/${o.id}`)}>
