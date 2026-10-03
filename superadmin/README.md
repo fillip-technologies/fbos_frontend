@@ -58,8 +58,9 @@ npm run preview
 
 ```
 src/
-├── api/client.js          # fetch wrapper + auth/clients endpoints
-├── auth/AuthContext.jsx   # token persistence + platform_admin guard
-├── components/            # Layout, StatusBadge
-└── pages/                 # Login, ClientsList, ClientCreate, ClientDetail
+├── app/        # main.jsx, App.jsx (routes), layout/Layout.jsx, styles.css
+├── features/
+│   ├── auth/     # AuthContext, api.js, pages/Login
+│   └── clients/  # api.js, pages/ClientsList, ClientCreate, ClientDetail
+└── shared/     # api/ (http, session, errors, paths), components/, utils/
 ```

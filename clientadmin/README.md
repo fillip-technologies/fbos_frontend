@@ -40,7 +40,7 @@ Access is granted **per user**: each permission (`<service>.<entity>.<action>`) 
 whole organization or to one org unit and everything below it, optionally only to the user's own
 records. Roles are **presets** — applying one copies its permissions onto the user, which can then be
 adjusted individually. Changing a role later doesn't change users who already have it.
-`src/components/access/AccessEditor.jsx` is the editor used by both the invite and the user page.
+`src/features/access/components/AccessEditor.jsx` is the editor used by both the invite and the user page.
 
 When the client's service period ends (or the client is suspended) every sign-in and API call is
 rejected with `SUBSCRIPTION_EXPIRED`, and this app returns the user to the sign-in page.
@@ -49,11 +49,11 @@ rejected with `SUBSCRIPTION_EXPIRED`, and this app returns the user to the sign-
 
 Navigation is driven by access rules, so what a user sees depends on who they are:
 
-- `src/auth/access.js` — `hasAccess(user, rule)` and the `ACCESS` map (one rule per page, e.g.
+- `src/features/auth/access.js` — `hasAccess(user, rule)` and the `ACCESS` map (one rule per page, e.g.
   `{ permissions: ['identity.user.read'] }` or `{ userTypes: ['client_admin'] }`).
-- `src/navigation.jsx` — the sidebar items, each with its `access` rule; items the user can't
+- `src/app/navigation.jsx` — the sidebar items, each with its `access` rule; items the user can't
   open are hidden.
-- `src/components/RequireAccess.jsx` — wraps each route in `App.jsx` with the same rule, so a
+- `src/features/auth/components/RequireAccess.jsx` — wraps each route in `App.jsx` with the same rule, so a
   typed URL shows "no access" instead of the page.
 
 To add a page: add a rule to `ACCESS`, a sidebar entry in `NAV_ITEMS`, and a `<RequireAccess>` route.
@@ -76,5 +76,14 @@ service `.env` (default `http://localhost:5174`).
 
 ## Layout
 
-`src/api` (fetch wrapper + error mapping, copied from superadmin) · `src/auth` (session) ·
-`src/pages` · `src/components` · `src/utils` (date / fiscal-year formatting).
+```
+src/
+├── app/        # main.jsx, App.jsx (routes), navigation.jsx, layout/Layout.jsx, styles.css
+├── features/   # each: pages/, components/, api.js, utils.js
+│   ├── auth/ dashboard/ organizations/ users/ access/ org-units/ calendars/ profile/
+└── shared/     # api/ (http, session, errors, paths, query), components/, utils/
+```
+
+`@` aliases `src/`. Access rules: `features/auth/access.js`, `app/navigation.jsx`,
+`features/auth/components/RequireAccess.jsx`; the access editor is
+`features/access/components/AccessEditor.jsx`.
