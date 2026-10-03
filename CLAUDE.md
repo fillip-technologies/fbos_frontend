@@ -1,17 +1,15 @@
-# CLAUDE.md
+x# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Repository layout
 
-Two independent Vite apps, nothing at the repo root. Run npm commands inside the app's folder.
+Two independent Vite apps live in subdirectories, not the repo root. Run npm commands from inside the one you are working on:
 
-| App | Dev URL | Who signs in | What it does |
-|---|---|---|---|
-| **`superadmin/`** | http://localhost:5173 | The platform super-admin | **Clients** CRUD |
-| **`portal/`** | http://localhost:5180 | Client admins (*Client* tab) and organization members (*Organization* tab) | Client console: **Organizations** CRUD. Organization portal: overview + members |
+- **`superadmin/`** — platform super-admin console (:5173).
+- **`clientadmin/`** — client-admin console (:5174): organizations, users, subscription view, plus the invitation / password-reset pages the emails link to. See `clientadmin/README.md`.
 
-The apps share no code. `api/client.js`, `api/errors.js`, `components/ErrorBanner.jsx`, `components/StatusBadge.jsx` and `styles.css` started as copies — when fixing shared logic (error parsing, the fetch wrapper), fix it in both.
+The rest of this file describes `superadmin/`; `clientadmin/` reuses the same `api/client.js` + `api/errors.js` + `auth/AuthContext.jsx` structure plus the same `api/session.js` (refresh cookie `fbos_rt` / CSRF `fbos_csrf`, guard `user_type === 'client_admin'`).
 
 ## Commands
 
@@ -53,22 +51,43 @@ The production `preview`/`dist` builds have **no proxy** — they must be served
 
 Plain-JS **Vite + React 18 + react-router-dom v6**. Data flow is a thin stack over `fetch`; there is no state-management or data-fetching library. Pages call the API modules directly and hold their own `useState`.
 
-### The three layers to understand (same shape in both apps)
+Data flow is a thin stack over `fetch`; there is no state-management library or data-fetching library. Pages call the API modules directly and hold their own `useState`.
+
+### Sessions and token refresh (`src/api/session.js`)
+
+Identical file in both apps, configured at the top of each `api/client.js`:
+
+| | superadmin | clientadmin |
+|---|---|---|
+| Refresh | `POST /auth/platform/token/refresh` | `POST /auth/token/refresh` |
+| Logout | `POST /auth/platform/logout` | `POST /auth/logout` |
+| Cookies | `fbos_prt` + `fbos_pcsrf` | `fbos_rt` + `fbos_csrf` |
+
+- **Tokens:** the access token (15 min) is kept in memory only. The refresh token (30 days, rotated on every use) is an HttpOnly cookie. The readable CSRF cookie is copied into `X-CSRF-Token`.
+- **Single flight:** concurrent refresh callers share one call.
+- **Cross-tab coordination:** refreshes across tabs are serialized with the Web Locks API. The backend treats a replayed rotated token as theft and revokes the sign-in, so two tabs must never refresh at once. New tokens and logouts are broadcast over a `BroadcastChannel`.
+- **Proactive refresh** happens at 80% of `expires_in`, and when a sleeping tab becomes visible again.
+- **Separate cookie names:** cookies are shared across ports on `localhost`, which is why the consoles use different names. Don't merge them.
+
+### The three layers to understand
 
 1. **`src/api/client.js`** — the single fetch wrapper and the only place network calls originate.
-   - Holds the access token in a module variable (`setAccessToken`/`getAccessToken`); `request()` attaches `Authorization`, `X-Request-Id`, and `Accept` headers.
+   - Reads the access token from `api/session.js` (`getAccessToken`). The `request()` helper attaches the `Authorization`, `X-Request-Id`, `Accept` and `X-Client-Type: browser` headers.
    - `parseErrorBody()` normalizes the **four distinct error shapes** the Identity backend emits into one `ApiError { status, code, title, retryable, fieldErrors, details }`:
      - RFC 7807 problem (`code` top-level, `detail` is a string, optional `meta`) — most domain/gateway errors
      - FastAPI 422 validation (`detail` is an array of `{loc, msg}`) → synthesized `VALIDATION_ERROR` with per-field issues
      - Auth token error (`detail` is an object `{code, message, status}`) — 401s from `get_current_user`
      - Raw `HTTPException` (`detail` is a plain string)
    - Network/connection failures become `ApiError` with `code: 'NETWORK_ERROR'`, `retryable: true`.
-   - superadmin: `authApi` (`login`, `me`, `logout`), `clientsApi` (`list`, `get`, `create`, `update`).
-   - portal: `authApi` (`login`, `verifyMfa`, `acceptInvitation`, `me`, `logout`), `organizationsApi` (`list`, `get`, `create`, `update`), `usersApi` (`list`), plus `refreshSession()`. `create` calls send an `Idempotency-Key` header.
+   - A 401 on an authenticated call triggers one refresh via `api/session.js` and replays the request (same headers, so the same Idempotency-Key). Only if the refresh fails is the session ended.
+   - Exposes `authApi` (`login`, `verifyMfa`, `me`, `logout`) and `clientsApi` (`list` with cursor pagination, `get`, `create`, `update`). `clientsApi.create` sends an `Idempotency-Key` header.
 
 2. **`src/api/errors.js`** — presentation of errors. `friendlyMessage(err)` maps backend `code` → human copy (the `FRIENDLY` catalog mirrors Identity's `exceptions.py`; in the portal an entry may be a function, e.g. quota errors read `details.meta.limit/current`), falling back to the backend message. `getFieldErrors(err)` turns `fieldErrors` into a `{ field: issue }` map for inline form errors; `isRetryable(err)` gates a "Retry" affordance.
 
-3. **`src/auth/AuthContext.jsx`** — session lifecycle and the access guard described above.
+3. **`src/auth/AuthContext.jsx`** — session lifecycle and the super-admin guard.
+   - Holds no token itself. On load it calls `authApi.restore()` (a refresh using the HttpOnly cookie) and then `/auth/me`.
+   - `/auth/me` is the source of truth: the session is accepted only if `user_type === 'platform_admin'`, otherwise it is ended (`NotSuperAdminError`). This mirrors the backend `require_platform_admin` gate client-side.
+   - Subscribes to `onSessionChange` so a sign-out anywhere (this tab, another tab, or a dead refresh token) clears `user`; `App.jsx`'s `RequireAuth` route guard then redirects to `/login`.
 
 ### Routing
 

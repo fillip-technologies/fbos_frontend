@@ -16,7 +16,7 @@ const FRIENDLY = {
   PASSWORD_TOO_WEAK: 'Password must be at least 12 characters and not previously breached.',
 
   // ---- Access control ----
-  PLATFORM_ADMIN_REQUIRED: 'This console is for platform super-admins only.',
+  PLATFORM_ADMIN_REQUIRED: 'This action is for platform super-admins only.',
   CLIENT_ADMIN_REQUIRED: 'You do not have permission for this action.',
 
   // ---- Session / token ----
@@ -25,6 +25,23 @@ const FRIENDLY = {
   INVALID_TOKEN: 'Your session is invalid. Please sign in again.',
   REFRESH_TOKEN_INVALID: 'Your session expired. Please sign in again.',
   REFRESH_TOKEN_REUSED: 'Your session was revoked for security reasons. Please sign in again.',
+
+  // ---- Subscription / quotas ----
+  CLIENT_ORGANIZATION_LIMIT_REACHED: 'Your plan\'s organization limit has been reached. Contact the platform admin to raise it.',
+  ORGANIZATION_USER_LIMIT_REACHED: 'This organization has reached its user limit. Contact the platform admin to raise it.',
+  ORGANIZATION_CODE_EXISTS: 'An organization with this code already exists. Choose a different code.',
+  ORGANIZATION_NOT_FOUND: 'This organization no longer exists.',
+  EMAIL_ALREADY_EXISTS: 'A user with this email already exists.',
+  ORGANIZATION_NOT_ACTIVE: 'This organization is not active, so users can\'t be invited into it.',
+
+  // ---- Users & access ----
+  PERMISSION_DENIED: 'You don\'t have permission to do this.',
+  VALIDATION_FAILED: 'Some fields are invalid. Check the highlighted items.',
+  USER_NOT_INVITED: 'This user has already activated (or was deactivated), so there is no invitation to resend.',
+  USER_DEACTIVATED: 'This user is deactivated and can\'t be changed.',
+  SELF_MODIFICATION_FORBIDDEN: 'You can\'t change your own account or access here.',
+  PRECONDITION_FAILED: 'Someone else changed this user in the meantime. Reload and try again.',
+  ROLE_IS_SYSTEM: 'Built-in roles can\'t be edited. Create a custom role instead.',
 
   // ---- Clients ----
   SUBSCRIPTION_EXPIRED: 'Your organization\'s subscription is not active. Please contact support to renew.',

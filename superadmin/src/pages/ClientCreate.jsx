@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { clientsApi } from '../api/client.js'
 import { friendlyMessage, getFieldErrors } from '../api/errors.js'
 import ErrorBanner from '../components/ErrorBanner.jsx'
+import { addOneYear, todayIso } from '../utils/dates.js'
 
+// The fiscal year is owned by the client admin (default 01-04, set per organization),
+// so it is intentionally not collected here.
 // Mirrors ClientCreateRequest in the Identity service. When admin_email is given
 // the backend invites the first client_admin into the auto-created organization.
 const INITIAL = {
@@ -13,8 +16,10 @@ const INITIAL = {
   admin_email: '',
   admin_name: '',
   base_currency: 'INR',
-  fiscal_year_start: '04-01',
   timezone: 'Asia/Kolkata',
+  // Service window the client may use the platform (inclusive).
+  subscription_start: todayIso(),
+  subscription_end: addOneYear(todayIso()),
   // Quotas controlled exclusively by platform_admin (bounds mirror the backend).
   max_organizations: 2,
   max_users_per_org: 50,
@@ -29,6 +34,9 @@ export default function ClientCreate() {
   // Field-level errors: validation (422) issues plus a manual mapping for the
   // code-conflict domain error, which has no field attached on the backend.
   const fieldErrors = { ...getFieldErrors(error) }
+  if (error && error.code === 'INVALID_SUBSCRIPTION_WINDOW') {
+    fieldErrors.subscription_end = friendlyMessage(error)
+  }
   if (error && (error.code === 'CLIENT_CODE_EXISTS' || error.code === 'DUPLICATE_CODE')) {
     fieldErrors.code = friendlyMessage(error)
   }
@@ -47,8 +55,9 @@ export default function ClientCreate() {
         name: form.name.trim(),
         code: form.code.trim(),
         base_currency: form.base_currency.trim() || 'INR',
-        fiscal_year_start: form.fiscal_year_start.trim() || '04-01',
         timezone: form.timezone.trim() || 'Asia/Kolkata',
+        subscription_start: form.subscription_start,
+        subscription_end: form.subscription_end,
         max_organizations: Number(form.max_organizations),
         max_users_per_org: Number(form.max_users_per_org),
         contact_email: form.contact_email.trim(),
@@ -163,19 +172,46 @@ export default function ClientCreate() {
             />
           </div>
           <div className="field">
-            <label htmlFor="fiscal_year_start">Fiscal year start (MM-DD)</label>
-            <input
-              id="fiscal_year_start"
-              value={form.fiscal_year_start}
-              onChange={(e) => set('fiscal_year_start', e.target.value)}
-              placeholder="04-01"
-            />
+            <label htmlFor="timezone">Timezone</label>
+            <input id="timezone" value={form.timezone} onChange={(e) => set('timezone', e.target.value)} />
           </div>
         </div>
 
-        <div className="field">
-          <label htmlFor="timezone">Timezone</label>
-          <input id="timezone" value={form.timezone} onChange={(e) => set('timezone', e.target.value)} />
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0 16px' }} />
+        <p className="muted" style={{ marginTop: 0 }}>
+          Subscription — platform-admin controlled. Client users are locked out outside this period.
+        </p>
+
+        <div className="grid-2">
+          <div className="field">
+            <label htmlFor="subscription_start">Service start *</label>
+            <input
+              id="subscription_start"
+              type="date"
+              className={fieldErrors.subscription_start ? 'invalid' : ''}
+              value={form.subscription_start}
+              onChange={(e) => set('subscription_start', e.target.value)}
+              required
+            />
+            {fieldErrors.subscription_start && <div className="field-error">{fieldErrors.subscription_start}</div>}
+          </div>
+          <div className="field">
+            <label htmlFor="subscription_end">Service end *</label>
+            <input
+              id="subscription_end"
+              type="date"
+              min={form.subscription_start}
+              className={fieldErrors.subscription_end ? 'invalid' : ''}
+              value={form.subscription_end}
+              onChange={(e) => set('subscription_end', e.target.value)}
+              required
+            />
+            {fieldErrors.subscription_end ? (
+              <div className="field-error">{fieldErrors.subscription_end}</div>
+            ) : (
+              <div className="hint">Last day the client can sign in. Defaults to one year.</div>
+            )}
+          </div>
         </div>
 
         <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0 16px' }} />
