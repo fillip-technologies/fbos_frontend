@@ -1,4 +1,4 @@
-x# CLAUDE.md
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -10,6 +10,16 @@ Two independent Vite apps live in subdirectories, not the repo root. Run npm com
 - **`clientadmin/`** — client-admin console (:5174): organizations, users, subscription view, plus the invitation / password-reset pages the emails link to. See `clientadmin/README.md`.
 
 The rest of this file describes `superadmin/`; `clientadmin/` reuses the same `api/client.js` + `api/errors.js` + `auth/AuthContext.jsx` structure plus the same `api/session.js` (refresh cookie `fbos_rt` / CSRF `fbos_csrf`, guard `user_type === 'client_admin'`).
+
+## Source layout
+
+Both apps share one feature-based layout; `@` is an alias for `src/`.
+
+- `src/app/` — `main.jsx` (entry), `App.jsx` (routes), `layout/Layout.jsx`, `navigation.jsx` (clientadmin), `styles.css`.
+- `src/features/<feature>/` — `pages/`, `components/`, `api.js` (that feature's endpoints), `utils.js`. Features: superadmin → `auth`, `clients`; clientadmin → `auth`, `dashboard`, `organizations` (incl. `ActiveOrg` + `OrgSwitcher`), `users`, `access` (roles + `AccessEditor`), `org-units`, `calendars`, `profile`.
+- `src/shared/` — `api/` (`http.js` fetch wrapper + `ApiError`, `session.js`, `errors.js`, `paths.js`, `query.js` pagination/org-scope helpers in clientadmin), `components/`, `utils/`.
+
+`shared/` must not import from `features/` or `app/`. New endpoints go in the owning feature's `api.js`, not in `shared/api/http.js`. Below, "`api/client.js`" means `shared/api/http.js`, and the `*Api` objects live in each feature's `api.js`.
 
 ## Commands
 
@@ -53,7 +63,7 @@ Plain-JS **Vite + React 18 + react-router-dom v6**. Data flow is a thin stack ov
 
 Data flow is a thin stack over `fetch`; there is no state-management library or data-fetching library. Pages call the API modules directly and hold their own `useState`.
 
-### Sessions and token refresh (`src/api/session.js`)
+### Sessions and token refresh (`src/shared/api/session.js`)
 
 Identical file in both apps, configured at the top of each `api/client.js`:
 
@@ -71,7 +81,7 @@ Identical file in both apps, configured at the top of each `api/client.js`:
 
 ### The three layers to understand
 
-1. **`src/api/client.js`** — the single fetch wrapper and the only place network calls originate.
+1. **`src/shared/api/http.js`** — the single fetch wrapper and the only place network calls originate.
    - Reads the access token from `api/session.js` (`getAccessToken`). The `request()` helper attaches the `Authorization`, `X-Request-Id`, `Accept` and `X-Client-Type: browser` headers.
    - `parseErrorBody()` normalizes the **four distinct error shapes** the Identity backend emits into one `ApiError { status, code, title, retryable, fieldErrors, details }`:
      - RFC 7807 problem (`code` top-level, `detail` is a string, optional `meta`) — most domain/gateway errors
@@ -82,9 +92,9 @@ Identical file in both apps, configured at the top of each `api/client.js`:
    - A 401 on an authenticated call triggers one refresh via `api/session.js` and replays the request (same headers, so the same Idempotency-Key). Only if the refresh fails is the session ended.
    - Exposes `authApi` (`login`, `verifyMfa`, `me`, `logout`) and `clientsApi` (`list` with cursor pagination, `get`, `create`, `update`). `clientsApi.create` sends an `Idempotency-Key` header.
 
-2. **`src/api/errors.js`** — presentation of errors. `friendlyMessage(err)` maps backend `code` → human copy (the `FRIENDLY` catalog mirrors Identity's `exceptions.py`; in the portal an entry may be a function, e.g. quota errors read `details.meta.limit/current`), falling back to the backend message. `getFieldErrors(err)` turns `fieldErrors` into a `{ field: issue }` map for inline form errors; `isRetryable(err)` gates a "Retry" affordance.
+2. **`src/shared/api/errors.js`** — presentation of errors. `friendlyMessage(err)` maps backend `code` → human copy (the `FRIENDLY` catalog mirrors Identity's `exceptions.py`; in the portal an entry may be a function, e.g. quota errors read `details.meta.limit/current`), falling back to the backend message. `getFieldErrors(err)` turns `fieldErrors` into a `{ field: issue }` map for inline form errors; `isRetryable(err)` gates a "Retry" affordance.
 
-3. **`src/auth/AuthContext.jsx`** — session lifecycle and the super-admin guard.
+3. **`src/features/auth/AuthContext.jsx`** — session lifecycle and the super-admin guard.
    - Holds no token itself. On load it calls `authApi.restore()` (a refresh using the HttpOnly cookie) and then `/auth/me`.
    - `/auth/me` is the source of truth: the session is accepted only if `user_type === 'platform_admin'`, otherwise it is ended (`NotSuperAdminError`). This mirrors the backend `require_platform_admin` gate client-side.
    - Subscribes to `onSessionChange` so a sign-out anywhere (this tab, another tab, or a dead refresh token) clears `user`; `App.jsx`'s `RequireAuth` route guard then redirects to `/login`.
@@ -96,7 +106,17 @@ Identical file in both apps, configured at the top of each `api/client.js`:
 
 ## Conventions
 
-- Plain JavaScript (`.jsx`), no TypeScript. React function components with hooks; no CSS framework — a single `src/styles.css` with semantic class names (`panel`, `btn`, `field`, `alert error`, etc.).
+- Plain JavaScript (`.jsx`), no TypeScript. React function components with hooks; no CSS framework — a single `src/app/styles.css` with semantic class names (`panel`, `btn`, `field`, `alert error`, etc.).
 - **All network access goes through the `api/client.js` modules.** Add new endpoints to the `*Api` objects rather than calling `fetch` from a component, so error normalization, auth headers and token refresh stay centralized.
 - Surface errors via `friendlyMessage`/`getFieldErrors` rather than showing raw `err.message`.
 - The backend has no defaults for an organization's `base_currency`, `fiscal_year_start`, `timezone` — forms must always send them. Client `contact_email` and organization `email` are required.
+
+## Instructions for future work
+
+- **Follow the source layout above.** New code goes in `src/features/<feature>/` (`pages/`, `components/`, `api.js`, `utils.js`); only feature-agnostic code goes in `src/shared/`. A new page also needs its route in `app/App.jsx` (and, in clientadmin, an `ACCESS` rule, a `NAV_ITEMS` entry and a `<RequireAccess>` wrapper).
+- **Imports:** use the `@/` alias (`@/shared/api/errors.js`), not long `../../` chains. `shared/` never imports from `features/` or `app/`; avoid feature-to-feature imports except `auth` and `organizations`.
+- **Network:** every endpoint is added to the owning feature's `api.js` using `api` from `@/shared/api/http.js`; never call `fetch` from a component.
+- **Backend rules:** read `../fbos_services/.agents/AGENT_DEV.md` for the general code-quality principles (early returns, meaningful names, keep external API shapes at the boundary, useful errors, focused diffs); they apply to the frontend too.
+- **Keep the two apps in step:** `shared/api/session.js`, `errors.js` and `http.js` are near-identical copies; a fix in one usually belongs in the other.
+- **Verify** with `npm run build` in the app you changed (there is no test runner or linter).
+- **Git:** never add Claude as co-author or any attribution line to commits or PR descriptions.

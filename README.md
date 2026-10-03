@@ -46,3 +46,19 @@ fbos_frontend/
 ├── superadmin/     # Platform super-administrator portal (:5173)
 └── README.md
 ```
+
+## Source Layout (both apps)
+
+Each app uses the same feature-based structure under `src/`, with `@` aliased to `src/`
+(e.g. `import { friendlyMessage } from '@/shared/api/errors.js'`):
+
+```text
+src/
+├── app/          # Entry (main.jsx), routes (App.jsx), layout shell, navigation, global styles
+├── features/     # One folder per domain feature; owns its pages, components, api.js, utils
+│   └── <feature>/{pages,components,api.js,utils.js}
+└── shared/       # Feature-agnostic code: api/ (http, session, errors), components/, utils/
+```
+
+Rules: features import from `shared/` (and, sparingly, from `auth`/`organizations`); `shared/`
+never imports from `features/` or `app/`. All network calls live in a feature's `api.js`.
