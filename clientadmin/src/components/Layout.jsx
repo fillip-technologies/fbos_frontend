@@ -38,6 +38,9 @@ export default function Layout() {
           <div className="sidebar-user-name">{user?.name}</div>
           <div className="mono sidebar-user-email">{user?.email}</div>
           {user?.organization && <div className="sidebar-user-org">{user.organization.name}</div>}
+          <NavLink to="/profile" className="sidebar-profile-link">
+            My profile{user && !user.mfa_enabled && <span className="sidebar-dot" title="Two-factor sign-in is off" />}
+          </NavLink>
           <button className="btn ghost" onClick={handleLogout} style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>
             Sign out
           </button>

@@ -40,8 +40,13 @@ const FRIENDLY = {
   USER_NOT_INVITED: 'This user has already activated (or was deactivated), so there is no invitation to resend.',
   USER_DEACTIVATED: 'This user is deactivated and can\'t be changed.',
   SELF_MODIFICATION_FORBIDDEN: 'You can\'t change your own account or access here.',
-  PRECONDITION_FAILED: 'Someone else changed this user in the meantime. Reload and try again.',
+  PRECONDITION_FAILED: 'Someone else changed this in the meantime. Reload the page and try again.',
   ROLE_IS_SYSTEM: 'Built-in roles can\'t be edited. Create a custom role instead.',
+
+  // ---- Org units ----
+  ORG_UNIT_HIERARCHY_INVALID: 'That unit can\'t sit there. Companies are at the top; branches go under a company; departments under a company, branch or department; teams under a department.',
+  ORG_UNIT_CYCLE: 'A unit can\'t be moved under itself or one of its own sub-units.',
+  USER_NOT_FOUND: 'That person isn\'t in this organization.',
 
   // ---- Clients ----
   SUBSCRIPTION_EXPIRED: 'Your organization\'s subscription is not active. Please contact support to renew.',

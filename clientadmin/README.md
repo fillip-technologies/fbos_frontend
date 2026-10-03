@@ -19,8 +19,20 @@ invites when creating a client. Runs on **http://localhost:5174**, next to `supe
   permissions (scope, source role, granted by / at) with an access editor.
 - **Roles** (`/roles`): the role presets of an organization and their permissions; create custom
   roles and edit their permissions (the built-in `admin` role is read-only).
-- **Organization switcher**: users and roles screens work in one organization at a time, chosen at
-  the top of the page and sent to the backend as `X-Organization-Id`.
+- **Org units** (`/org-units`, `/org-units/new`, `/org-units/:id`): the company → branch → department →
+  team tree. Create (only valid parent types are offered: branch under company; department under
+  company, branch or department; team under department), rename, set the head and working calendar,
+  move a unit with everything below it (with a reason), and deactivate / reactivate. The unit page
+  lists its sub-units and the people placed in it or below it.
+- **Working calendars** (`/calendars`): create a calendar with timezone and weekly hours (several
+  ranges per day for breaks), and edit its holiday list. Saving holidays replaces the whole list.
+  The backend can't rename a calendar or change its hours after creation. A new sub-unit takes its
+  parent's calendar unless another is picked.
+- **My profile** (`/profile`, linked under your name in the sidebar): account details, "email me a
+  password reset link", and two-factor sign-in setup (QR code drawn in the browser from the
+  `otpauth_uri`, a manual key, confirm with the first code, then recovery codes shown once).
+- **Organization switcher**: users, roles, org units and calendars work in one organization at a
+  time, chosen at the top of the page and sent to the backend as `X-Organization-Id`.
 
 ### Access model (user-based)
 

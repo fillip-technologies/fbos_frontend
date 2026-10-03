@@ -28,4 +28,11 @@ export const ACCESS = {
   users: { permissions: ['identity.user.read'] },
   inviteUsers: { permissions: ['identity.user.create'] },
   roles: { permissions: ['identity.role.read'] },
+  orgUnits: { permissions: ['identity.org_unit.read'] },
+  createOrgUnit: { permissions: ['identity.org_unit.create'] },
+  updateOrgUnit: { permissions: ['identity.org_unit.update'] },
+  moveOrgUnit: { permissions: ['identity.org_unit.move'] },
+  calendars: { permissions: ['identity.calendar.read'] },
+  createCalendar: { permissions: ['identity.calendar.create'] },
+  updateCalendar: { permissions: ['identity.calendar.update'] },
 }

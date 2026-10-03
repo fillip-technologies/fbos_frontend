@@ -160,10 +160,20 @@ async function readPayload(res) {
 // that hit 401 at the same time — and is then replayed with the same headers, so an
 // Idempotency-Key is reused. If the sign-in itself is over, the session is torn down
 // and the route guard sends the user to /login.
+// 401s that answer the request itself rather than meaning "your session is gone": a wrong
+// code while setting up two-factor sign-in. They must not trigger a refresh or a sign-out.
+const NON_SESSION_401_CODES = new Set(['MFA_CODE_INVALID'])
+
+async function isSessionFailure(res) {
+  if (res.status !== 401) return false
+  const { code } = parseErrorBody(await readPayload(res.clone()), res.status)
+  return !NON_SESSION_401_CODES.has(code)
+}
+
 async function request(method, path, { body, auth = true, headers = {} } = {}) {
   let res = await send(method, path, { body, auth, headers })
 
-  if (res.status === 401 && auth) {
+  if (auth && (await isSessionFailure(res))) {
     try {
       await refreshSession()
     } catch (err) {
@@ -185,7 +195,7 @@ async function request(method, path, { body, auth = true, headers = {} } = {}) {
     const parsed = parseErrorBody(payload, res.status)
     // A subscription that ends mid-session answers 403 SUBSCRIPTION_EXPIRED: end the
     // session so the user lands on /login with the reason.
-    if (auth && (res.status === 401 || (res.status === 403 && parsed.code === 'SUBSCRIPTION_EXPIRED'))) {
+    if (auth && ((res.status === 401 && !NON_SESSION_401_CODES.has(parsed.code)) || (res.status === 403 && parsed.code === 'SUBSCRIPTION_EXPIRED'))) {
       endSession()
     }
     throw new ApiError(parsed.message, {
@@ -243,6 +253,12 @@ export const authApi = {
 
   acceptInvitation: ({ token, password }) =>
     api.post(`${IDENTITY}/auth/invitations/accept`, { token, password }, { auth: false }),
+
+  // Two-factor (TOTP) enrollment for the signed-in user. `startMfaEnrollment` returns
+  // { otpauth_uri, expires_at }; confirming with the first app code returns { codes }
+  // (one-time recovery codes, shown once).
+  startMfaEnrollment: () => api.post(`${IDENTITY}/auth/mfa/enroll`),
+  confirmMfaEnrollment: (code) => api.post(`${IDENTITY}/auth/mfa/enroll/confirm`, { code }),
 }
 
 // ---------- The caller's own client: subscription window + quotas (read-only) ----------
@@ -311,4 +327,29 @@ export const accessApi = {
       headers: inOrg(orgId, { 'If-Match': `"${version}"` }),
     }),
   orgUnits: (orgId) => listAll(`${IDENTITY}/org-units`, orgId, { status: 'active' }),
+}
+
+// ---------- Org units: the company → branch → department → team structure ----------
+export const orgUnitsApi = {
+  // Every unit, active and inactive, for the structure screen.
+  listAll: (orgId) => listAll(`${IDENTITY}/org-units`, orgId),
+  get: (orgId, id) => api.get(`${IDENTITY}/org-units/${id}`, { headers: inOrg(orgId) }),
+  create: (orgId, body) =>
+    api.post(`${IDENTITY}/org-units`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
+  update: (orgId, id, version, body) =>
+    api.patch(`${IDENTITY}/org-units/${id}`, body, { headers: inOrg(orgId, { 'If-Match': `"${version}"` }) }),
+  move: (orgId, id, version, body) =>
+    api.post(`${IDENTITY}/org-units/${id}/move`, body, { headers: inOrg(orgId, { 'If-Match': `"${version}"` }) }),
+}
+
+// ---------- Working calendars (hours + holidays); org units point at one ----------
+// The backend has no endpoint to rename a calendar or change its hours after creation;
+// only the holiday list can be replaced.
+export const calendarsApi = {
+  list: (orgId) => listAll(`${IDENTITY}/calendars`, orgId),
+  create: (orgId, body) =>
+    api.post(`${IDENTITY}/calendars`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
+  // Replaces the whole holiday list: [{ date: 'YYYY-MM-DD', name, is_half_day }].
+  replaceHolidays: (orgId, id, version, holidays) =>
+    api.put(`${IDENTITY}/calendars/${id}/holidays`, { holidays }, { headers: inOrg(orgId, { 'If-Match': `"${version}"` }) }),
 }

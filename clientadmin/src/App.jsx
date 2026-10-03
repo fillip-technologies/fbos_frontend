@@ -14,6 +14,11 @@ import Users from './pages/Users.jsx'
 import UserInvite from './pages/UserInvite.jsx'
 import UserDetail from './pages/UserDetail.jsx'
 import Roles from './pages/Roles.jsx'
+import OrgUnits from './pages/OrgUnits.jsx'
+import OrgUnitCreate from './pages/OrgUnitCreate.jsx'
+import OrgUnitDetail from './pages/OrgUnitDetail.jsx'
+import Calendars from './pages/Calendars.jsx'
+import Profile from './pages/Profile.jsx'
 import { ActiveOrgProvider } from './auth/ActiveOrg.jsx'
 
 function RequireAuth({ children }) {
@@ -49,6 +54,11 @@ export default function App() {
         <Route path="/users/new" element={<RequireAccess rule={ACCESS.inviteUsers}><UserInvite /></RequireAccess>} />
         <Route path="/users/:id" element={<RequireAccess rule={ACCESS.users}><UserDetail /></RequireAccess>} />
         <Route path="/roles" element={<RequireAccess rule={ACCESS.roles}><Roles /></RequireAccess>} />
+        <Route path="/org-units" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnits /></RequireAccess>} />
+        <Route path="/org-units/new" element={<RequireAccess rule={ACCESS.createOrgUnit}><OrgUnitCreate /></RequireAccess>} />
+        <Route path="/org-units/:id" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnitDetail /></RequireAccess>} />
+        <Route path="/calendars" element={<RequireAccess rule={ACCESS.calendars}><Calendars /></RequireAccess>} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

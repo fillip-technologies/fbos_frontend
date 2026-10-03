@@ -83,9 +83,16 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
+  // Re-reads /auth/me after the user changes something about their own account (e.g. MFA).
+  const reloadUser = useCallback(async () => {
+    const me = await authApi.me()
+    if (isClientAdmin(me)) setUser(me)
+    return me
+  }, [])
+
   const value = useMemo(
-    () => ({ user, loading, establish, logout, isAuthenticated: !!user }),
-    [user, loading, establish, logout]
+    () => ({ user, loading, establish, logout, reloadUser, isAuthenticated: !!user }),
+    [user, loading, establish, logout, reloadUser]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
