@@ -51,9 +51,41 @@ const FRIENDLY = {
   // ---- Clients ----
   SUBSCRIPTION_EXPIRED: 'Your account\'s subscription is not active. Please contact support to renew.',
   INVALID_SUBSCRIPTION_WINDOW: 'Service end must be on or after service start.',
-  CLIENT_NOT_FOUND: 'This client no longer exists.',
+  // Identity's tenant and revenue's customer share this code; in this console it is a customer.
+  CLIENT_NOT_FOUND: 'This customer no longer exists.',
   CLIENT_CODE_EXISTS: 'A client with this code already exists. Choose a different code.',
   DUPLICATE_CODE: 'That code is already in use. Choose a different one.',
+
+  // ---- Customers & client services (revenue) ----
+  DUPLICATE_CLIENT: 'A customer with the same GSTIN already exists.',
+  CONTACT_NOT_FOUND: 'This contact no longer exists.',
+  SERVICE_CATEGORY_NOT_FOUND: 'That category no longer exists.',
+  SERVICE_PROVIDER_NOT_FOUND: 'That provider no longer exists.',
+  CLIENT_SERVICE_NOT_FOUND: 'This service record no longer exists.',
+  DUPLICATE_NAME: 'That name is already in use. Choose a different one.',
+  INVALID_DATE_RANGE: 'The end date must be on or after the start date.',
+  PROVIDER_IN_USE: 'This provider is used by client services, so it can\'t be deleted.',
+  VERSION_CONFLICT: 'Someone else changed this in the meantime. Reload the page and try again.',
+  PRECONDITION_REQUIRED: 'This change needs the latest version. Reload the page and try again.',
+  LEAD_NOT_FOUND: 'This lead no longer exists.',
+  OPPORTUNITY_NOT_FOUND: 'This opportunity no longer exists.',
+  QUOTATION_NOT_FOUND: 'This quotation no longer exists.',
+  CONTRACT_NOT_FOUND: 'This contract no longer exists.',
+  OFFERING_NOT_FOUND: 'That offering no longer exists.',
+  INVALID_STATE_TRANSITION: 'That step isn\'t possible from the current status. Reload the page to see the latest.',
+  QUOTATION_FROZEN: 'Only a draft quotation\'s lines can be changed. Revise it to make changes.',
+  QUOTATION_NOT_ACCEPTED: 'A contract can only be made from an accepted quotation.',
+  INVOICE_NOT_FOUND: 'This invoice no longer exists.',
+  PAYMENT_NOT_FOUND: 'This payment no longer exists.',
+  COLLECTION_CASE_NOT_FOUND: 'This collection case no longer exists.',
+  INVOICE_ALREADY_ISSUED: 'This invoice has already been issued.',
+  INVOICE_NOT_ISSUED: 'Only an issued invoice with money owed can take this. Issue the draft first.',
+  INVOICE_PDF_NOT_AVAILABLE: 'Invoice PDFs aren\'t generated yet.',
+  ALLOCATION_EXCEEDS_BALANCE: 'That is more than the invoice still owes.',
+  ALLOCATION_EXCEEDS_PAYMENT: 'That is more than the payment has left to allocate.',
+  ALLOCATION_CLIENT_MISMATCH: 'A payment can only settle invoices of the customer who paid it.',
+  IDEMPOTENCY_KEY_REQUIRED: 'This request was missing its safety key. Please try again.',
+  AUTH_SERVICE_UNAVAILABLE: 'Sign-in couldn\'t be checked right now. Please try again shortly.',
 
   // ---- Validation / rate limiting ----
   VALIDATION_ERROR: 'Please fix the highlighted fields and try again.',
@@ -63,7 +95,7 @@ const FRIENDLY = {
   SERVICE_UNAVAILABLE: 'The service is temporarily unavailable. Please try again shortly.',
   GATEWAY_TIMEOUT: 'The server took too long to respond. Please try again.',
   BAD_REQUEST: 'The server could not process this request.',
-  NETWORK_ERROR: 'Unable to reach the server. Make sure the backend is running (identity on :8001, or the gateway on :8000).',
+  NETWORK_ERROR: 'Unable to reach the server. Make sure the backend is running (identity on :8001 and revenue on :8002, or the gateway on :8000).',
 }
 
 // Best human message for any thrown error: friendly copy by code, else the

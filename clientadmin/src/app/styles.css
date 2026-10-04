@@ -291,6 +291,21 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 .badge.draft, .badge.installing { background: #fef3c7; color: #92400e; }
 .badge.published { background: #dcfce7; color: #166534; }
 .badge.retired { background: #f1f5f9; color: #475569; }
+.badge.prospect { background: #e0e7ff; color: #3730a3; }
+.badge.cancelled { background: #f1f5f9; color: #475569; }
+/* Sales: leads, opportunity stages, quotations, contracts */
+.badge.new, .badge.qualification, .badge.pending_signature { background: #e0e7ff; color: #3730a3; }
+.badge.contacted, .badge.proposal, .badge.pending_approval { background: #fef3c7; color: #92400e; }
+.badge.qualified, .badge.negotiation, .badge.approved, .badge.sent { background: #dbeafe; color: #1e40af; }
+.badge.converted, .badge.won, .badge.accepted, .badge.completed { background: #dcfce7; color: #166534; }
+.badge.disqualified, .badge.lost, .badge.rejected, .badge.terminated { background: #fee2e2; color: #991b1b; }
+.badge.superseded { background: #f1f5f9; color: #475569; }
+/* Billing: invoices, payments, collection cases */
+.badge.issued, .badge.open, .badge.confirmed { background: #dbeafe; color: #1e40af; }
+.badge.partially_paid, .badge.promised, .badge.pending { background: #fef3c7; color: #92400e; }
+.badge.paid, .badge.resolved { background: #dcfce7; color: #166534; }
+.badge.overdue, .badge.escalated, .badge.failed { background: #fee2e2; color: #991b1b; }
+.badge.written_off, .badge.refunded { background: #f1f5f9; color: #475569; }
 .field textarea.code-input {
   width: 100%;
   padding: 10px 12px;

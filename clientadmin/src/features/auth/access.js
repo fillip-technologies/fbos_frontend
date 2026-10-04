@@ -74,4 +74,29 @@ export const ACCESS = {
   verticalPacks: { anyPermissions: ['identity.vertical_pack.manage', 'identity.vertical_pack.install'] },
   designPacks: { permissions: ['identity.vertical_pack.manage'] },
   installPacks: { permissions: ['identity.vertical_pack.install'] },
+  // Customers (revenue). Their outside services, providers and categories have their own pair.
+  customers: { permissions: ['revenue.client.read'] },
+  manageCustomers: { permissions: ['revenue.client.write'] },
+  clientServices: { permissions: ['revenue.client_service.read'] },
+  manageClientServices: { permissions: ['revenue.client_service.write'] },
+  // Sales: lead → opportunity → quotation → contract. Converting into a new customer also
+  // needs manageCustomers; quotations follow their opportunity's access.
+  leads: { permissions: ['revenue.lead.read'] },
+  manageLeads: { permissions: ['revenue.lead.write'] },
+  opportunities: { permissions: ['revenue.opportunity.read'] },
+  manageOpportunities: { permissions: ['revenue.opportunity.write'] },
+  approveQuotations: { permissions: ['revenue.quotation.approve'] },
+  contracts: { permissions: ['revenue.contract.read'] },
+  manageContracts: { permissions: ['revenue.contract.write'] },
+  offerings: { permissions: ['revenue.offering.read'] },
+  manageOfferings: { permissions: ['revenue.offering.write'] },
+  activities: { permissions: ['revenue.activity.read'] },
+  logActivities: { permissions: ['revenue.activity.write'] },
+  // Billing: invoices → payments → collections for overdue money.
+  invoices: { permissions: ['revenue.invoice.read'] },
+  manageInvoices: { permissions: ['revenue.invoice.write'] },
+  payments: { permissions: ['revenue.payment.read'] },
+  recordPayments: { permissions: ['revenue.payment.write'] },
+  collections: { permissions: ['revenue.collection.read'] },
+  manageCollections: { permissions: ['revenue.collection.write'] },
 }
