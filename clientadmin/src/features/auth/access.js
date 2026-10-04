@@ -66,4 +66,12 @@ export const ACCESS = {
   calendars: { permissions: ['identity.calendar.read'] },
   createCalendar: { permissions: ['identity.calendar.create'] },
   updateCalendar: { permissions: ['identity.calendar.update'] },
+  customFields: { permissions: ['identity.field_definition.read'] },
+  createCustomFields: { permissions: ['identity.field_definition.create'] },
+  publishCustomFields: { permissions: ['identity.field_definition.publish'] },
+  manageVerticals: { permissions: ['identity.vertical.manage'] },
+  // Packs are designed once for the whole client and installed per company.
+  verticalPacks: { anyPermissions: ['identity.vertical_pack.manage', 'identity.vertical_pack.install'] },
+  designPacks: { permissions: ['identity.vertical_pack.manage'] },
+  installPacks: { permissions: ['identity.vertical_pack.install'] },
 }

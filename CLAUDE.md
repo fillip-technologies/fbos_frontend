@@ -16,7 +16,7 @@ The rest of this file describes `superadmin/`; `clientadmin/` reuses the same `a
 Both apps share one feature-based layout; `@` is an alias for `src/`.
 
 - `src/app/` — `main.jsx` (entry), `App.jsx` (routes), `layout/Layout.jsx`, `navigation.jsx` (clientadmin), `styles.css`.
-- `src/features/<feature>/` — `pages/`, `components/`, `api.js` (that feature's endpoints), `utils.js`. Features: superadmin → `auth`, `clients`; clientadmin → `auth`, `dashboard`, `organizations` (incl. `ActiveOrg` + `OrgSwitcher`), `users`, `access` (roles + `AccessEditor`), `org-units`, `calendars`, `profile`.
+- `src/features/<feature>/` — `pages/`, `components/`, `api.js` (that feature's endpoints), `utils.js`. Features: superadmin → `auth`, `clients`; clientadmin → `auth`, `dashboard`, `organizations` (incl. `ActiveOrg` + `OrgSwitcher`), `users`, `access` (roles + `AccessEditor`), `org-units`, `calendars`, `verticals` (custom fields + vertical packs), `profile`.
 - `src/shared/` — `api/` (`http.js` fetch wrapper + `ApiError`, `session.js`, `errors.js`, `paths.js`, `query.js` pagination/org-scope helpers in clientadmin), `components/`, `utils/`.
 
 `shared/` must not import from `features/` or `app/`. New endpoints go in the owning feature's `api.js`, not in `shared/api/http.js`. Below, "`api/client.js`" means `shared/api/http.js`, and the `*Api` objects live in each feature's `api.js`.

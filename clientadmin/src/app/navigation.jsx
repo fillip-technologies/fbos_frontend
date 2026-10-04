@@ -34,6 +34,18 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /><path d="M8 14h2M14 14h2M8 17h2" /></>),
   },
   {
+    to: '/custom-fields',
+    label: 'Custom fields',
+    access: ACCESS.customFields,
+    icon: icon(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 9h6M7 13h10M7 17h4" /><path d="M17 7v4M15 9h4" /></>),
+  },
+  {
+    to: '/vertical-packs',
+    label: 'Vertical packs',
+    access: ACCESS.verticalPacks,
+    icon: icon(<><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" /><path d="M4 7.5l8 4.5 8-4.5M12 12v9" /></>),
+  },
+  {
     to: '/users',
     label: 'Users',
     access: ACCESS.users,

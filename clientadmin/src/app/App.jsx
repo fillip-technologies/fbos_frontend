@@ -18,6 +18,9 @@ import OrgUnits from '@/features/org-units/pages/OrgUnits.jsx'
 import OrgUnitCreate from '@/features/org-units/pages/OrgUnitCreate.jsx'
 import OrgUnitDetail from '@/features/org-units/pages/OrgUnitDetail.jsx'
 import Calendars from '@/features/calendars/pages/Calendars.jsx'
+import CustomFields from '@/features/verticals/pages/CustomFields.jsx'
+import VerticalPacks from '@/features/verticals/pages/VerticalPacks.jsx'
+import PackDesigner from '@/features/verticals/pages/PackDesigner.jsx'
 import Profile from '@/features/profile/pages/Profile.jsx'
 import { ActiveOrgProvider } from '@/features/organizations/ActiveOrg.jsx'
 
@@ -58,6 +61,9 @@ export default function App() {
         <Route path="/org-units/new" element={<RequireAccess rule={ACCESS.createOrgUnit}><OrgUnitCreate /></RequireAccess>} />
         <Route path="/org-units/:id" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnitDetail /></RequireAccess>} />
         <Route path="/calendars" element={<RequireAccess rule={ACCESS.calendars}><Calendars /></RequireAccess>} />
+        <Route path="/custom-fields" element={<RequireAccess rule={ACCESS.customFields}><CustomFields /></RequireAccess>} />
+        <Route path="/vertical-packs" element={<RequireAccess rule={ACCESS.verticalPacks}><VerticalPacks /></RequireAccess>} />
+        <Route path="/vertical-packs/:id" element={<RequireAccess rule={ACCESS.verticalPacks}><PackDesigner /></RequireAccess>} />
         <Route path="/profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

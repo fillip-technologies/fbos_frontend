@@ -286,3 +286,40 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 .area-card { display: block; color: inherit; transition: border-color 0.15s ease; }
 .area-card:hover { border-color: var(--primary); text-decoration: none; }
 .area-card .stat-sub { margin-top: 6px; }
+
+/* ---------- Custom fields & vertical packs ---------- */
+.badge.draft, .badge.installing { background: #fef3c7; color: #92400e; }
+.badge.published { background: #dcfce7; color: #166534; }
+.badge.retired { background: #f1f5f9; color: #475569; }
+.field textarea.code-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #fff;
+  resize: vertical;
+}
+.field textarea.code-input:focus { outline: 2px solid #bfdbfe; border-color: var(--primary); }
+.field table input[type="checkbox"] { width: auto; }
+.json-preview {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  max-height: 280px;
+  overflow: auto;
+  margin: 0 0 14px;
+}
+.install-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.vertical-list { display: flex; flex-direction: column; }
+.vertical-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); }
+.vertical-row:first-child { border-top: 0; }
+.vertical-row form input { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; }
+.version-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 12px; }
+.version-tab { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.version-tab.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.pack-section { margin-top: 14px; }
+.pack-section h3 { font-size: 14px; margin: 0 0 8px; }
+.field-rows input:not([type='checkbox']), .field-rows select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: #fff; }
