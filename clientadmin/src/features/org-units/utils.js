@@ -68,3 +68,17 @@ export function breadcrumb(unit, unitsById) {
     .map((id) => unitsById[id])
     .filter(Boolean)
 }
+
+// Branches and departments may set their own verticals; teams follow their department.
+export const canSetVerticals = (unitType) => unitType === 'branch' || unitType === 'department'
+
+// The verticals that apply to a unit: its own, else the nearest ancestor's (as the backend
+// resolves them). Returns { ids, from } where `from` is the ancestor they come from, if any.
+export function effectiveVerticals(unit, unitsById) {
+  const chain = unit.path.split('/').filter(Boolean).reverse()
+  for (const id of chain) {
+    const u = id === unit.id ? unit : unitsById[id]
+    if (u?.vertical_ids?.length) return { ids: u.vertical_ids, from: u.id === unit.id ? null : u }
+  }
+  return { ids: [], from: null }
+}

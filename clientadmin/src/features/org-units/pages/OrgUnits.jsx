@@ -7,7 +7,7 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
-import { breadcrumb, childTypesFor, sortedTree, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
+import { breadcrumb, childTypesFor, effectiveVerticals, sortedTree, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
 
 // The organization's structure, as an indented tree. The organization itself is the company:
 // branches sit directly under it, then departments and teams.
@@ -19,6 +19,7 @@ export default function OrgUnits() {
   const canCreate = hasAccess(user, ACCESS.createOrgUnit)
 
   const [units, setUnits] = useState([])
+  const [verticalNames, setVerticalNames] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showInactive, setShowInactive] = useState(false)
@@ -29,9 +30,12 @@ export default function OrgUnits() {
     if (!orgId) return
     setLoading(true)
     setError(null)
-    orgUnitsApi
-      .listAll(orgId)
-      .then(setUnits)
+    Promise.all([orgUnitsApi.listAll(orgId), orgUnitsApi.verticalOptions(orgId).catch(() => [])])
+      .then(([all, verticals]) => {
+        setUnits(all)
+        // Archived verticals no longer apply anywhere, so they aren't shown.
+        setVerticalNames(Object.fromEntries(verticals.filter((v) => v.status === 'active').map((v) => [v.id, v.name])))
+      })
       .catch(setError)
       .finally(() => setLoading(false))
   }, [orgId])
@@ -103,15 +107,16 @@ export default function OrgUnits() {
                   <th>Code</th>
                   <th>Type</th>
                   <th>Head</th>
+                  <th>Verticals</th>
                   <th>Status</th>
                   {canCreate && <th />}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="center-note">Loading…</td></tr>
+                  <tr><td colSpan={7} className="center-note">Loading…</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={6} className="center-note">Nothing matches.</td></tr>
+                  <tr><td colSpan={7} className="center-note">Nothing matches.</td></tr>
                 ) : (
                   rows.map((u) => {
                     const childTypes = u.status === 'active' ? childTypesFor(u.unit_type) : []
@@ -129,6 +134,7 @@ export default function OrgUnits() {
                         <td className="mono">{u.code}</td>
                         <td>{UNIT_TYPE_LABELS[u.unit_type] || u.unit_type}</td>
                         <td>{u.head_user?.name || <span className="muted">—</span>}</td>
+                        <td><VerticalChips unit={u} unitsById={unitsById} names={verticalNames} /></td>
                         <td><StatusBadge status={u.status} /></td>
                         {canCreate && (
                           <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -156,5 +162,18 @@ export default function OrgUnits() {
         </>
       )}
     </div>
+  )
+}
+
+// A unit's own verticals as chips; inherited ones greyed out with where they come from.
+function VerticalChips({ unit, unitsById, names }) {
+  const { ids, from } = effectiveVerticals(unit, unitsById)
+  const shown = ids.filter((id) => names[id])
+  if (!shown.length) return <span className="muted">—</span>
+  return (
+    <span className="chips" style={{ margin: 0 }} title={from ? `Inherited from ${from.name}` : undefined}>
+      {shown.map((id) => <span key={id} className={`chip${from ? ' subtle' : ''}`}>{names[id]}</span>)}
+      {from && <span className="muted small">from {from.name}</span>}
+    </span>
   )
 }

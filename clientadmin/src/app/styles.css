@@ -323,3 +323,4 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 .pack-section { margin-top: 14px; }
 .pack-section h3 { font-size: 14px; margin: 0 0 8px; }
 .field-rows input:not([type='checkbox']), .field-rows select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: #fff; }
+.vertical-choices { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 4px 0 10px; }

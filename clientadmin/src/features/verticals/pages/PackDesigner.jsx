@@ -9,6 +9,7 @@ import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import FieldRowsEditor, { blankField } from '@/features/verticals/components/FieldRowsEditor.jsx'
 import InstallPanel from '@/features/verticals/components/InstallPanel.jsx'
+import VerticalUnits from '@/features/verticals/components/VerticalUnits.jsx'
 import { describePackField, fieldError, toEditorRows, toPackFields } from '@/features/verticals/utils.js'
 import { formatDate } from '@/shared/utils/format.js'
 
@@ -20,6 +21,7 @@ export default function PackDesigner() {
   const { orgId, activeOrg } = useActiveOrg()
   const canDesign = hasAccess(user, ACCESS.designPacks)
   const canInstall = hasAccess(user, ACCESS.installPacks)
+  const canAssignUnits = hasAccess(user, ACCESS.updateOrgUnit)
 
   const [pack, setPack] = useState(null)
   const [verticals, setVerticals] = useState([])
@@ -147,6 +149,8 @@ export default function PackDesigner() {
           />
         )}
       </div>
+
+      <VerticalUnits key={orgId} orgId={orgId} vertical={pack.vertical} companyName={companyName} canAssign={canAssignUnits} />
 
       <div className="version-tabs" role="tablist" aria-label="Versions">
         {pack.versions.map((v) => (

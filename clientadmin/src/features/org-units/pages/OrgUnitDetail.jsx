@@ -8,6 +8,7 @@ import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
+import UnitVerticals from '@/features/org-units/components/UnitVerticals.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { breadcrumb, childTypesFor, isTopLevelType, parentCandidates, sortedTree, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
@@ -181,6 +182,9 @@ export default function OrgUnitDetail() {
           />
         )}
       </div>
+
+      {/* ---------------- Verticals ---------------- */}
+      <UnitVerticals key={unit.id} orgId={orgId} unit={unit} canUpdate={canUpdate} onChanged={load} />
 
       {/* ---------------- Sub-units ---------------- */}
       <div className="panel form-section">

@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { verticalsApi } from '@/features/verticals/api.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 
 const codeFromName = (name) => name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 100)
 
-// The client's own verticals (industries). Nothing is predefined: the client adds the ones
-// it works in, and every company of the client shares them.
+// The client's own verticals (industries). Nothing is predefined and no other client sees
+// them. Branches and departments say which ones they work in (Company structure).
 export default function VerticalsPanel({ orgId, verticals, canManage, onChanged }) {
   const [adding, setAdding] = useState(false)
   const [renaming, setRenaming] = useState(null) // vertical id
@@ -32,7 +33,8 @@ export default function VerticalsPanel({ orgId, verticals, canManage, onChanged 
         <div>
           <h2>Verticals</h2>
           <p className="muted small" style={{ margin: '2px 0 0' }}>
-            The industries you work in, e.g. “Construction” or “Interior design”. Every pack belongs to one, and all your companies share them.
+            The industries you work in, e.g. “Construction” or “Interior design”. They're private to your account; every pack belongs
+            to one. Set which branches and departments work in each on <Link to="/org-units">Company structure</Link>.
           </p>
         </div>
         {canManage && !adding && <button className="btn secondary" onClick={() => setAdding(true)}>+ Add vertical</button>}
