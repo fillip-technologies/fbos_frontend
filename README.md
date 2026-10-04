@@ -9,6 +9,10 @@ Administrative web consoles for the FBOS platform, built with React and Vite.
 | **[`superadmin`](./superadmin)** | `5173` | Platform Super-Admin console for onboarding clients, setting quotas, and managing platform tenants. |
 | **[`clientadmin`](./clientadmin)** | `5174` | Client Admin console for managing client organizations, units, users, and role-based access. |
 
+## Prerequisites
+
+- **Node.js 18+** (required by Vite 5) and **npm**
+
 ## Quick Start
 
 Each application is managed independently. Navigate to the desired application directory:
@@ -25,6 +29,13 @@ npm run dev
 cd clientadmin
 npm install
 npm run dev
+```
+
+## Production Build
+
+```bash
+npm run build     # outputs static files to dist/
+npm run preview   # serves the built app locally for a final check
 ```
 
 ## Backend Configuration
