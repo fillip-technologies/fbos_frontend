@@ -1,33 +1,29 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { clientApi } from '@/features/dashboard/api.js'
 import { organizationsApi } from '@/features/organizations/api.js'
+import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { daysUntil, formatDate } from '@/shared/utils/format.js'
 
 // Client admins: the client's service period and quotas (/clients/me is client-admin only).
 export default function SubscriptionOverview() {
-  const [client, setClient] = useState(null)
-  const [orgCount, setOrgCount] = useState(null)
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  function load() {
-    setLoading(true)
-    setError(null)
-    Promise.all([clientApi.me(), organizationsApi.list({ limit: 100 })])
-      .then(([c, orgs]) => {
-        setClient(c)
-        setOrgCount(orgs.data.filter((o) => o.status !== 'deleted').length)
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
+  const clientQuery = useQuery(['client', null, 'me'], ({ signal }) => clientApi.me({ signal }))
+  // Same request as the organization switcher's, so it is answered from the cache.
+  const orgsQuery = useQuery(['organizations', 'switcher'], ({ signal }) => organizationsApi.list({ limit: 100 }, { signal }), {
+    staleTime: 5 * 60_000,
+  })
+  const client = clientQuery.data
+  const orgCount = orgsQuery.data ? orgsQuery.data.data.filter((o) => o.status !== 'deleted').length : null
+  const error = clientQuery.error || orgsQuery.error
+  const reload = () => {
+    clientQuery.reload()
+    orgsQuery.reload()
   }
-  useEffect(load, [])
 
-  if (loading) return <div className="center-note">Loading…</div>
-  if (error && !client) return <ErrorBanner error={error} onRetry={load} />
+  if (error && !client) return <ErrorBanner error={error} onRetry={reload} />
+  if (clientQuery.loading || orgsQuery.loading) return <DetailSkeleton />
 
   const left = daysUntil(client.subscription_end)
   return (

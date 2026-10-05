@@ -6,6 +6,7 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import useServiceCatalog from '@/features/customers/useServiceCatalog.js'
 import { changedFields } from '@/features/customers/utils.js'
 
@@ -246,7 +247,7 @@ export default function ServiceProviders() {
           </thead>
           <tbody>
             {catalog.loading ? (
-              <tr><td colSpan={5} className="center-note">Loading…</td></tr>
+              <TableSkeleton cols={5} />
             ) : providers.length === 0 ? (
               <tr><td colSpan={5} className="center-note">No providers yet.</td></tr>
             ) : (

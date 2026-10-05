@@ -4,6 +4,7 @@
 
 import { configureSession, endSession, getAccessToken, refreshSession, SessionExpiredError } from '@/shared/api/session.js'
 import { IDENTITY } from '@/shared/api/paths.js'
+import { requestFinished, requestStarted } from '@/shared/api/activity.js'
 
 // Client admins are regular users: refresh cookie `fbos_rt`, CSRF cookie `fbos_csrf`.
 configureSession({
@@ -118,7 +119,11 @@ export function uuidv4() {
   })
 }
 
-async function send(method, path, { body, auth, headers }) {
+// An aborted call (the page moved on) is rethrown as is, never as a NETWORK_ERROR, so it
+// never reaches an error banner. Callers can test for it with isAbortError().
+export const isAbortError = (err) => err?.name === 'AbortError'
+
+async function send(method, path, { body, auth, headers, signal }) {
   const finalHeaders = {
     Accept: 'application/json',
     'X-Request-Id': uuidv4(),
@@ -130,14 +135,17 @@ async function send(method, path, { body, auth, headers }) {
   const token = getAccessToken()
   if (auth && token) finalHeaders.Authorization = `Bearer ${token}`
 
+  requestStarted()
   try {
     return await fetch(path, {
       method,
       credentials: 'same-origin',
       headers: finalHeaders,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
     })
   } catch (cause) {
+    if (isAbortError(cause)) throw cause
     // fetch rejects on DNS/connection failures, CORS, or a dead dev proxy.
     throw new ApiError('Unable to reach the server.', {
       status: 0,
@@ -145,6 +153,8 @@ async function send(method, path, { body, auth, headers }) {
       retryable: true,
       cause,
     })
+  } finally {
+    requestFinished()
   }
 }
 
@@ -173,8 +183,50 @@ async function isSessionFailure(res) {
   return !NON_SESSION_401_CODES.has(code)
 }
 
-async function request(method, path, { body, auth = true, headers = {} } = {}) {
-  let res = await send(method, path, { body, auth, headers })
+// Waits `ms`, or rejects at once with the signal's AbortError.
+function pause(ms, signal) {
+  const aborted = () => signal.reason ?? new DOMException('Aborted', 'AbortError')
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(aborted())
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(aborted())
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+// Reads are retried once after a transient failure (connection lost, 503, 504, 429).
+// Writes never are: they may have reached the server.
+const RETRY_DELAY_MS = 800
+const MAX_RETRY_AFTER_MS = 5000
+
+function retryDelay(res) {
+  const seconds = Number(res?.headers.get('Retry-After'))
+  return seconds > 0 ? Math.min(seconds * 1000, MAX_RETRY_AFTER_MS) : RETRY_DELAY_MS
+}
+
+async function sendWithRetry(method, path, opts) {
+  if (method !== 'GET') return send(method, path, opts)
+  let res
+  try {
+    res = await send(method, path, opts)
+    if (!RETRYABLE_STATUSES.has(res.status)) return res
+  } catch (err) {
+    if (!(err instanceof ApiError && err.isNetworkError)) throw err
+  }
+  await pause(retryDelay(res), opts.signal)
+  return send(method, path, opts)
+}
+
+async function request(method, path, { body, auth = true, headers = {}, signal } = {}) {
+  // The signal only cancels this call's own fetches: the token refresh below is shared by
+  // every caller and must never be aborted on one page's behalf.
+  let res = await sendWithRetry(method, path, { body, auth, headers, signal })
 
   if (auth && (await isSessionFailure(res))) {
     try {
@@ -188,7 +240,7 @@ async function request(method, path, { body, auth = true, headers = {} } = {}) {
         details: payload,
       })
     }
-    res = await send(method, path, { body, auth, headers })
+    res = await send(method, path, { body, auth, headers, signal })
   }
 
   if (res.status === 204) return null

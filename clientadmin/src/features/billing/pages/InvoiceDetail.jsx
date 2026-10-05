@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { invoicesApi } from '@/features/billing/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
@@ -6,7 +6,9 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { formatMoney } from '@/features/customers/utils.js'
 import { uuidv4 } from '@/shared/api/http.js'
+import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { todayIso } from '@/shared/utils/dates.js'
 import { formatDate } from '@/shared/utils/format.js'
@@ -28,23 +30,17 @@ export default function InvoiceDetail() {
   const { orgId } = useActiveOrg()
   const canManage = hasAccess(me, ACCESS.manageInvoices)
 
-  const [invoice, setInvoice] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const {
+    data: invoice,
+    error: loadError,
+    loading,
+    reload,
+    setData: setInvoice,
+  } = useQuery(['invoice', orgId, id], ({ signal }) => invoicesApi.get(orgId, id, { signal }), { enabled: Boolean(orgId) })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   // null | { kind: 'issue', issue_date, key } | { kind: 'credit', reason, note, key }
   const [panel, setPanel] = useState(null)
-
-  const load = useCallback(() => {
-    if (!orgId) return
-    setError(null)
-    invoicesApi
-      .get(orgId, id)
-      .then(setInvoice)
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, id])
-  useEffect(load, [load])
 
   async function submit(e) {
     e.preventDefault()
@@ -54,11 +50,14 @@ export default function InvoiceDetail() {
       if (panel.kind === 'issue') {
         const body = panel.issue_date && panel.issue_date !== todayIso() ? { issue_date: panel.issue_date } : undefined
         setInvoice(await invoicesApi.issue(orgId, invoice, body, panel.key))
+        invalidate(['invoices', orgId])
         setPanel(null)
       } else {
         const body = { reason: panel.reason }
         if (panel.note.trim()) body.note = panel.note.trim()
         const credit = await invoicesApi.creditNote(orgId, invoice, body, panel.key)
+        invalidate(['invoices', orgId])
+        invalidate(['invoice', orgId, invoice.id])
         navigate(`/invoices/${credit.id}`)
       }
     } catch (err) {
@@ -68,11 +67,11 @@ export default function InvoiceDetail() {
     }
   }
 
-  if (loading) return <div className="center-note">Loading…</div>
+  if (loading) return <DetailSkeleton />
   if (!invoice)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={load} />
+        <ErrorBanner error={loadError} onRetry={reload} />
         <button className="btn secondary" onClick={() => navigate('/invoices')}>← Back</button>
       </div>
     )
@@ -125,7 +124,7 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
-      <ErrorBanner error={error} />
+      <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
       {isPastDue(invoice) && invoice.status !== 'overdue' && (
         <div className="alert warn">Past its due date with money still owed. The next collections refresh marks it overdue.</div>
       )}
@@ -147,7 +146,7 @@ export default function InvoiceDetail() {
             />
           </div>
           <div className="row-actions">
-            <button className="btn" type="submit" disabled={busy}>{busy ? 'Issuing…' : 'Issue invoice'}</button>
+            <button className="btn" type="submit" disabled={busy} aria-busy={busy}>{busy ? 'Issuing…' : 'Issue invoice'}</button>
             <button type="button" className="btn secondary" onClick={() => setPanel(null)} disabled={busy}>Cancel</button>
           </div>
         </form>
@@ -174,7 +173,7 @@ export default function InvoiceDetail() {
             </div>
           </div>
           <div className="row-actions">
-            <button className="btn danger" type="submit" disabled={busy}>{busy ? 'Raising…' : 'Raise credit note'}</button>
+            <button className="btn danger" type="submit" disabled={busy} aria-busy={busy}>{busy ? 'Raising…' : 'Raise credit note'}</button>
             <button type="button" className="btn secondary" onClick={() => setPanel(null)} disabled={busy}>Cancel</button>
           </div>
         </form>

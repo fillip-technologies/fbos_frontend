@@ -6,7 +6,7 @@ import { inOrg, listAll } from '@/shared/api/query.js'
 // The backend has no endpoint to rename a calendar or change its hours after creation;
 // only the holiday list can be replaced.
 export const calendarsApi = {
-  list: (orgId) => listAll(`${IDENTITY}/calendars`, orgId),
+  list: (orgId, { signal } = {}) => listAll(`${IDENTITY}/calendars`, orgId, {}, { signal }),
   create: (orgId, body) =>
     api.post(`${IDENTITY}/calendars`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
   // Replaces the whole holiday list: [{ date: 'YYYY-MM-DD', name, is_half_day }].

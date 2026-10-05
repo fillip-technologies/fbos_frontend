@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { usersApi } from '@/features/users/api.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
@@ -12,6 +12,7 @@ import { toRequestAccess } from '@/features/access/permissions.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { formatDateTime, INVITABLE_USER_TYPES } from '@/features/users/utils.js'
+import { invalidate } from '@/shared/api/useQuery.js'
 
 const EMPTY_PROFILE = {
   name: '',
@@ -32,7 +33,11 @@ export default function UserInvite() {
   const canGrantAccess = hasAccess(me, ACCESS.manageUserAccess)
   const { orgId, activeOrg } = useActiveOrg()
   const { catalog, roles, units, loading: catalogLoading, error: catalogError, reload } = useAccessCatalog(orgId)
-  const [profile, setProfile] = useState(EMPTY_PROFILE)
+  // Opened from a unit's page (`?unit=<id>`): start with that unit as their place.
+  const [searchParams] = useSearchParams()
+  const fromUnitId = searchParams.get('unit')
+  const [profile, setProfile] = useState(() => ({ ...EMPTY_PROFILE, home_unit_id: fromUnitId }))
+  const shownOrgId = useRef(orgId)
   const [access, setAccess] = useState(EMPTY_ACCESS)
   const [managers, setManagers] = useState([])
   const [saving, setSaving] = useState(false)
@@ -42,8 +47,12 @@ export default function UserInvite() {
   // Possible managers: everyone in the org who isn't deactivated.
   useEffect(() => {
     if (!orgId) return
-    setProfile((p) => ({ ...p, home_unit_id: null, manager_user_id: '' }))
-    setAccess(EMPTY_ACCESS)
+    // Units, managers and access belong to one organization: switching to another clears them.
+    if (shownOrgId.current && shownOrgId.current !== orgId) {
+      setProfile((p) => ({ ...p, home_unit_id: null, manager_user_id: '' }))
+      setAccess(EMPTY_ACCESS)
+    }
+    shownOrgId.current = orgId
     usersApi
       .list(orgId, { limit: 100 })
       .then((res) => setManagers(res.data.filter((u) => u.status !== 'deactivated')))
@@ -67,6 +76,7 @@ export default function UserInvite() {
         manager_user_id: profile.manager_user_id || null,
         ...(canGrantAccess ? toRequestAccess(access) : {}),
       })
+      invalidate(['users', orgId])
       navigate(`/users/${created.id}`, {
         state: {
           notice: `Invitation emailed to ${created.email}. The activation link is valid until ${formatDateTime(created.invitation_expires_at)}.`,
@@ -97,7 +107,7 @@ export default function UserInvite() {
         </div>
         <div className="row-actions">
           <OrgSwitcher />
-          <Link className="btn secondary" to="/users">← Back</Link>
+          <Link className="btn secondary" to={fromUnitId ? `/org-units/${fromUnitId}` : '/users'}>← Back</Link>
         </div>
       </div>
 

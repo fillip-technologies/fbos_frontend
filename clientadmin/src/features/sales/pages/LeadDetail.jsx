@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { leadsApi, opportunitiesApi } from '@/features/sales/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import useOwners from '@/features/customers/useOwners.js'
+import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
@@ -27,30 +29,31 @@ export default function LeadDetail() {
   const navigate = useNavigate()
   const { user: me } = useAuth()
   const { orgId, activeOrg } = useActiveOrg()
+  const {
+    data: lead,
+    error: loadError,
+    loading,
+    reload,
+    setData,
+  } = useQuery(['lead', orgId, id], ({ signal }) => leadsApi.get(orgId, id, { signal }), {
+    enabled: Boolean(orgId),
+  })
+  // Saves a changed lead into the cache; its list is refetched on the next visit.
+  const setLead = (next) => {
+    setData(next)
+    invalidate(['leads', orgId])
+  }
   const { owners, ownerName } = useOwners(orgId)
   const { verticalName } = useVerticals(orgId)
   const canManage = hasAccess(me, ACCESS.manageLeads)
   const canConvert = canManage && (hasAccess(me, ACCESS.manageCustomers) || hasAccess(me, ACCESS.customers))
 
-  const [lead, setLead] = useState(null)
   const [opportunity, setOpportunity] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   // null | 'convert' | 'disqualify'
   const [panel, setPanel] = useState(null)
   const [disqualify, setDisqualify] = useState({ reason: 'no_need', note: '' })
-
-  const load = useCallback(() => {
-    if (!orgId) return
-    setError(null)
-    leadsApi
-      .get(orgId, id)
-      .then(setLead)
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, id])
-  useEffect(load, [load])
 
   // A converted lead's opportunity, found through its customer.
   useEffect(() => {
@@ -74,11 +77,11 @@ export default function LeadDetail() {
     }
   }
 
-  if (loading) return <div className="center-note">Loading…</div>
+  if (loading) return <DetailSkeleton />
   if (!lead)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={load} />
+        <ErrorBanner error={loadError} onRetry={reload} />
         <button className="btn secondary" onClick={() => navigate('/leads')}>← Back</button>
       </div>
     )
@@ -100,7 +103,7 @@ export default function LeadDetail() {
         <button className="btn secondary" onClick={() => navigate('/leads')}>← Back</button>
       </div>
 
-      <ErrorBanner error={error} />
+      <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
 
       {lead.status === 'converted' && (
         <div className="alert success">
@@ -179,7 +182,13 @@ export default function LeadDetail() {
             lead={lead}
             owners={owners}
             defaultCurrency={activeOrg?.base_currency || 'INR'}
-            onConverted={(result) => navigate(`/opportunities/${result.opportunity.id}`)}
+            onConverted={(result) => {
+              invalidate(['leads', orgId])
+              invalidate(['lead', orgId])
+              invalidate(['opportunities', orgId])
+              invalidate(['customers', orgId])
+              navigate(`/opportunities/${result.opportunity.id}`)
+            }}
             onCancel={() => setPanel(null)}
           />
         )}

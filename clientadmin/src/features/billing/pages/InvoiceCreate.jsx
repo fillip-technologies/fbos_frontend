@@ -6,6 +6,7 @@ import { customersApi } from '@/features/customers/api.js'
 import { formatMoney } from '@/features/customers/utils.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { round2 } from '@/features/billing/utils.js'
+import { invalidate } from '@/shared/api/useQuery.js'
 
 const newLine = (description = '') => ({
   description,
@@ -95,6 +96,7 @@ export default function InvoiceCreate() {
       if (form.contract_id) body.contract_id = form.contract_id
       if (form.due_date) body.due_date = form.due_date
       const created = await invoicesApi.createDraft(orgId, body)
+      invalidate(['invoices', orgId])
       navigate(`/invoices/${created.id}`, { replace: true })
     } catch (err) {
       setError(err)

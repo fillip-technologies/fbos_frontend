@@ -6,6 +6,7 @@ import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import InstallPanel from '@/features/verticals/components/InstallPanel.jsx'
 import VerticalsPanel from '@/features/verticals/components/VerticalsPanel.jsx'
@@ -82,7 +83,7 @@ export default function VerticalPacks() {
       {creating && <PackForm orgId={orgId} verticals={verticals.filter((v) => v.status === 'active')} onCancel={() => setCreating(false)} />}
 
       {loading ? (
-        <div className="center-note">Loading…</div>
+        <PanelSkeleton panels={2} lines={3} />
       ) : packs.length === 0 ? (
         !creating && (
           <div className="panel empty-state">

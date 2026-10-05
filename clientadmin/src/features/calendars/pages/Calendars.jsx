@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { calendarsApi } from '@/features/calendars/api.js'
 import { orgUnitsApi } from '@/features/org-units/api.js'
@@ -7,7 +7,9 @@ import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { invalidate, useLookup } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { cleanWeek, DAYS, dayError, summarizeWeek, timezones, WEEK_PRESETS } from '@/features/calendars/utils.js'
 import { todayIso } from '@/shared/utils/dates.js'
@@ -24,26 +26,25 @@ export default function Calendars() {
   // Choosing the organization calendar is an organization setting (client admins).
   const canSetOrgCalendar = hasAccess(user, ACCESS.organizations)
 
-  const [calendars, setCalendars] = useState([])
-  const [units, setUnits] = useState([])
-  const [loading, setLoading] = useState(true)
+  const calendarsQuery = useLookup(['calendars', orgId], ({ signal }) => calendarsApi.list(orgId, { signal }), {
+    enabled: Boolean(orgId),
+  })
+  const unitsQuery = useLookup(['org-units', orgId, 'all'], ({ signal }) => orgUnitsApi.listAll(orgId, { signal }), {
+    enabled: Boolean(orgId),
+  })
+  const calendars = calendarsQuery.data ?? []
+  const units = unitsQuery.data ?? [] // empty without org-unit read access
+  const loading = calendarsQuery.loading
   const [error, setError] = useState(null)
   const [editing, setEditing] = useState(null) // 'new' or the id whose holidays are being edited
   const [notice, setNotice] = useState('')
 
-  const load = useCallback(() => {
-    if (!orgId) return
-    setLoading(true)
+  // After a change: refetch calendars and the units that use them.
+  const load = () => {
     setError(null)
-    Promise.all([calendarsApi.list(orgId), orgUnitsApi.listAll(orgId).catch(() => [])])
-      .then(([cals, u]) => {
-        setCalendars(cals)
-        setUnits(u)
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId])
-  useEffect(load, [load])
+    calendarsQuery.reload()
+    invalidate(['org-units', orgId])
+  }
 
   const unitsByCalendar = useMemo(() => {
     const map = {}
@@ -89,7 +90,7 @@ export default function Calendars() {
       </div>
 
       {notice && <div className="alert success">{notice}</div>}
-      <ErrorBanner error={error} onRetry={load} />
+      <ErrorBanner error={error || calendarsQuery.error} onRetry={error ? undefined : calendarsQuery.reload} />
 
       {editing === 'new' && (
         <CalendarForm
@@ -101,7 +102,7 @@ export default function Calendars() {
       )}
 
       {loading ? (
-        <div className="center-note">Loading…</div>
+        <PanelSkeleton panels={2} lines={3} />
       ) : calendars.length === 0 && editing !== 'new' ? (
         <div className="panel empty-state">
           <h2>No calendars yet</h2>

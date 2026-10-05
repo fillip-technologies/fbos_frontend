@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { clientServicesApi } from '@/features/customers/api.js'
 import useServiceCatalog from '@/features/customers/useServiceCatalog.js'
+import { invalidate } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import ServiceForm from '@/features/customers/components/ServiceForm.jsx'
 import ServicesTable from '@/features/customers/components/ServicesTable.jsx'
@@ -38,6 +39,7 @@ export default function CustomerServices({ orgId, customerId, canManage, default
 
   function reloadFromStart() {
     setEditing(null)
+    invalidate(['client-services', orgId]) // the cross-customer list
     if (cursor === undefined) load()
     else setCursor(undefined)
   }

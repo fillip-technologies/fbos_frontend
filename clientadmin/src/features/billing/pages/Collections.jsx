@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collectionsApi, invoicesApi } from '@/features/billing/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
@@ -7,7 +7,9 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import useOwners from '@/features/customers/useOwners.js'
 import { formatMoney } from '@/features/customers/utils.js'
+import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import { CASE_STATUSES, FOLLOW_UP_CHANNELS, FOLLOW_UP_OUTCOMES, LIVE_CASE_STATUSES } from '@/features/billing/utils.js'
@@ -15,25 +17,24 @@ import { CASE_STATUSES, FOLLOW_UP_CHANNELS, FOLLOW_UP_OUTCOMES, LIVE_CASE_STATUS
 const EMPTY_FOLLOW_UP = { channel: 'call', outcome: 'no_response', notes: '', promised_date: '', promised_amount: '' }
 
 function CasePanel({ orgId, collectionCase, canManage, onChanged }) {
-  const [invoices, setInvoices] = useState([])
-  const [history, setHistory] = useState([])
   const [form, setForm] = useState(EMPTY_FOLLOW_UP)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
-  const load = useCallback(() => {
-    Promise.all([
-      invoicesApi.listAll(orgId, { client_id: collectionCase.client.id }),
-      collectionsApi.followUps(orgId, collectionCase.id),
-    ])
-      .then(([all, followUps]) => {
-        setInvoices(all.filter((inv) => collectionCase.invoice_ids.includes(inv.id)))
-        setHistory(followUps)
-      })
-      .catch(setError)
-  }, [orgId, collectionCase])
-  useEffect(load, [load])
+  const customerInvoices = useQuery(['invoices', orgId, { client_id: collectionCase.client.id, all: true }], ({ signal }) =>
+    invoicesApi.listAll(orgId, { client_id: collectionCase.client.id }, { signal })
+  )
+  const followUps = useQuery(['collection-follow-ups', orgId, collectionCase.id], ({ signal }) =>
+    collectionsApi.followUps(orgId, collectionCase.id, { signal })
+  )
+  const invoices = (customerInvoices.data ?? []).filter((inv) => collectionCase.invoice_ids.includes(inv.id))
+  const history = followUps.data ?? []
+  const loadError = customerInvoices.error || followUps.error
+  const reload = () => {
+    if (customerInvoices.error) customerInvoices.reload()
+    if (followUps.error) followUps.reload()
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -47,6 +48,7 @@ function CasePanel({ orgId, collectionCase, canManage, onChanged }) {
       }
       await collectionsApi.logFollowUp(orgId, collectionCase.id, body)
       setForm(EMPTY_FOLLOW_UP)
+      followUps.reload()
       onChanged()
     } catch (err) {
       setError(err)
@@ -57,7 +59,7 @@ function CasePanel({ orgId, collectionCase, canManage, onChanged }) {
 
   return (
     <div className="inline-panel">
-      <ErrorBanner error={error} onRetry={load} />
+      <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
       <div className="grid-2">
         <div>
           <h3>Overdue invoices</h3>
@@ -157,36 +159,32 @@ export default function Collections() {
   const { orgId, activeOrg } = useActiveOrg()
   const { ownerName } = useOwners(orgId)
   const canManage = hasAccess(me, ACCESS.manageCollections)
-  const [cases, setCases] = useState([])
   const [status, setStatus] = useState('live')
   const [openId, setOpenId] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  const [running, setRunning] = useState(false) // the "Refresh overdue" job
   const [summary, setSummary] = useState(null)
   const [error, setError] = useState(null)
 
-  const load = useCallback(() => {
-    if (!orgId) return
-    setLoading(true)
-    setError(null)
-    collectionsApi
-      .list(orgId, { limit: 100, status: status === 'live' ? '' : status })
-      .then((res) => setCases(status === 'live' ? res.data.filter((c) => LIVE_CASE_STATUSES.includes(c.status)) : res.data))
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, status])
-  useEffect(load, [load])
+  const casesQuery = useQuery(
+    ['collection-cases', orgId, { status }],
+    ({ signal }) => collectionsApi.list(orgId, { limit: 100, status: status === 'live' ? '' : status }, { signal }),
+    { enabled: Boolean(orgId), keepPrevious: true }
+  )
+  const { loading, refreshing, reload } = casesQuery
+  const all = casesQuery.data?.data ?? []
+  const cases = status === 'live' ? all.filter((c) => LIVE_CASE_STATUSES.includes(c.status)) : all
 
   async function refresh() {
     setError(null)
-    setRefreshing(true)
+    setRunning(true)
     try {
       setSummary(await collectionsApi.refresh(orgId))
-      load()
+      invalidate(['collection-cases', orgId])
+      invalidate(['invoices', orgId]) // some were just marked overdue
     } catch (err) {
       setError(err)
     } finally {
-      setRefreshing(false)
+      setRunning(false)
     }
   }
 
@@ -203,7 +201,7 @@ export default function Collections() {
         <div className="row-actions">
           <OrgSwitcher onChange={() => setOpenId(null)} />
           {canManage && (
-            <button className="btn" onClick={refresh} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh overdue'}</button>
+            <button className="btn" onClick={refresh} disabled={running} aria-busy={running}>{running ? 'Refreshing…' : 'Refresh overdue'}</button>
           )}
         </div>
       </div>
@@ -231,8 +229,8 @@ export default function Collections() {
         ))}
       </div>
 
-      <ErrorBanner error={error} onRetry={load} />
-      <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+      <ErrorBanner error={error || casesQuery.error} onRetry={error ? undefined : reload} />
+      <div className={`panel${refreshing ? ' is-refreshing' : ''}`} style={{ padding: 0, overflowX: 'auto' }}>
         <table>
           <thead>
             <tr>
@@ -247,7 +245,7 @@ export default function Collections() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="center-note">Loading…</td></tr>
+              <TableSkeleton cols={7} />
             ) : cases.length === 0 ? (
               <tr><td colSpan={7} className="center-note">No cases. {canManage && 'Refresh to pick up newly overdue invoices.'}</td></tr>
             ) : (
@@ -260,7 +258,7 @@ export default function Collections() {
                   toggle={() => setOpenId(openId === c.id ? null : c.id)}
                   ownerName={ownerName}
                   canManage={canManage}
-                  onChanged={load}
+                  onChanged={reload}
                 />
               ))
             )}

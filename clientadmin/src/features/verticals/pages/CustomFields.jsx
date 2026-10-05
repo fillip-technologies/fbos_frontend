@@ -6,6 +6,7 @@ import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import FieldRowsEditor, { blankField } from '@/features/verticals/components/FieldRowsEditor.jsx'
@@ -130,7 +131,7 @@ export default function CustomFields() {
       </div>
 
       {loading ? (
-        <div className="center-note">Loading…</div>
+        <PanelSkeleton panels={2} lines={3} />
       ) : definitions.length === 0 ? (
         <div className="panel empty-state">
           <h2>No custom fields{objectType ? ` for ${typeName[objectType] || objectType}` : ''}</h2>

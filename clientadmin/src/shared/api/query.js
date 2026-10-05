@@ -12,11 +12,11 @@ export function pageQuery({ limit = 25, cursor, ...rest } = {}) {
 export const inOrg = (orgId, headers = {}) => (orgId ? { ...headers, 'X-Organization-Id': orgId } : headers)
 
 // Walks cursor pagination for small catalogs (units, roles, permissions).
-export async function listAll(path, orgId, params = {}) {
+export async function listAll(path, orgId, params = {}, { signal } = {}) {
   const items = []
   let cursor
   do {
-    const page = await api.get(`${path}?${pageQuery({ limit: 100, cursor, ...params })}`, { headers: inOrg(orgId) })
+    const page = await api.get(`${path}?${pageQuery({ limit: 100, cursor, ...params })}`, { headers: inOrg(orgId), signal })
     items.push(...page.data)
     cursor = page.page?.has_more ? page.page.next_cursor : null
   } while (cursor)

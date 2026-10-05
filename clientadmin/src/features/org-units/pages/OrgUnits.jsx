@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { orgUnitsApi } from '@/features/org-units/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { useLookup } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { breadcrumb, childTypesFor, effectiveVerticals, sortedTree, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
@@ -18,28 +20,23 @@ export default function OrgUnits() {
   const { orgId, activeOrg } = useActiveOrg()
   const canCreate = hasAccess(user, ACCESS.createOrgUnit)
 
-  const [units, setUnits] = useState([])
-  const [verticalNames, setVerticalNames] = useState({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const unitsQuery = useLookup(['org-units', orgId, 'all'], ({ signal }) => orgUnitsApi.listAll(orgId, { signal }), {
+    enabled: Boolean(orgId),
+  })
+  const verticalsQuery = useLookup(['verticals', orgId, 'options'], ({ signal }) =>
+    orgUnitsApi.verticalOptions(orgId, { signal }).catch(() => []), { enabled: Boolean(orgId) }
+  )
+  const units = useMemo(() => unitsQuery.data ?? [], [unitsQuery.data])
+  // Archived verticals no longer apply anywhere, so they aren't shown.
+  const verticalNames = useMemo(
+    () => Object.fromEntries((verticalsQuery.data ?? []).filter((v) => v.status === 'active').map((v) => [v.id, v.name])),
+    [verticalsQuery.data]
+  )
+  const { loading, error, reload } = unitsQuery
   const [showInactive, setShowInactive] = useState(false)
   const [q, setQ] = useState('')
   const notice = location.state?.notice
 
-  const load = useCallback(() => {
-    if (!orgId) return
-    setLoading(true)
-    setError(null)
-    Promise.all([orgUnitsApi.listAll(orgId), orgUnitsApi.verticalOptions(orgId).catch(() => [])])
-      .then(([all, verticals]) => {
-        setUnits(all)
-        // Archived verticals no longer apply anywhere, so they aren't shown.
-        setVerticalNames(Object.fromEntries(verticals.filter((v) => v.status === 'active').map((v) => [v.id, v.name])))
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId])
-  useEffect(load, [load])
 
   const unitsById = useMemo(() => Object.fromEntries(units.map((u) => [u.id, u])), [units])
   const inactiveCount = units.filter((u) => u.status !== 'active').length
@@ -72,7 +69,7 @@ export default function OrgUnits() {
       </div>
 
       {notice && <div className="alert success">{notice}</div>}
-      <ErrorBanner error={error} onRetry={load} />
+      <ErrorBanner error={error} onRetry={reload} />
 
       {!loading && !error && units.length === 0 ? (
         <div className="panel empty-state">
@@ -114,7 +111,7 @@ export default function OrgUnits() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} className="center-note">Loading…</td></tr>
+                  <TableSkeleton cols={7} />
                 ) : rows.length === 0 ? (
                   <tr><td colSpan={7} className="center-note">Nothing matches.</td></tr>
                 ) : (

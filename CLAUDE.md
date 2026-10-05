@@ -59,9 +59,21 @@ The production `preview`/`dist` builds have **no proxy** — they must be served
 
 ## Architecture
 
-Plain-JS **Vite + React 18 + react-router-dom v6**. Data flow is a thin stack over `fetch`; there is no state-management or data-fetching library. Pages call the API modules directly and hold their own `useState`.
+Plain-JS **Vite + React 18 + react-router-dom v6**. Data flow is a thin stack over `fetch`; there is no state-management library and no third-party data-fetching library. superadmin pages call the API modules directly and hold their own `useState`.
 
-Data flow is a thin stack over `fetch`; there is no state-management library or data-fetching library. Pages call the API modules directly and hold their own `useState`.
+### Reading data in clientadmin (`src/shared/api/useQuery.js`)
+
+clientadmin reads through a small in-house cache instead of `useEffect` + `useState`:
+
+- `useQuery(key, ({ signal }) => xApi.list(orgId, params, { signal }), { enabled, staleTime, keepPrevious })` → `{ data, error, loading, refreshing, fetching, reload, setData }`. Keys are arrays, by convention `[resource, orgId, ...params]` (singular resource for one record: `['invoice', orgId, id]`, plural for lists: `['invoices', orgId, { status, cursor }]`).
+- Cached data shows at once; data older than `staleTime` (30 s) refetches in the background (`fetching`) while its rows stay usable. Identical keys share one request; a request nobody waits for any more is aborted (read endpoints in each `api.js` take an optional last `{ signal }`).
+- `keepPrevious` keeps the last rows on screen while the next page / tab / filter loads (`refreshing`: dim them and disable paging), never across organizations.
+- `useLookup` is the same with a 5-minute `staleTime`, for catalogs (owners, roles, units, offerings, providers, verticals, calendars). Pages sharing a key must share the fetcher's error semantics: let the request fail and treat `error` as "not available" in the page, rather than `.catch(() => null)` in one place only.
+- After a write: `setData(saved)` for the record on screen and `invalidate([resource, orgId])` for the lists it appears in (create pages invalidate their list before navigating). `prefetch(key, fn)` warms a detail record on row hover. Signing out clears the cache.
+- Mutation errors stay in the page's own `error` state, separate from the query's `error`.
+- Edit forms over a cached record use `useRecordForm(record, toForm)` (`shared/utils/`): saves diff against `toForm(base)` and send `base.version`, never the newer background copy, so they can't revert someone else's change.
+
+Loading UI: `TableSkeleton` / `DetailSkeleton` / `PanelSkeleton` (`shared/components/Skeleton.jsx`, shown only after 200 ms), `.is-refreshing` on a panel whose rows are being replaced, `aria-busy={busy}` on submit buttons for a spinner, and one `TopProgress` bar for any request in flight (`shared/api/activity.js`). Pages are lazy routes (`app/pages.js` holds one import function per page; the sidebar preloads a section's pages on hover). GET requests are retried once on a network error / 429 / 503 / 504; writes never are.
 
 ### Sessions and token refresh (`src/shared/api/session.js`)
 
@@ -109,6 +121,7 @@ Identical file in both apps, configured at the top of each `api/client.js`:
 - Plain JavaScript (`.jsx`), no TypeScript. React function components with hooks; no CSS framework — a single `src/app/styles.css` with semantic class names (`panel`, `btn`, `field`, `alert error`, etc.).
 - **All network access goes through the `api/client.js` modules.** Add new endpoints to the `*Api` objects rather than calling `fetch` from a component, so error normalization, auth headers and token refresh stay centralized.
 - Surface errors via `friendlyMessage`/`getFieldErrors` rather than showing raw `err.message`.
+- clientadmin: read with `useQuery` / `useLookup` (not `useEffect` + `fetch` state), show a skeleton instead of `Loading…`, and add new pages to `app/pages.js` as lazy routes.
 - The backend has no defaults for an organization's `base_currency`, `fiscal_year_start`, `timezone` — forms must always send them. Client `contact_email` and organization `email` are required.
 
 ## Instructions for future work
