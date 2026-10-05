@@ -45,4 +45,10 @@ export const NAV_ITEMS = [
     access: ACCESS.roles,
     icon: icon(<><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>),
   },
+  {
+    to: '/audit-log',
+    label: 'Security log',
+    access: ACCESS.auditLog,
+    icon: icon(<path d="M3 12h4l3-8 4 16 3-8h4" />),
+  },
 ]

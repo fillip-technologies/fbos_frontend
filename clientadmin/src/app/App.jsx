@@ -18,6 +18,7 @@ import OrgUnits from '@/features/org-units/pages/OrgUnits.jsx'
 import OrgUnitCreate from '@/features/org-units/pages/OrgUnitCreate.jsx'
 import OrgUnitDetail from '@/features/org-units/pages/OrgUnitDetail.jsx'
 import Calendars from '@/features/calendars/pages/Calendars.jsx'
+import AuditLog from '@/features/audit-log/pages/AuditLog.jsx'
 import Profile from '@/features/profile/pages/Profile.jsx'
 import { ActiveOrgProvider } from '@/features/organizations/ActiveOrg.jsx'
 
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="/org-units/new" element={<RequireAccess rule={ACCESS.createOrgUnit}><OrgUnitCreate /></RequireAccess>} />
         <Route path="/org-units/:id" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnitDetail /></RequireAccess>} />
         <Route path="/calendars" element={<RequireAccess rule={ACCESS.calendars}><Calendars /></RequireAccess>} />
+        <Route path="/audit-log" element={<RequireAccess rule={ACCESS.auditLog}><AuditLog /></RequireAccess>} />
         <Route path="/profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

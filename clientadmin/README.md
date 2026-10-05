@@ -43,7 +43,16 @@ The API, routes and code keep the original names (`organizations`, `org-units`, 
   removed.
 - **My profile** (`/profile`, linked under your name in the sidebar): account details, "email me a
   password reset link", and two-factor sign-in setup (QR code drawn in the browser from the
-  `otpauth_uri`, a manual key, confirm with the first code, then recovery codes shown once).
+  `otpauth_uri`, a manual key, confirm with the first code, then recovery codes shown once), and
+  **where you're signed in** (`/auth/sessions`): every browser/device with IP and last activity,
+  sign out one, or sign out everywhere else.
+- **Sessions on the user page** (`/users/:id/sessions`, `identity.session.read`): where that person is
+  signed in; with `identity.session.revoke`, sign out one session or everywhere (only a client admin can
+  sign out a client admin). Signing out takes effect on the device's next request.
+- **Security log** (`/audit-log`, `identity.audit_log.read`): sign-ins, failed attempts, sign-outs and
+  locks, newest first, filtered by kind, person and date. Session renewals (every few minutes per open
+  browser) are hidden unless chosen. A permission scoped to a unit shows only people placed there or below.
+  The user page links to the log filtered to that person (`/audit-log?user=<id>`).
 - **Organization switcher**: users, roles, org units and calendars work in one organization at a
   time, chosen at the top of the page and sent to the backend as `X-Organization-Id`.
 

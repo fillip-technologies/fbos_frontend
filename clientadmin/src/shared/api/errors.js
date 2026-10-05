@@ -25,6 +25,8 @@ const FRIENDLY = {
   INVALID_TOKEN: 'Your session is invalid. Please sign in again.',
   REFRESH_TOKEN_INVALID: 'Your session expired. Please sign in again.',
   REFRESH_TOKEN_REUSED: 'Your session was revoked for security reasons. Please sign in again.',
+  SESSION_REVOKED: 'This browser was signed out. Please sign in again.',
+  SESSION_NOT_FOUND: 'That session has already ended.',
 
   // ---- Subscription / quotas ----
   CLIENT_ORGANIZATION_LIMIT_REACHED: 'Your plan\'s company limit has been reached. Contact the platform admin to raise it.',

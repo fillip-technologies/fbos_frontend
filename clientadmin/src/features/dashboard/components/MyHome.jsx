@@ -9,6 +9,7 @@ const AREAS = [
   { to: '/org-units', label: 'Company structure', rule: ACCESS.orgUnits, text: 'Branches, departments and teams.' },
   { to: '/calendars', label: 'Working calendars', rule: ACCESS.calendars, text: 'Office hours and holidays.' },
   { to: '/roles', label: 'Roles', rule: ACCESS.roles, text: 'Ready-made sets of permissions.' },
+  { to: '/audit-log', label: 'Security log', rule: ACCESS.auditLog, text: 'Sign-ins, failed attempts and sign-outs.' },
 ]
 
 // Home page for organization users who aren't client administrators.
