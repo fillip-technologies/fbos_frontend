@@ -21,6 +21,7 @@ import Calendars from '@/features/calendars/pages/Calendars.jsx'
 import CustomFields from '@/features/verticals/pages/CustomFields.jsx'
 import VerticalPacks from '@/features/verticals/pages/VerticalPacks.jsx'
 import PackDesigner from '@/features/verticals/pages/PackDesigner.jsx'
+import AuditLog from '@/features/audit-log/pages/AuditLog.jsx'
 import Profile from '@/features/profile/pages/Profile.jsx'
 import Customers from '@/features/customers/pages/Customers.jsx'
 import CustomerCreate from '@/features/customers/pages/CustomerCreate.jsx'
@@ -106,6 +107,7 @@ export default function App() {
         <Route path="/customers/:id" element={<RequireAccess rule={ACCESS.customers}><CustomerDetail /></RequireAccess>} />
         <Route path="/client-services" element={<RequireAccess rule={ACCESS.clientServices}><ClientServices /></RequireAccess>} />
         <Route path="/service-providers" element={<RequireAccess rule={ACCESS.clientServices}><ServiceProviders /></RequireAccess>} />
+        <Route path="/audit-log" element={<RequireAccess rule={ACCESS.auditLog}><AuditLog /></RequireAccess>} />
         <Route path="/profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

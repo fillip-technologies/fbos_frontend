@@ -4,7 +4,8 @@ import { usersApi } from '@/features/users/api.js'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
-import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { ACCESS, hasAccess, isClientAdmin } from '@/features/auth/access.js'
+import UserSessions from '@/features/sessions/components/UserSessions.jsx'
 import AccessEditor, { accessFromGrants } from '@/features/access/components/AccessEditor.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
 import useAccessCatalog from '@/features/access/useAccessCatalog.js'
@@ -103,6 +104,10 @@ export default function UserDetail() {
     edit: hasAccess(me, ACCESS.updateUsers),
     deactivate: hasAccess(me, ACCESS.deactivateUsers),
     editAccess: hasAccess(me, ACCESS.manageUserAccess),
+    viewSessions: hasAccess(me, ACCESS.viewUserSessions),
+    // Only a client admin can sign out a client admin (the backend enforces the same).
+    signOutSessions: hasAccess(me, ACCESS.revokeUserSessions) && (!isTenantAdmin || isClientAdmin(me)),
+    securityLog: hasAccess(me, ACCESS.auditLog),
   }
 
   return (
@@ -215,6 +220,24 @@ export default function UserDetail() {
           </>
         )}
       </div>
+
+      {/* ---------------- Sessions ---------------- */}
+      {allowed.viewSessions && isSelf && (
+        <div className="panel form-section">
+          <h2>Sessions</h2>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Your own sessions are on <Link to="/profile">your profile</Link>.
+          </p>
+        </div>
+      )}
+      {allowed.viewSessions && !isSelf && (
+        <UserSessions
+          orgId={orgId}
+          user={user}
+          canSignOut={allowed.signOutSessions}
+          logLink={allowed.securityLog ? `/audit-log?user=${user.id}` : null}
+        />
+      )}
     </div>
   )
 }

@@ -99,4 +99,8 @@ export const ACCESS = {
   recordPayments: { permissions: ['revenue.payment.write'] },
   collections: { permissions: ['revenue.collection.read'] },
   manageCollections: { permissions: ['revenue.collection.write'] },
+  // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
+  viewUserSessions: { permissions: ['identity.session.read'] },
+  revokeUserSessions: { permissions: ['identity.session.revoke'] },
+  auditLog: { permissions: ['identity.audit_log.read'] },
 }
