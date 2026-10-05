@@ -13,4 +13,11 @@ export const orgUnitsApi = {
     api.patch(`${IDENTITY}/org-units/${id}`, body, { headers: inOrg(orgId, { 'If-Match': `"${version}"` }) }),
   move: (orgId, id, version, body) =>
     api.post(`${IDENTITY}/org-units/${id}/move`, body, { headers: inOrg(orgId, { 'If-Match': `"${version}"` }) }),
+  // { own, effective, inherited_from }: a unit with no verticals of its own inherits its parent's.
+  verticals: (orgId, id) => api.get(`${IDENTITY}/org-units/${id}/verticals`, { headers: inOrg(orgId) }),
+  // Branches and departments only; [] means "inherit from the parent".
+  setVerticals: (orgId, id, verticalIds) =>
+    api.put(`${IDENTITY}/org-units/${id}/verticals`, { vertical_ids: verticalIds }, { headers: inOrg(orgId) }),
+  // The client's verticals, to name and pick them here.
+  verticalOptions: (orgId) => listAll(`${IDENTITY}/verticals`, orgId),
 }

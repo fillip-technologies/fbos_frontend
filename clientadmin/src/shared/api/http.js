@@ -47,6 +47,9 @@ export class ApiError extends Error {
 //   C. Auth token error (get_current_user): { detail: { code, message, status } }
 //   D. Raw FastAPI HTTPException: { detail: "<string>" }
 //   E. Plain string body / anything else.
+// Statuses where trying again later may succeed (overload, timeout, a dependency down).
+const RETRYABLE_STATUSES = new Set([429, 503, 504])
+
 function parseErrorBody(payload, httpStatus) {
   const fallback = `Request failed (${httpStatus})`
 
@@ -76,12 +79,13 @@ function parseErrorBody(payload, httpStatus) {
       return { message, code: 'VALIDATION_ERROR', retryable: false, fieldErrors }
     }
 
-    // C. Token error dict — `detail` is an object with code/message.
+    // C. Error dict — `detail` is an object with code/message (identity token errors,
+    //    every revenue error).
     if (payload.detail && typeof payload.detail === 'object') {
       return {
         message: payload.detail.message || fallback,
         code: payload.detail.code,
-        retryable: false,
+        retryable: RETRYABLE_STATUSES.has(httpStatus),
         fieldErrors: null,
       }
     }
