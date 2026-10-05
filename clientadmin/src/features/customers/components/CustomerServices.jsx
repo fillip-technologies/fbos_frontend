@@ -16,6 +16,12 @@ export default function CustomerServices({ orgId, customerId, canManage, default
   // null: no form; 'new': adding; a record: editing it.
   const [editing, setEditing] = useState(null)
 
+  // Providers may have been added elsewhere since this tab opened; refetch for each form.
+  function openForm(target) {
+    catalog.reload()
+    setEditing(target)
+  }
+
   const load = useCallback(() => {
     setLoading(true)
     setError(null)
@@ -60,7 +66,7 @@ export default function CustomerServices({ orgId, customerId, canManage, default
           Hosting, domains, insurance, telecom and anything else this customer uses, with renewal dates.
         </p>
         {canManage && !editing && (
-          <button type="button" className="btn" onClick={() => setEditing('new')}>+ Add service</button>
+          <button type="button" className="btn" onClick={() => openForm('new')}>+ Add service</button>
         )}
       </div>
 
@@ -81,7 +87,7 @@ export default function CustomerServices({ orgId, customerId, canManage, default
         <ServicesTable
           services={services}
           loading={loading && !services.length}
-          onEdit={canManage ? setEditing : null}
+          onEdit={canManage ? openForm : null}
           onDelete={canManage ? remove : null}
         />
       </div>
