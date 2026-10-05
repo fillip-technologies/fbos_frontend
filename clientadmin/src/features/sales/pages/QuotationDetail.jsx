@@ -12,7 +12,9 @@ import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import QuotationItemsEditor, { itemToRow, rowsToItems } from '@/features/sales/components/QuotationItemsEditor.jsx'
-import { QUOTATION_STATUS_LABELS, REVISABLE_STATUSES } from '@/features/sales/utils.js'
+import { QUOTATION_CLOSED_TO_FILES, QUOTATION_STATUS_LABELS, REVISABLE_STATUSES } from '@/features/sales/utils.js'
+import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
+import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 
 // What happens next, by status.
 const NEXT_STEP = {
@@ -259,6 +261,16 @@ export default function QuotationDetail() {
           </div>
         )}
       </div>
+
+      {hasAccess(me, ACCESS.documents) && (
+        <DocumentPanel
+          orgId={orgId}
+          subjectType={DOCUMENT_SUBJECTS.quotation}
+          subjectId={quote.id}
+          canAttach={canManage && hasAccess(me, ACCESS.uploadDocuments) && !QUOTATION_CLOSED_TO_FILES.includes(quote.status)}
+          defaultCategory="quotation"
+        />
+      )}
     </div>
   )
 }

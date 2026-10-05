@@ -8,6 +8,8 @@ import { fileURLToPath, URL } from 'node:url'
 // at the gateway it goes through the gateway too. Override it alone with REVENUE_URL.
 const API_URL = process.env.API_URL || 'http://localhost:8001'
 const REVENUE_URL = process.env.REVENUE_URL || process.env.API_URL || 'http://localhost:8002'
+// Documents (files attached to quotations, contracts, ...) is its own service on :8005.
+const DOCUMENTS_URL = process.env.DOCUMENTS_URL || process.env.API_URL || 'http://localhost:8005'
 
 export default defineConfig({
   plugins: [react()],
@@ -32,6 +34,10 @@ export default defineConfig({
       // Listed first: the first matching prefix wins.
       '/api/revenue': {
         target: REVENUE_URL,
+        changeOrigin: true,
+      },
+      '/api/documents': {
+        target: DOCUMENTS_URL,
         changeOrigin: true,
       },
       '/api': {

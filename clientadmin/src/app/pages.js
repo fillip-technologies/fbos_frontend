@@ -40,6 +40,7 @@ export const pages = {
   PaymentCreate: () => import('@/features/billing/pages/PaymentCreate.jsx'),
   PaymentDetail: () => import('@/features/billing/pages/PaymentDetail.jsx'),
   Collections: () => import('@/features/billing/pages/Collections.jsx'),
+  DocumentCategories: () => import('@/features/documents/pages/DocumentCategories.jsx'),
 }
 
 // Sidebar path -> the pages of that section. Hovering an entry downloads the list page
@@ -61,6 +62,7 @@ const NAV_PAGES = {
   '/client-services': [pages.ClientServices],
   '/service-providers': [pages.ServiceProviders],
   '/offerings': [pages.Offerings],
+  '/document-categories': [pages.DocumentCategories],
   '/users': [pages.Users, pages.UserDetail, pages.UserInvite],
   '/roles': [pages.Roles],
   '/audit-log': [pages.AuditLog],

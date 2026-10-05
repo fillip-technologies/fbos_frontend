@@ -79,6 +79,10 @@ export const ACTIVITY_TYPES = {
   note: 'Note',
   site_visit: 'Site visit',
 }
+// An answered or replaced quotation revision keeps its files but takes no new ones (a
+// revision's files carry over to the next one). Mirrors revenue's subject-access rule.
+export const QUOTATION_CLOSED_TO_FILES = ['accepted', 'rejected', 'superseded']
+
 // Subject types activities are logged against.
 export const SUBJECTS = {
   lead: 'commercial.lead',

@@ -17,7 +17,9 @@ import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
 import ContractForm from '@/features/sales/components/ContractForm.jsx'
 import QuotationItemsEditor, { newItem, rowsToItems } from '@/features/sales/components/QuotationItemsEditor.jsx'
-import { LOST_REASONS, OPEN_STAGES, SUBJECTS, humanize } from '@/features/sales/utils.js'
+import { LOST_REASONS, OPEN_STAGES, QUOTATION_CLOSED_TO_FILES, SUBJECTS, humanize } from '@/features/sales/utils.js'
+import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
+import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 
 function Detail({ label, children }) {
   return (
@@ -194,6 +196,8 @@ export default function OpportunityDetail() {
 
   const open = OPEN_STAGES.includes(opp.stage)
   const accepted = quotations.find((q) => q.status === 'accepted')
+  // Revisions come newest first; the latest one holds the current files (they carry over on revise).
+  const currentQuote = quotations[0]
   const canCreateContract = accepted && contracts.length === 0 && hasAccess(me, ACCESS.manageContracts)
 
   return (
@@ -359,6 +363,20 @@ export default function OpportunityDetail() {
           </table>
         )}
       </div>
+
+      {currentQuote && hasAccess(me, ACCESS.documents) && (
+        <DocumentPanel
+          key={currentQuote.id}
+          orgId={orgId}
+          subjectType={DOCUMENT_SUBJECTS.quotation}
+          subjectId={currentQuote.id}
+          title={`Quotation documents · ${currentQuote.quote_no} rev ${currentQuote.revision_no}`}
+          canAttach={
+            canManage && hasAccess(me, ACCESS.uploadDocuments) && !QUOTATION_CLOSED_TO_FILES.includes(currentQuote.status)
+          }
+          defaultCategory="quotation"
+        />
+      )}
 
       {canSeeContracts && (accepted || contracts.length > 0) && (
         <div className="panel">
