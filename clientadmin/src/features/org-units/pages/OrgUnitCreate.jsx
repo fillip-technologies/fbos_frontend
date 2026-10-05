@@ -6,7 +6,9 @@ import { usersApi } from '@/features/users/api.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
+import { invalidate, useLookup } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { childTypesFor, isTopLevelType, parentCandidates, sortedTree, UNIT_TYPES, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
 
@@ -34,35 +36,26 @@ export default function OrgUnitCreate() {
   const [params] = useSearchParams()
   const { orgId, activeOrg } = useActiveOrg()
 
-  const [units, setUnits] = useState([])
-  const [people, setPeople] = useState([])
-  const [calendars, setCalendars] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(null)
+  const enabled = Boolean(orgId)
+  const unitsQuery = useLookup(['org-units', orgId, 'all'], ({ signal }) => orgUnitsApi.listAll(orgId, { signal }), { enabled })
+  // Picking a head needs user read access; without it the field is simply left out.
+  const peopleQuery = useLookup(
+    ['users', orgId, { status: 'active', limit: 100 }],
+    ({ signal }) => usersApi.list(orgId, { limit: 100, status: 'active' }, { signal }).catch(() => ({ data: null })),
+    { enabled }
+  )
+  // Likewise the calendar field needs calendar read access.
+  const calendarsQuery = useLookup(['calendars', orgId], ({ signal }) => calendarsApi.list(orgId, { signal }), { enabled })
+  const units = useMemo(() => (unitsQuery.data ? sortedTree(unitsQuery.data) : []), [unitsQuery.data])
+  const people = peopleQuery.data?.data ?? null
+  const calendars = calendarsQuery.data ?? null
+  const loading = unitsQuery.loading || peopleQuery.loading || (calendarsQuery.loading && !calendarsQuery.error)
+  const loadError = unitsQuery.error
   const [form, setForm] = useState({ unit_type: UNIT_TYPE_LABELS[params.get('type')] ? params.get('type') : '', parent_id: params.get('parent') || null, name: '', code: '', head_user_id: '', calendar_id: '' })
   const [codeTouched, setCodeTouched] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const fieldErrors = getFieldErrors(error)
-
-  useEffect(() => {
-    if (!orgId) return
-    setLoading(true)
-    Promise.all([
-      orgUnitsApi.listAll(orgId),
-      // Picking a head needs user read access; without it the field is simply left out.
-      usersApi.list(orgId, { limit: 100, status: 'active' }).then((r) => r.data).catch(() => null),
-      // Likewise the calendar field needs calendar read access.
-      calendarsApi.list(orgId).catch(() => null),
-    ])
-      .then(([u, p, c]) => {
-        setUnits(sortedTree(u))
-        setPeople(p)
-        setCalendars(c)
-      })
-      .catch(setLoadError)
-      .finally(() => setLoading(false))
-  }, [orgId])
 
   const unitsById = useMemo(() => Object.fromEntries(units.map((u) => [u.id, u])), [units])
   const parent = form.parent_id ? unitsById[form.parent_id] : null
@@ -108,6 +101,7 @@ export default function OrgUnitCreate() {
     if (form.calendar_id) body.calendar_id = form.calendar_id
     try {
       const unit = await orgUnitsApi.create(orgId, body)
+      invalidate(['org-units', orgId])
       navigate(`/org-units/${unit.id}`, { state: { notice: `${UNIT_TYPE_LABELS[unit.unit_type]} “${unit.name}” created.` } })
     } catch (err) {
       setError(err)
@@ -116,8 +110,8 @@ export default function OrgUnitCreate() {
     }
   }
 
-  if (loading) return <div className="center-note">Loading…</div>
-  if (loadError) return <ErrorBanner error={loadError} />
+  if (loadError) return <ErrorBanner error={loadError} onRetry={unitsQuery.reload} />
+  if (loading) return <DetailSkeleton />
 
   const hasBranch = units.some((u) => isTopLevelType(u.unit_type) && u.status === 'active')
 

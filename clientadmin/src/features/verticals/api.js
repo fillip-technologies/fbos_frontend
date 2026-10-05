@@ -4,19 +4,19 @@ import { inOrg, listAll } from '@/shared/api/query.js'
 
 // ---------- Verticals: the client's own industries, shared by all of its companies ----------
 export const verticalsApi = {
-  list: (orgId, params) => listAll(`${IDENTITY}/verticals`, orgId, params),
+  list: (orgId, params, { signal } = {}) => listAll(`${IDENTITY}/verticals`, orgId, params, { signal }),
   create: (orgId, body) =>
     api.post(`${IDENTITY}/verticals`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
   // { name } and/or { status: 'active' | 'archived' }
   update: (orgId, id, body) => api.patch(`${IDENTITY}/verticals/${id}`, body, { headers: inOrg(orgId) }),
-  objectTypes: (orgId) => listAll(`${IDENTITY}/object-types`, orgId),
+  objectTypes: (orgId, { signal } = {}) => listAll(`${IDENTITY}/object-types`, orgId, {}, { signal }),
 }
 
 // ---------- Custom fields: per-organization JSON Schemas for a business object type ----------
 // A definition is created as a draft (version 1); publishing makes it live and bumps the version.
 // Definitions installed by a vertical pack carry source_pack_id; replaced ones become 'retired'.
 export const customFieldsApi = {
-  list: (orgId, params) => listAll(`${IDENTITY}/field-definitions`, orgId, params),
+  list: (orgId, params, { signal } = {}) => listAll(`${IDENTITY}/field-definitions`, orgId, params, { signal }),
   create: (orgId, body) =>
     api.post(`${IDENTITY}/field-definitions`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
   publish: (orgId, id, version) =>
@@ -29,8 +29,8 @@ export const customFieldsApi = {
 const pack = (id) => `${IDENTITY}/vertical-packs/${id}`
 
 export const verticalPacksApi = {
-  list: (orgId) => listAll(`${IDENTITY}/vertical-packs`, orgId),
-  get: (orgId, id) => api.get(pack(id), { headers: inOrg(orgId) }),
+  list: (orgId, { signal } = {}) => listAll(`${IDENTITY}/vertical-packs`, orgId, {}, { signal }),
+  get: (orgId, id, { signal } = {}) => api.get(pack(id), { headers: inOrg(orgId), signal }),
   create: (orgId, body) =>
     api.post(`${IDENTITY}/vertical-packs`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
   update: (orgId, id, body) => api.patch(pack(id), body, { headers: inOrg(orgId) }),

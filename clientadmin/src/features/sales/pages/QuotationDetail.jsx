@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { offeringsApi, quotationsApi } from '@/features/sales/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { formatMoney } from '@/features/customers/utils.js'
+import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { useRecordForm } from '@/shared/utils/useRecordForm.js'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import QuotationItemsEditor, { itemToRow, rowsToItems } from '@/features/sales/components/QuotationItemsEditor.jsx'
@@ -21,6 +24,9 @@ const NEXT_STEP = {
   rejected: 'Rejected. Revise it to make a new offer.',
   superseded: 'Replaced by a newer revision.',
 }
+
+// A draft's lines as editable rows; null rows once it is no longer a draft.
+const toRows = (q) => ({ rows: q.status === 'draft' ? q.items.map(itemToRow) : null })
 
 function Totals({ totals }) {
   const rows = [
@@ -57,35 +63,32 @@ export default function QuotationDetail() {
   const canManage = hasAccess(me, ACCESS.manageOpportunities)
   const canApprove = hasAccess(me, ACCESS.approveQuotations)
 
-  const [quote, setQuote] = useState(null)
-  const [offerings, setOfferings] = useState([])
-  const [rows, setRows] = useState(null) // editable lines while a draft
+  const {
+    data: quote,
+    error: loadError,
+    loading,
+    reload,
+    setData,
+  } = useQuery(['quotation', orgId, id], ({ signal }) => quotationsApi.get(orgId, id, { signal }), { enabled: Boolean(orgId) })
+  const { data: offerings = [] } = useLookup(['offerings', orgId, 'all'], ({ signal }) => offeringsApi.listAll(orgId, { signal }), {
+    enabled: Boolean(orgId) && canManage,
+  })
+  // Editable lines while a draft; `base` is the revision they were taken from.
+  const { form: lines, setForm: setLines, base, rebase } = useRecordForm(quote, toRows)
+  const rows = lines?.rows ?? null
+  const setRows = (next) => setLines((l) => ({ rows: typeof next === 'function' ? next(l.rows) : next }))
   const [rejecting, setRejecting] = useState(null) // reason being typed
-  const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
-  const show = useCallback((q) => {
-    setQuote(q)
-    setRows(q.status === 'draft' ? q.items.map(itemToRow) : null)
+  const show = (q) => {
+    setData(q)
+    rebase(q)
     setRejecting(null)
-  }, [])
-
-  const load = useCallback(() => {
-    if (!orgId) return
-    setError(null)
-    quotationsApi
-      .get(orgId, id)
-      .then(show)
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, id, show])
-  useEffect(load, [load])
-
-  useEffect(() => {
-    if (!orgId || !canManage) return
-    offeringsApi.listAll(orgId).then(setOfferings).catch(() => setOfferings([]))
-  }, [orgId, canManage])
+    invalidate(['quotations', orgId])
+    invalidate(['opportunity', orgId])
+    invalidate(['opportunities', orgId])
+  }
 
   async function run(action) {
     setError(null)
@@ -102,17 +105,17 @@ export default function QuotationDetail() {
     }
   }
 
-  if (loading) return <div className="center-note">Loading…</div>
+  if (loading || (quote && !lines)) return <DetailSkeleton />
   if (!quote)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={load} />
+        <ErrorBanner error={loadError} onRetry={reload} />
         <button className="btn secondary" onClick={() => navigate(-1)}>← Back</button>
       </div>
     )
 
   const editing = canManage && quote.status === 'draft' && rows
-  const itemsChanged = editing && JSON.stringify(rows) !== JSON.stringify(quote.items.map(itemToRow))
+  const itemsChanged = editing && JSON.stringify(rows) !== JSON.stringify(base.items.map(itemToRow))
   const offeringName = (offeringId) => offerings.find((o) => o.id === offeringId)?.name
 
   return (
@@ -140,7 +143,7 @@ export default function QuotationDetail() {
         )}
       </div>
 
-      <ErrorBanner error={error} />
+      <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
       <div className="alert info">
         <strong>{QUOTATION_STATUS_LABELS[quote.status] || quote.status}.</strong> {NEXT_STEP[quote.status] || ''}
       </div>
@@ -214,7 +217,7 @@ export default function QuotationDetail() {
                 <button
                   className="btn secondary"
                   disabled={busy || !itemsChanged}
-                  onClick={() => run(() => quotationsApi.replaceItems(orgId, quote, rowsToItems(rows, offerings)))}
+                  onClick={() => run(() => quotationsApi.replaceItems(orgId, base, rowsToItems(rows, offerings)))}
                 >
                   Save lines
                 </button>

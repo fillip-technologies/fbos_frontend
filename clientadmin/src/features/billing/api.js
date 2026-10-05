@@ -10,9 +10,9 @@ const once = (key) => ({ 'Idempotency-Key': key || uuidv4() })
 // ---------- Invoices and credit notes ----------
 export const invoicesApi = {
   // Filters: status, client_id, contract_id, issue_from, issue_to.
-  list: (orgId, opts) => api.get(`${REVENUE}/invoices?${pageQuery(opts)}`, { headers: inOrg(orgId) }),
-  listAll: (orgId, params) => listAll(`${REVENUE}/invoices`, orgId, params),
-  get: (orgId, id) => api.get(`${REVENUE}/invoices/${id}`, { headers: inOrg(orgId) }),
+  list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/invoices?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  listAll: (orgId, params, req) => listAll(`${REVENUE}/invoices`, orgId, params, req),
+  get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/invoices/${id}`, { headers: inOrg(orgId), signal }),
   createDraft: (orgId, body) => api.post(`${REVENUE}/invoices`, body, { headers: inOrg(orgId) }),
   // Assigns the next invoice number. body: { issue_date? }
   issue: (orgId, invoice, body, key) =>
@@ -25,8 +25,8 @@ export const invoicesApi = {
 // ---------- Payments received ----------
 export const paymentsApi = {
   // Filters: client_id, received_from, received_to, unallocated.
-  list: (orgId, opts) => api.get(`${REVENUE}/payments?${pageQuery(opts)}`, { headers: inOrg(orgId) }),
-  get: (orgId, id) => api.get(`${REVENUE}/payments/${id}`, { headers: inOrg(orgId) }),
+  list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/payments?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/payments/${id}`, { headers: inOrg(orgId), signal }),
   record: (orgId, body, key) => api.post(`${REVENUE}/payments`, body, { headers: inOrg(orgId, once(key)) }),
   allocate: (orgId, payment, allocations, key) =>
     api.post(`${REVENUE}/payments/${payment.id}/allocations`, { allocations }, {
@@ -37,8 +37,9 @@ export const paymentsApi = {
 // ---------- Collections: one case per customer owing overdue money ----------
 export const collectionsApi = {
   // Filters: status, client_id, owner_user_id.
-  list: (orgId, opts) => api.get(`${REVENUE}/collection-cases?${pageQuery(opts)}`, { headers: inOrg(orgId) }),
-  followUps: (orgId, caseId) => api.get(`${REVENUE}/collection-cases/${caseId}/follow-ups`, { headers: inOrg(orgId) }),
+  list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/collection-cases?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  followUps: (orgId, caseId, { signal } = {}) =>
+    api.get(`${REVENUE}/collection-cases/${caseId}/follow-ups`, { headers: inOrg(orgId), signal }),
   logFollowUp: (orgId, caseId, body) =>
     api.post(`${REVENUE}/collection-cases/${caseId}/follow-ups`, body, { headers: inOrg(orgId) }),
   // Marks invoices past due as overdue and opens / resolves cases. Safe to repeat.

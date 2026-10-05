@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { customersApi } from '@/features/customers/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
+import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { CUSTOMER_STATUSES, CUSTOMER_TYPES, capitalize } from '@/features/customers/utils.js'
 import useOwners from '@/features/customers/useOwners.js'
@@ -17,29 +19,18 @@ export default function Customers() {
   const { orgId, activeOrg } = useActiveOrg()
   const { ownerName } = useOwners(orgId)
 
-  const [customers, setCustomers] = useState([])
   const [status, setStatus] = useState('')
   const [cursor, setCursor] = useState(undefined)
   const [stack, setStack] = useState([])
-  const [next, setNext] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const notice = location.state?.notice
 
-  function load() {
-    if (!orgId) return
-    setLoading(true)
-    setError(null)
-    customersApi
-      .list(orgId, { limit: 25, cursor, status })
-      .then((res) => {
-        setCustomers(res.data)
-        setNext(res.page?.has_more ? res.page.next_cursor : null)
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }
-  useEffect(load, [orgId, cursor, status])
+  const { data, error, loading, refreshing, reload } = useQuery(
+    ['customers', orgId, { cursor, status }],
+    ({ signal }) => customersApi.list(orgId, { limit: 25, cursor, status }, { signal }),
+    { enabled: Boolean(orgId), keepPrevious: true }
+  )
+  const customers = data?.data ?? []
+  const next = data?.page?.has_more ? data.page.next_cursor : null
 
   function resetPaging() {
     setCursor(undefined)
@@ -78,8 +69,8 @@ export default function Customers() {
         </select>
       </div>
 
-      <ErrorBanner error={error} onRetry={load} />
-      <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+      <ErrorBanner error={error} onRetry={reload} />
+      <div className={`panel${refreshing ? ' is-refreshing' : ''}`} style={{ padding: 0, overflowX: 'auto' }}>
         <table>
           <thead>
             <tr>
@@ -93,7 +84,7 @@ export default function Customers() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="center-note">Loading…</td></tr>
+              <TableSkeleton cols={6} />
             ) : customers.length === 0 ? (
               <tr><td colSpan={6} className="center-note">No customers found.</td></tr>
             ) : (
@@ -117,7 +108,7 @@ export default function Customers() {
       <div className="row-actions" style={{ marginTop: 16 }}>
         <button
           className="btn secondary"
-          disabled={loading || stack.length === 0}
+          disabled={loading || refreshing || stack.length === 0}
           onClick={() => {
             setCursor(stack[stack.length - 1])
             setStack(stack.slice(0, -1))
@@ -127,7 +118,7 @@ export default function Customers() {
         </button>
         <button
           className="btn secondary"
-          disabled={loading || !next}
+          disabled={loading || refreshing || !next}
           onClick={() => {
             setStack([...stack, cursor])
             setCursor(next)

@@ -1,9 +1,31 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { NAV_ITEMS } from '@/app/navigation.jsx'
-import { USER_TYPE_LABELS } from '@/features/users/utils.js'
+import { preloadPage } from '@/app/pages.js'
+import { PageSkeleton } from '@/shared/components/Skeleton.jsx'
+import TopProgress from '@/shared/components/TopProgress.jsx'
+
+// The console's frame with placeholders, shown while the session is restored on load
+// (a token refresh that can take a few seconds) so the page never sits blank.
+export function LayoutSkeleton() {
+  return (
+    <div className="app-shell with-sidebar">
+      <TopProgress />
+      <aside className="sidebar" aria-hidden="true">
+        <div className="sidebar-brand">
+          FBOS <small>Admin console</small>
+        </div>
+      </aside>
+      <div className="content">
+        <main className="container">
+          <PageSkeleton />
+        </main>
+      </div>
+    </div>
+  )
+}
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -23,28 +45,37 @@ export default function Layout() {
 
   return (
     <div className={`app-shell with-sidebar${open ? ' sidebar-open' : ''}`}>
+      <TopProgress />
       <aside className="sidebar" aria-label="Main navigation">
         <div className="sidebar-brand">
           FBOS <small>Admin console</small>
         </div>
         <nav className="sidebar-nav">
           {items.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className="sidebar-link">
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className="sidebar-link"
+              onMouseEnter={() => preloadPage(item.to)}
+              onFocus={() => preloadPage(item.to)}
+            >
               {item.icon}
               <span>{item.label}</span>
             </NavLink>
           ))}
         </nav>
         <div className="sidebar-user">
-          <div className="sidebar-user-name">{user?.name}</div>
-          <div className="sidebar-user-org">{USER_TYPE_LABELS[user?.user_type] || user?.user_type}</div>
-          <div className="mono sidebar-user-email">{user?.email}</div>
-          {user?.organization && <div className="sidebar-user-org">{user.organization.name}</div>}
-          <NavLink to="/profile" className="sidebar-profile-link">
-            My profile{user && !user.mfa_enabled && <span className="sidebar-dot" title="Two-factor sign-in is off" />}
+          <NavLink to="/profile" className="sidebar-user-name" onMouseEnter={() => preloadPage('/profile')} title={user ? `${user.name} · ${user.email}` : undefined}>
+            <span>Profile</span>
+            {user && !user.mfa_enabled && <span className="sidebar-dot" title="Two-factor sign-in is off" />}
           </NavLink>
-          <button className="btn ghost" onClick={handleLogout} style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>
-            Sign out
+          <button className="sidebar-signout" onClick={handleLogout} title="Sign out" aria-label="Sign out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
           </button>
         </div>
       </aside>
@@ -59,7 +90,10 @@ export default function Layout() {
           <span className="brand">FBOS</span>
         </header>
         <main className="container">
-          <Outlet />
+          {/* The sidebar stays put while a page's code downloads. */}
+          <Suspense fallback={<PageSkeleton />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

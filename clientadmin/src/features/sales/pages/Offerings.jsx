@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { offeringsApi } from '@/features/sales/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
@@ -6,7 +6,9 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { formatMoney } from '@/features/customers/utils.js'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
+import { useLookup } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import useVerticals from '@/features/sales/useVerticals.js'
 import { BILLING_MODELS, OFFERING_UNITS } from '@/features/sales/utils.js'
@@ -137,22 +139,11 @@ export default function Offerings() {
   const { orgId, activeOrg } = useActiveOrg()
   const { verticals, verticalName } = useVerticals(orgId)
   const canManage = hasAccess(me, ACCESS.manageOfferings)
-  const [offerings, setOfferings] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const { data, error, loading, reload } = useLookup(['offerings', orgId, 'all'], ({ signal }) => offeringsApi.listAll(orgId, { signal }), {
+    enabled: Boolean(orgId),
+  })
+  const offerings = data ?? []
   const [adding, setAdding] = useState(false)
-
-  const load = useCallback(() => {
-    if (!orgId) return
-    setLoading(true)
-    setError(null)
-    offeringsApi
-      .listAll(orgId)
-      .then(setOfferings)
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId])
-  useEffect(load, [load])
 
   return (
     <div>
@@ -170,7 +161,7 @@ export default function Offerings() {
         </div>
       </div>
 
-      <ErrorBanner error={error} onRetry={load} />
+      <ErrorBanner error={error} onRetry={reload} />
       {adding && (
         <OfferingForm
           orgId={orgId}
@@ -178,7 +169,7 @@ export default function Offerings() {
           defaultCurrency={activeOrg?.base_currency || 'INR'}
           onCreated={() => {
             setAdding(false)
-            load()
+            reload()
           }}
           onCancel={() => setAdding(false)}
         />
@@ -197,7 +188,7 @@ export default function Offerings() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="center-note">Loading…</td></tr>
+              <TableSkeleton cols={6} />
             ) : offerings.length === 0 ? (
               <tr><td colSpan={6} className="center-note">No offerings yet.</td></tr>
             ) : (

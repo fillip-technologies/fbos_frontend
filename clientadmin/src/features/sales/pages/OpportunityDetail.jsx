@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { contractsApi, offeringsApi, opportunitiesApi } from '@/features/sales/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
@@ -7,7 +7,10 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import useOwners from '@/features/customers/useOwners.js'
 import { formatMoney } from '@/features/customers/utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
+import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { useRecordForm } from '@/shared/utils/useRecordForm.js'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { toIsoDate } from '@/shared/utils/dates.js'
 import { formatDate } from '@/shared/utils/format.js'
@@ -39,16 +42,14 @@ function inDays(days) {
 }
 
 function NewQuotation({ orgId, opportunityId, onCreated, onCancel }) {
-  const [offerings, setOfferings] = useState(null)
+  const { data: offerings = null, error: offeringsError } = useLookup(['offerings', orgId, 'all'], ({ signal }) =>
+    offeringsApi.listAll(orgId, { signal })
+  )
   const [rows, setRows] = useState([newItem()])
   const [validUntil, setValidUntil] = useState(inDays(30))
   const [terms, setTerms] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-
-  useEffect(() => {
-    offeringsApi.listAll(orgId).then(setOfferings).catch(setError)
-  }, [orgId])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -67,9 +68,9 @@ function NewQuotation({ orgId, opportunityId, onCreated, onCancel }) {
   return (
     <form className="inline-panel" onSubmit={handleSubmit}>
       <h3>New quotation</h3>
-      <ErrorBanner error={error} />
+      <ErrorBanner error={error || offeringsError} />
       {offerings === null ? (
-        !error && <div className="center-note">Loading offerings…</div>
+        !offeringsError && <div className="center-note">Loading offerings…</div>
       ) : (
         <>
           <QuotationItemsEditor rows={rows} setRows={setRows} offerings={offerings} />
@@ -104,11 +105,32 @@ export default function OpportunityDetail() {
   const canManage = hasAccess(me, ACCESS.manageOpportunities)
   const canSeeContracts = hasAccess(me, ACCESS.contracts)
 
-  const [opp, setOpp] = useState(null)
-  const [form, setForm] = useState(null)
-  const [quotations, setQuotations] = useState([])
-  const [contracts, setContracts] = useState([])
-  const [loading, setLoading] = useState(true)
+  const oppQuery = useQuery(['opportunity', orgId, id], ({ signal }) => opportunitiesApi.get(orgId, id, { signal }), {
+    enabled: Boolean(orgId),
+  })
+  const quotationsQuery = useQuery(['quotations', orgId, { opportunity: id }], ({ signal }) =>
+    opportunitiesApi.quotations(orgId, id, { signal }), { enabled: Boolean(orgId) }
+  )
+  const contractsQuery = useQuery(
+    ['contracts', orgId, { opportunity_id: id }],
+    ({ signal }) => contractsApi.list(orgId, { opportunity_id: id, limit: 100 }, { signal }),
+    { enabled: Boolean(orgId) && canSeeContracts }
+  )
+  const opp = oppQuery.data
+  const quotations = quotationsQuery.data?.data ?? []
+  const contracts = contractsQuery.data?.data ?? []
+  const loading = oppQuery.loading || quotationsQuery.loading || (canSeeContracts && contractsQuery.loading)
+  const loadError = oppQuery.error || quotationsQuery.error || (canSeeContracts ? contractsQuery.error : null)
+  const reload = () => {
+    oppQuery.reload()
+    quotationsQuery.reload()
+    if (canSeeContracts) contractsQuery.reload()
+  }
+  const setOpp = (next) => {
+    oppQuery.setData(next)
+    invalidate(['opportunities', orgId])
+  }
+  const { form, setForm, base, rebase } = useRecordForm(opp, toForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   // null | 'quotation' | 'lost' | 'contract'
@@ -116,24 +138,6 @@ export default function OpportunityDetail() {
   const [lost, setLost] = useState({ reason: 'price', competitor: '', note: '' })
   const fieldErrors = getFieldErrors(error)
 
-  const load = useCallback(() => {
-    if (!orgId) return
-    setError(null)
-    Promise.all([
-      opportunitiesApi.get(orgId, id),
-      opportunitiesApi.quotations(orgId, id),
-      canSeeContracts ? contractsApi.list(orgId, { opportunity_id: id, limit: 100 }) : { data: [] },
-    ])
-      .then(([o, q, c]) => {
-        setOpp(o)
-        setForm(toForm(o))
-        setQuotations(q.data)
-        setContracts(c.data)
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, id, canSeeContracts])
-  useEffect(load, [load])
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -142,16 +146,16 @@ export default function OpportunityDetail() {
     setError(null)
     setSaving(true)
     try {
-      const original = toForm(opp)
+      const original = toForm(base) // what the form was taken from, not a newer refresh
       const body = {}
       if (form.stage !== original.stage) body.stage = form.stage
       if (form.probability !== original.probability) body.probability = Number(form.probability)
       if (form.amount !== original.amount) body.expected_value = { amount: Number(form.amount), currency: opp.expected_value.currency }
       if (form.expected_close_date !== original.expected_close_date) body.expected_close_date = form.expected_close_date
       if (Object.keys(body).length) {
-        const updated = await opportunitiesApi.update(orgId, id, opp.version, body)
+        const updated = await opportunitiesApi.update(orgId, id, base.version, body)
         setOpp(updated)
-        setForm(toForm(updated))
+        rebase(updated)
       }
     } catch (err) {
       setError(err)
@@ -170,7 +174,7 @@ export default function OpportunityDetail() {
       if (lost.note.trim()) body.note = lost.note.trim()
       const updated = await opportunitiesApi.markLost(orgId, id, opp.version, body)
       setOpp(updated)
-      setForm(toForm(updated))
+      rebase(updated)
       setPanel(null)
     } catch (err) {
       setError(err)
@@ -179,11 +183,11 @@ export default function OpportunityDetail() {
     }
   }
 
-  if (loading) return <div className="center-note">Loading…</div>
+  if (loading || (opp && !form)) return <DetailSkeleton />
   if (!opp)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={load} />
+        <ErrorBanner error={loadError} onRetry={reload} />
         <button className="btn secondary" onClick={() => navigate('/opportunities')}>← Back</button>
       </div>
     )
@@ -212,7 +216,8 @@ export default function OpportunityDetail() {
         <button className="btn secondary" onClick={() => navigate('/opportunities')}>← Back</button>
       </div>
 
-      {error && Object.keys(fieldErrors).length === 0 && <ErrorBanner error={error} onRetry={load} />}
+      {error && Object.keys(fieldErrors).length === 0 && <ErrorBanner error={error} />}
+      {!error && <ErrorBanner error={loadError} onRetry={reload} />}
 
       <div className="panel">
         {canManage && open ? (
@@ -322,7 +327,10 @@ export default function OpportunityDetail() {
           <NewQuotation
             orgId={orgId}
             opportunityId={opp.id}
-            onCreated={(q) => navigate(`/quotations/${q.id}`)}
+            onCreated={(q) => {
+              invalidate(['quotations', orgId])
+              navigate(`/quotations/${q.id}`)
+            }}
             onCancel={() => setPanel(null)}
           />
         )}
@@ -364,7 +372,10 @@ export default function OpportunityDetail() {
             <ContractForm
               orgId={orgId}
               quotation={accepted}
-              onCreated={(c) => navigate(`/contracts/${c.id}`)}
+              onCreated={(c) => {
+                invalidate(['contracts', orgId])
+                navigate(`/contracts/${c.id}`)
+              }}
               onCancel={() => setPanel(null)}
             />
           )}

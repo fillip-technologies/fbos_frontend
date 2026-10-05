@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { calendarsApi } from '@/features/calendars/api.js'
 import { orgUnitsApi } from '@/features/org-units/api.js'
@@ -8,8 +8,11 @@ import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
+import UnitPeople from '@/features/org-units/components/UnitPeople.jsx'
 import UnitVerticals from '@/features/org-units/components/UnitVerticals.jsx'
+import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { breadcrumb, childTypesFor, isTopLevelType, parentCandidates, sortedTree, UNIT_TYPE_LABELS } from '@/features/org-units/utils.js'
 import { formatDateTime } from '@/features/users/utils.js'
@@ -33,38 +36,43 @@ export default function OrgUnitDetail() {
   const canMove = hasAccess(me, ACCESS.moveOrgUnit)
   const canCreate = hasAccess(me, ACCESS.createOrgUnit)
 
-  const [unit, setUnit] = useState(null)
-  const [units, setUnits] = useState([])
-  const [people, setPeople] = useState(null) // active users of the org, for the head picker
-  const [calendars, setCalendars] = useState(null) // null when the user can't read calendars
-  const [members, setMembers] = useState(null) // users placed in this unit or any unit below it
-  const [loading, setLoading] = useState(true)
+  const enabled = Boolean(orgId)
+  const unitQuery = useQuery(['org-unit', orgId, id], ({ signal }) => orgUnitsApi.get(orgId, id, { signal }), { enabled })
+  const unitsQuery = useLookup(['org-units', orgId, 'all'], ({ signal }) => orgUnitsApi.listAll(orgId, { signal }), { enabled })
+  // Optional reads: null when the user may not see them.
+  const peopleQuery = useLookup(
+    ['users', orgId, { status: 'active', limit: 100 }],
+    ({ signal }) => usersApi.list(orgId, { limit: 100, status: 'active' }, { signal }).catch(() => ({ data: null })),
+    { enabled }
+  )
+  const calendarsQuery = useLookup(['calendars', orgId], ({ signal }) => calendarsApi.list(orgId, { signal }), { enabled })
+  const unit = unitQuery.data
+  // A team also lists its members who work elsewhere; other units list who works in them or below.
+  const membersQuery = useQuery(
+    ['users', orgId, { members_of: id }],
+    ({ signal }) =>
+      usersApi
+        .list(orgId, { limit: 100, ...(unit.unit_type === 'team' ? { team_id: unit.id } : { unit_id: unit.id }) }, { signal })
+        .catch(() => ({ data: null })),
+    { enabled: enabled && Boolean(unit) }
+  )
+  const units = useMemo(() => (unitsQuery.data ? sortedTree(unitsQuery.data) : []), [unitsQuery.data])
+  const people = peopleQuery.data?.data ?? null // active users of the org, for the head picker
+  const calendars = calendarsQuery.data ?? null // null when the user can't read calendars
+  const members = membersQuery.data?.data ?? null // the unit's people; null when the user can't read users
+  const loading = unitQuery.loading || unitsQuery.loading
+  const loadError = unitQuery.error || unitsQuery.error
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(location.state?.notice || '')
   const [mode, setMode] = useState(null) // 'edit' | 'move' | 'status'
 
-  const load = useCallback(() => {
-    if (!orgId) return
-    setLoading(true)
+  // After a change: refetch this unit and its people; mark unit and user lists stale.
+  const load = () => {
     setError(null)
-    Promise.all([
-      orgUnitsApi.get(orgId, id),
-      orgUnitsApi.listAll(orgId),
-      usersApi.list(orgId, { limit: 100, status: 'active' }).then((r) => r.data).catch(() => null),
-      usersApi.list(orgId, { limit: 100, unit_id: id }).then((r) => r.data).catch(() => null),
-      calendarsApi.list(orgId).catch(() => null),
-    ])
-      .then(([u, all, p, m, c]) => {
-        setUnit(u)
-        setUnits(sortedTree(all))
-        setPeople(p)
-        setMembers(m)
-        setCalendars(c)
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, id])
-  useEffect(load, [load])
+    invalidate(['org-units', orgId])
+    invalidate(['users', orgId])
+    unitQuery.reload()
+  }
 
   // Clear a stale notice when switching to another unit.
   useEffect(() => setNotice(location.state?.notice || ''), [id, location.state])
@@ -77,11 +85,17 @@ export default function OrgUnitDetail() {
     load()
   }
 
-  if (loading && !unit) return <div className="center-note">Loading…</div>
+  // The People panel keeps its own forms open (e.g. to show who couldn't be added).
+  const peopleChanged = (message) => {
+    setNotice(message)
+    load()
+  }
+
+  if (loading) return <DetailSkeleton />
   if (!unit)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={load} />
+        <ErrorBanner error={loadError} onRetry={unitQuery.reload} />
         <Link className="btn secondary" to="/org-units">← Back to company structure</Link>
       </div>
     )
@@ -118,7 +132,7 @@ export default function OrgUnitDetail() {
       </div>
 
       {notice && <div className="alert success">{notice}</div>}
-      {mode === null && <ErrorBanner error={error} />}
+      {mode === null && <ErrorBanner error={error || loadError} onRetry={error ? undefined : unitQuery.reload} />}
 
       {/* ---------------- Details ---------------- */}
       <div className="panel form-section">
@@ -220,30 +234,7 @@ export default function OrgUnitDetail() {
 
       {/* ---------------- People ---------------- */}
       {members && (
-        <div className="panel form-section">
-          <div className="section-head">
-            <div>
-              <h2>People ({members.length}{members.length === 100 ? '+' : ''})</h2>
-              <p className="muted small" style={{ margin: '2px 0 0' }}>Placed here or anywhere under it.</p>
-            </div>
-          </div>
-          {members.length === 0 ? (
-            <p className="muted">Nobody is placed here or under it.</p>
-          ) : (
-            <table className="compact">
-              <tbody>
-                {members.map((m) => (
-                  <tr key={m.id} className="clickable" onClick={() => navigate(`/users/${m.id}`)}>
-                    <td style={{ fontWeight: 600 }}>{m.name}</td>
-                    <td className="muted">{m.email}</td>
-                    <td>{m.home_unit && m.home_unit.id !== unit.id ? <span className="muted small">in {m.home_unit.name}</span> : null}</td>
-                    <td><StatusBadge status={m.status} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <UnitPeople key={unit.id} orgId={orgId} unit={unit} units={units} members={members} onChanged={peopleChanged} />
       )}
     </div>
   )

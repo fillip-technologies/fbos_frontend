@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { invoicesApi } from '@/features/billing/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
@@ -6,7 +6,9 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { formatMoney } from '@/features/customers/utils.js'
+import { prefetch, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import { DOC_TYPES, isPastDue } from '@/features/billing/utils.js'
@@ -24,28 +26,28 @@ export default function Invoices() {
   const navigate = useNavigate()
   const { user: me } = useAuth()
   const { orgId, activeOrg } = useActiveOrg()
-  const [invoices, setInvoices] = useState([])
   const [status, setStatus] = useState('')
   const [cursor, setCursor] = useState(undefined)
   const [stack, setStack] = useState([])
-  const [next, setNext] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
-  function load() {
-    if (!orgId) return
-    setLoading(true)
-    setError(null)
-    invoicesApi
-      .list(orgId, { limit: 25, cursor, status })
-      .then((res) => {
-        setInvoices(res.data)
-        setNext(res.page?.has_more ? res.page.next_cursor : null)
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
+  const { data, error, loading, refreshing, reload } = useQuery(
+    ['invoices', orgId, { status, cursor }],
+    ({ signal }) => invoicesApi.list(orgId, { limit: 25, cursor, status }, { signal }),
+    { enabled: Boolean(orgId), keepPrevious: true }
+  )
+  const invoices = data?.data ?? []
+  const next = data?.page?.has_more ? data.page.next_cursor : null
+
+  // Resting on a row for a moment starts loading the invoice, so the detail page usually
+  // opens at once. Sweeping the mouse across the list fetches nothing.
+  const hoverTimer = useRef()
+  const prefetchInvoice = (id) => {
+    clearTimeout(hoverTimer.current)
+    hoverTimer.current = setTimeout(
+      () => prefetch(['invoice', orgId, id], ({ signal }) => invoicesApi.get(orgId, id, { signal })),
+      150
+    )
   }
-  useEffect(load, [orgId, cursor, status])
 
   function resetPaging() {
     setCursor(undefined)
@@ -83,8 +85,8 @@ export default function Invoices() {
         ))}
       </div>
 
-      <ErrorBanner error={error} onRetry={load} />
-      <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+      <ErrorBanner error={error} onRetry={reload} />
+      <div className={`panel${refreshing ? ' is-refreshing' : ''}`} style={{ padding: 0, overflowX: 'auto' }}>
         <table>
           <thead>
             <tr>
@@ -99,12 +101,12 @@ export default function Invoices() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="center-note">Loading…</td></tr>
+              <TableSkeleton cols={7} />
             ) : invoices.length === 0 ? (
               <tr><td colSpan={7} className="center-note">No invoices found.</td></tr>
             ) : (
               invoices.map((inv) => (
-                <tr key={inv.id} onClick={() => navigate(`/invoices/${inv.id}`)}>
+                <tr key={inv.id} onClick={() => navigate(`/invoices/${inv.id}`)} onMouseEnter={() => prefetchInvoice(inv.id)} onMouseLeave={() => clearTimeout(hoverTimer.current)}>
                   <td>
                     <div className="mono">{inv.invoice_no || <span className="muted">Draft</span>}</div>
                     {inv.doc_type !== 'tax_invoice' && <div className="muted small">{DOC_TYPES[inv.doc_type]}</div>}
@@ -127,7 +129,7 @@ export default function Invoices() {
       <div className="row-actions" style={{ marginTop: 16 }}>
         <button
           className="btn secondary"
-          disabled={loading || stack.length === 0}
+          disabled={loading || refreshing || stack.length === 0}
           onClick={() => {
             setCursor(stack[stack.length - 1])
             setStack(stack.slice(0, -1))
@@ -137,7 +139,7 @@ export default function Invoices() {
         </button>
         <button
           className="btn secondary"
-          disabled={loading || !next}
+          disabled={loading || refreshing || !next}
           onClick={() => {
             setStack([...stack, cursor])
             setCursor(next)

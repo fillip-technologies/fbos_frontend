@@ -14,6 +14,17 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // React and the router change rarely: keep them in their own long-cached chunk so
+        // a deploy only invalidates the app code. Pages are split by App.jsx's lazy routes.
+        manualChunks(id) {
+          if (/node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler|@remix-run)[\\/]/.test(id)) return 'vendor'
+        },
+      },
+    },
+  },
   server: {
     port: 5174,
     strictPort: true, // fail instead of silently moving to another port (emailed links assume :5174)

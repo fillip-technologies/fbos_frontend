@@ -8,6 +8,7 @@ import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { todayIso } from '@/shared/utils/dates.js'
 import AllocationEditor, { allocatedTotal, toAllocations } from '@/features/billing/components/AllocationEditor.jsx'
 import { PAYABLE_STATUSES, PAYMENT_METHODS, amountOf } from '@/features/billing/utils.js'
+import { invalidate } from '@/shared/api/useQuery.js'
 
 // Money received from a customer, optionally split across their open invoices right away.
 export default function PaymentCreate() {
@@ -76,6 +77,8 @@ export default function PaymentCreate() {
       const allocations = toAllocations(amounts, currency)
       if (allocations.length) body.allocations = allocations
       const payment = await paymentsApi.record(orgId, body, idempotencyKey)
+      invalidate(['payments', orgId])
+      invalidate(['invoices', orgId]) // allocations change balances
       navigate(`/payments/${payment.id}`, { replace: true })
     } catch (err) {
       setError(err)

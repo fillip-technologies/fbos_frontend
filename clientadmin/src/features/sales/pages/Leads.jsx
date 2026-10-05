@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { leadsApi } from '@/features/sales/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
@@ -6,7 +6,9 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import useOwners from '@/features/customers/useOwners.js'
+import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import { LEAD_SOURCES, LEAD_STATUSES, humanize } from '@/features/sales/utils.js'
@@ -19,28 +21,17 @@ export default function Leads() {
   const { orgId, activeOrg } = useActiveOrg()
   const { ownerName } = useOwners(orgId)
 
-  const [leads, setLeads] = useState([])
   const [filters, setFilters] = useState(NO_FILTERS)
   const [cursor, setCursor] = useState(undefined)
   const [stack, setStack] = useState([])
-  const [next, setNext] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
-  function load() {
-    if (!orgId) return
-    setLoading(true)
-    setError(null)
-    leadsApi
-      .list(orgId, { limit: 25, cursor, ...filters })
-      .then((res) => {
-        setLeads(res.data)
-        setNext(res.page?.has_more ? res.page.next_cursor : null)
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }
-  useEffect(load, [orgId, cursor, filters])
+  const { data, error, loading, refreshing, reload } = useQuery(
+    ['leads', orgId, { cursor, filters }],
+    ({ signal }) => leadsApi.list(orgId, { limit: 25, cursor, ...filters }, { signal }),
+    { enabled: Boolean(orgId), keepPrevious: true }
+  )
+  const leads = data?.data ?? []
+  const next = data?.page?.has_more ? data.page.next_cursor : null
 
   function resetPaging() {
     setCursor(undefined)
@@ -82,8 +73,8 @@ export default function Leads() {
         </select>
       </div>
 
-      <ErrorBanner error={error} onRetry={load} />
-      <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+      <ErrorBanner error={error} onRetry={reload} />
+      <div className={`panel${refreshing ? ' is-refreshing' : ''}`} style={{ padding: 0, overflowX: 'auto' }}>
         <table>
           <thead>
             <tr>
@@ -97,7 +88,7 @@ export default function Leads() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="center-note">Loading…</td></tr>
+              <TableSkeleton cols={6} />
             ) : leads.length === 0 ? (
               <tr><td colSpan={6} className="center-note">No leads found.</td></tr>
             ) : (
@@ -124,7 +115,7 @@ export default function Leads() {
       <div className="row-actions" style={{ marginTop: 16 }}>
         <button
           className="btn secondary"
-          disabled={loading || stack.length === 0}
+          disabled={loading || refreshing || stack.length === 0}
           onClick={() => {
             setCursor(stack[stack.length - 1])
             setStack(stack.slice(0, -1))
@@ -134,7 +125,7 @@ export default function Leads() {
         </button>
         <button
           className="btn secondary"
-          disabled={loading || !next}
+          disabled={loading || refreshing || !next}
           onClick={() => {
             setStack([...stack, cursor])
             setCursor(next)

@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { customersApi } from '@/features/customers/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
+import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { useRecordForm } from '@/shared/utils/useRecordForm.js'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import CustomerContacts from '@/features/customers/components/CustomerContacts.jsx'
@@ -49,28 +52,23 @@ export default function CustomerDetail() {
   ]
   const tab = tabs.some(([key]) => key === params.get('tab')) ? params.get('tab') : 'overview'
 
-  const [customer, setCustomer] = useState(null)
-  const [form, setForm] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const {
+    data: customer,
+    error: loadError,
+    loading,
+    reload,
+    setData,
+  } = useQuery(['customer', orgId, id], ({ signal }) => customersApi.get(orgId, id, { signal }), { enabled: Boolean(orgId) })
+  const setCustomer = (next) => {
+    setData(next)
+    invalidate(['customers', orgId])
+  }
+  const { form, setForm, base, rebase } = useRecordForm(customer, toForm)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
   const fieldErrors = getFieldErrors(error)
   if (error?.code === 'GSTIN_INVALID' || error?.code === 'DUPLICATE_CLIENT') fieldErrors.gstin = friendlyMessage(error)
-
-  const load = useCallback(() => {
-    if (!orgId) return
-    setError(null)
-    customersApi
-      .get(orgId, id)
-      .then((c) => {
-        setCustomer(c)
-        setForm(toForm(c))
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, id])
-  useEffect(load, [load])
 
   const set = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }))
@@ -88,7 +86,7 @@ export default function CustomerDetail() {
     setSaving(true)
     try {
       // Send only what changed. The backend ignores blanks, so a GSTIN can be changed but not removed.
-      const original = toForm(customer)
+      const original = toForm(base) // what the form was taken from, not a newer refresh
       const body = {}
       for (const k of ['name', 'legal_name', 'gstin']) {
         if (form[k].trim() && form[k].trim() !== original[k]) body[k] = form[k].trim()
@@ -99,9 +97,9 @@ export default function CustomerDetail() {
       if (JSON.stringify(address) !== JSON.stringify(addressFromForm(original.address))) body.billing_address = address
 
       if (Object.keys(body).length) {
-        const updated = await customersApi.update(orgId, id, customer.version, body)
+        const updated = await customersApi.update(orgId, id, base.version, body)
         setCustomer(updated)
-        setForm(toForm(updated))
+        rebase(updated)
       }
       setSaved(true)
     } catch (err) {
@@ -111,11 +109,11 @@ export default function CustomerDetail() {
     }
   }
 
-  if (loading) return <div className="center-note">Loading…</div>
+  if (loading || (customer && !form)) return <DetailSkeleton />
   if (!customer)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={load} />
+        <ErrorBanner error={loadError} onRetry={reload} />
         <button className="btn secondary" onClick={() => navigate('/customers')}>← Back</button>
       </div>
     )
@@ -190,7 +188,7 @@ export default function CustomerDetail() {
         </>
       )}
 
-      {tab === 'contacts' && <CustomerContacts orgId={orgId} customer={customer} canManage={canManage} onAdded={load} />}
+      {tab === 'contacts' && <CustomerContacts orgId={orgId} customer={customer} canManage={canManage} onAdded={reload} />}
 
       {tab === 'services' && (
         <CustomerServices

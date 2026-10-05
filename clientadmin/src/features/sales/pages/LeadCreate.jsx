@@ -8,6 +8,7 @@ import { getFieldErrors } from '@/shared/api/errors.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import useVerticals from '@/features/sales/useVerticals.js'
 import { CONSENT_CHANNELS, DEFAULT_CONSENT_TEXT, LEAD_SOURCES } from '@/features/sales/utils.js'
+import { invalidate } from '@/shared/api/useQuery.js'
 
 export default function LeadCreate() {
   const navigate = useNavigate()
@@ -50,6 +51,7 @@ export default function LeadCreate() {
       }
       if (form.owner_user_id) body.owner_user_id = form.owner_user_id
       const created = await leadsApi.create(orgId, body)
+      invalidate(['leads', orgId])
       navigate(`/leads/${created.id}`, { replace: true })
     } catch (err) {
       setError(err)

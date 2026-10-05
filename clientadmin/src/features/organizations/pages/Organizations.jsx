@@ -1,32 +1,24 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { organizationsApi } from '@/features/organizations/api.js'
+import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatFiscalYearStart } from '@/shared/utils/format.js'
 
 export default function Organizations() {
   const navigate = useNavigate()
-  const [orgs, setOrgs] = useState([])
   const [cursor, setCursor] = useState(undefined)
   const [stack, setStack] = useState([])
-  const [next, setNext] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
-  function load(c) {
-    setLoading(true)
-    setError(null)
-    organizationsApi
-      .list({ limit: 25, cursor: c })
-      .then((res) => {
-        setOrgs(res.data)
-        setNext(res.page?.has_more ? res.page.next_cursor : null)
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }
-  useEffect(() => load(cursor), [cursor])
+  const { data, error, loading, refreshing, reload } = useQuery(
+    ['organizations', null, { cursor }],
+    ({ signal }) => organizationsApi.list({ limit: 25, cursor }, { signal }),
+    { keepPrevious: true }
+  )
+  const orgs = data?.data ?? []
+  const next = data?.page?.has_more ? data.page.next_cursor : null
 
   return (
     <div>
@@ -36,8 +28,8 @@ export default function Organizations() {
           New organization
         </Link>
       </div>
-      <ErrorBanner error={error} onRetry={() => load(cursor)} />
-      <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+      <ErrorBanner error={error} onRetry={reload} />
+      <div className={`panel${refreshing ? ' is-refreshing' : ''}`} style={{ padding: 0, overflow: 'hidden' }}>
         <table>
           <thead>
             <tr>
@@ -50,7 +42,7 @@ export default function Organizations() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="center-note">Loading…</td></tr>
+              <TableSkeleton cols={5} />
             ) : orgs.length === 0 ? (
               <tr><td colSpan={5} className="center-note">No companies yet.</td></tr>
             ) : (
@@ -70,7 +62,7 @@ export default function Organizations() {
       <div className="row-actions" style={{ marginTop: 16 }}>
         <button
           className="btn secondary"
-          disabled={loading || stack.length === 0}
+          disabled={loading || refreshing || stack.length === 0}
           onClick={() => {
             const prev = stack[stack.length - 1]
             setStack(stack.slice(0, -1))
@@ -81,7 +73,7 @@ export default function Organizations() {
         </button>
         <button
           className="btn secondary"
-          disabled={loading || !next}
+          disabled={loading || refreshing || !next}
           onClick={() => {
             setStack([...stack, cursor])
             setCursor(next)

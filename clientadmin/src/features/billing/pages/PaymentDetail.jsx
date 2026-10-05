@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { invoicesApi, paymentsApi } from '@/features/billing/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
@@ -6,7 +6,9 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { formatMoney } from '@/features/customers/utils.js'
 import { uuidv4 } from '@/shared/api/http.js'
+import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import AllocationEditor, { allocatedTotal, toAllocations } from '@/features/billing/components/AllocationEditor.jsx'
@@ -26,24 +28,25 @@ export default function PaymentDetail() {
   const navigate = useNavigate()
   const { user: me } = useAuth()
   const { orgId } = useActiveOrg()
-  const [payment, setPayment] = useState(null)
+  const {
+    data: payment,
+    error: loadError,
+    loading,
+    reload,
+    setData,
+  } = useQuery(['payment', orgId, id], ({ signal }) => paymentsApi.get(orgId, id, { signal }), {
+    enabled: Boolean(orgId),
+  })
+  // Saves a changed payment into the cache; its list is refetched on the next visit.
+  const setPayment = (next) => {
+    setData(next)
+    invalidate(['payments', orgId])
+  }
   const [openInvoices, setOpenInvoices] = useState([])
   const [amounts, setAmounts] = useState({})
   const [allocating, setAllocating] = useState(null) // idempotency key while the form is open
-  const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-
-  const load = useCallback(() => {
-    if (!orgId) return
-    setError(null)
-    paymentsApi
-      .get(orgId, id)
-      .then(setPayment)
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, id])
-  useEffect(load, [load])
 
   function openAllocation() {
     setAmounts({})
@@ -64,6 +67,8 @@ export default function PaymentDetail() {
     setBusy(true)
     try {
       setPayment(await paymentsApi.allocate(orgId, payment, toAllocations(amounts, payment.amount.currency), allocating))
+      invalidate(['invoices', orgId]) // the allocated invoices' balances changed
+      invalidate(['invoice', orgId])
       setAllocating(null)
     } catch (err) {
       setError(err)
@@ -72,11 +77,11 @@ export default function PaymentDetail() {
     }
   }
 
-  if (loading) return <div className="center-note">Loading…</div>
+  if (loading) return <DetailSkeleton />
   if (!payment)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={load} />
+        <ErrorBanner error={loadError} onRetry={reload} />
         <button className="btn secondary" onClick={() => navigate('/payments')}>← Back</button>
       </div>
     )
@@ -101,7 +106,7 @@ export default function PaymentDetail() {
         </div>
       </div>
 
-      <ErrorBanner error={error} />
+      <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
       <div className="panel">
         <div className="details-grid">
           <Detail label="Received on">{formatDate(payment.received_on)}</Detail>

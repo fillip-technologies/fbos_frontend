@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { usersApi } from '@/features/users/api.js'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
@@ -17,7 +17,9 @@ import {
   serviceLabel,
   toRequestAccess,
 } from '@/features/access/permissions.js'
+import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDateTime, USER_TYPE_LABELS } from '@/features/users/utils.js'
 
@@ -37,35 +39,35 @@ export default function UserDetail() {
   const { orgId } = useActiveOrg()
   const { catalog, roles, units } = useAccessCatalog(orgId)
 
-  const [user, setUser] = useState(null)
-  const [access, setAccess] = useState(null) // GET /users/{id}/permissions
-  const [presets, setPresets] = useState([])
-  const [managers, setManagers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const enabled = Boolean(orgId)
+  const userQuery = useQuery(['user', orgId, id], ({ signal }) => usersApi.get(orgId, id, { signal }), { enabled })
+  // The rest is optional: without the permission to read it the page still shows the person.
+  const accessQuery = useQuery(['user-permissions', orgId, id], ({ signal }) =>
+    usersApi.permissions(orgId, id, { signal }).catch(() => null), { enabled }
+  )
+  const presetsQuery = useQuery(['user-roles', orgId, id], () => usersApi.roleAssignments(orgId, id).catch(() => []), { enabled })
+  const activesQuery = useLookup(
+    ['users', orgId, { status: 'active', limit: 100 }],
+    ({ signal }) => usersApi.list(orgId, { limit: 100, status: 'active' }, { signal }).catch(() => ({ data: null })),
+    { enabled }
+  )
+  const user = userQuery.data
+  const access = accessQuery.data ?? null // GET /users/{id}/permissions
+  const presets = presetsQuery.data ?? []
+  const managers = useMemo(() => (activesQuery.data?.data ?? []).filter((m) => m.id !== id), [activesQuery.data, id])
+  const loading = userQuery.loading
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(location.state?.notice || '')
   const [mode, setMode] = useState(null) // 'edit' | 'deactivate' | 'access'
 
-  const load = useCallback(() => {
-    if (!orgId) return
-    setLoading(true)
+  // After a change: refetch this person and mark every user list stale.
+  const load = () => {
     setError(null)
-    Promise.all([
-      usersApi.get(orgId, id),
-      usersApi.permissions(orgId, id).catch(() => null),
-      usersApi.roleAssignments(orgId, id).catch(() => []),
-      usersApi.list(orgId, { limit: 100, status: 'active' }).catch(() => ({ data: [] })),
-    ])
-      .then(([u, perms, assignments, actives]) => {
-        setUser(u)
-        setAccess(perms)
-        setPresets(assignments)
-        setManagers(actives.data.filter((m) => m.id !== id))
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, id])
-  useEffect(load, [load])
+    userQuery.reload()
+    accessQuery.reload()
+    presetsQuery.reload()
+    invalidate(['users', orgId])
+  }
 
   const unitsById = useMemo(() => Object.fromEntries(units.map((u) => [u.id, u])), [units])
   const describe = useMemo(() => Object.fromEntries(catalog.map((p) => [p.code, p.description])), [catalog])
@@ -87,11 +89,11 @@ export default function UserDetail() {
     load()
   }
 
-  if (loading && !user) return <div className="center-note">Loading…</div>
+  if (loading) return <DetailSkeleton />
   if (!user)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={load} />
+        <ErrorBanner error={userQuery.error} onRetry={userQuery.reload} />
         <Link className="btn secondary" to="/users">← Back to users</Link>
       </div>
     )
@@ -125,7 +127,7 @@ export default function UserDetail() {
       </div>
 
       {notice && <div className="alert success">{notice}</div>}
-      {mode === null && <ErrorBanner error={error} />}
+      {mode === null && <ErrorBanner error={error || userQuery.error} onRetry={error ? undefined : userQuery.reload} />}
 
       {user.status === 'invited' && (
         <div className="alert info invite-banner">
@@ -161,6 +163,15 @@ export default function UserDetail() {
             <Detail label="Employee code">{user.employee_code && <span className="mono">{user.employee_code}</span>}</Detail>
             <Detail label="User type">{USER_TYPE_LABELS[user.user_type] || user.user_type}</Detail>
             <Detail label="Works in">{user.home_unit && `${user.home_unit.name} (${user.home_unit.unit_type})`}</Detail>
+            <Detail label="Also in teams">
+              {user.teams?.length > 0 &&
+                user.teams.map((team, i) => (
+                  <span key={team.id}>
+                    {i > 0 && ', '}
+                    <Link to={`/org-units/${team.id}`}>{team.name}</Link>
+                  </span>
+                ))}
+            </Detail>
             <Detail label="Reports to">{user.manager && <Link to={`/users/${user.manager.id}`}>{user.manager.name}</Link>}</Detail>
             <Detail label="Two-factor sign-in">{user.mfa_enabled ? 'Enabled' : 'Not set up'}</Detail>
             <Detail label="Last sign-in">{user.last_login_at && formatDateTime(user.last_login_at)}</Detail>
@@ -312,11 +323,11 @@ function ProfileForm({ orgId, user, units, managers, onCancel, onSaved }) {
     e.preventDefault()
     setError(null)
     setSaving(true)
-    // Send only what changed; null clears phone / manager.
+    // Send only what changed; null clears phone / place / manager.
     const body = {}
     if (form.name.trim() !== user.name) body.name = form.name.trim()
     if ((form.phone.trim() || null) !== (user.phone || null)) body.phone = form.phone.trim() || null
-    if (form.home_unit_id && form.home_unit_id !== (user.home_unit?.id || null)) body.home_unit_id = form.home_unit_id
+    if ((form.home_unit_id || null) !== (user.home_unit?.id || null)) body.home_unit_id = form.home_unit_id || null
     if ((form.manager_user_id || null) !== (user.manager?.id || null)) body.manager_user_id = form.manager_user_id || null
     try {
       if (Object.keys(body).length) await usersApi.update(orgId, user.id, user.version, body)
@@ -345,7 +356,9 @@ function ProfileForm({ orgId, user, units, managers, onCancel, onSaved }) {
         <div className="field">
           <label htmlFor="e-unit">Works in</label>
           <UnitSelect id="e-unit" units={units} value={form.home_unit_id} emptyLabel="— Not placed yet —" onChange={(id) => set('home_unit_id', id)} />
-          <div className="hint">Moving someone needs access where they move to as well.</div>
+          <div className="hint">
+            Moving someone needs access where they move to as well; leaving them unplaced needs access across the whole company.
+          </div>
           {fieldErrors.home_unit_id && <div className="field-error">{fieldErrors.home_unit_id}</div>}
         </div>
         <div className="field">

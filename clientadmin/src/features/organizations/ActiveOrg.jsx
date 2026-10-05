@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { organizationsApi } from '@/features/organizations/api.js'
 import { isClientAdmin } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { useQuery } from '@/shared/api/useQuery.js'
 
 // The organization the users / roles / units / calendars screens work in. A client admin
 // owns several organizations; the choice is remembered per browser and sent as
@@ -21,22 +22,14 @@ function readStored() {
 export function ActiveOrgProvider({ children }) {
   const { user } = useAuth()
   const multiOrg = isClientAdmin(user)
-  const [orgs, setOrgs] = useState([])
   const [activeId, setActiveId] = useState(readStored)
-  const [loading, setLoading] = useState(multiOrg)
-  const [error, setError] = useState(null)
-
-  const load = useCallback(() => {
-    if (!multiOrg) return
-    setLoading(true)
-    setError(null)
-    organizationsApi
-      .list({ limit: 100 })
-      .then((res) => setOrgs(res.data))
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [multiOrg])
-  useEffect(load, [load])
+  const query = useQuery(['organizations', 'switcher'], ({ signal }) => organizationsApi.list({ limit: 100 }, { signal }), {
+    enabled: multiOrg,
+    staleTime: 5 * 60_000,
+  })
+  const orgs = useMemo(() => query.data?.data ?? [], [query.data])
+  const loading = multiOrg && query.loading
+  const { error, reload } = query
 
   // Fall back to the admin's own organization when nothing (or a stale id) is stored.
   const activeOrg = useMemo(() => {
@@ -53,9 +46,15 @@ export function ActiveOrgProvider({ children }) {
     }
   }, [])
 
+  // While the list loads, activeOrg is the admin's own organization. If another one is
+  // remembered, hold orgId back until the list confirms it, or every page would fetch
+  // the own org's data first and then fetch again for the remembered one.
+  const settling = loading && Boolean(activeId) && activeId !== user?.organization?.id
+  const orgId = settling ? undefined : activeOrg?.id
+
   const value = useMemo(
-    () => ({ orgs, activeOrg, orgId: activeOrg?.id, selectOrg, loading, error, reload: load }),
-    [orgs, activeOrg, selectOrg, loading, error, load]
+    () => ({ orgs, activeOrg, orgId, selectOrg, loading, error, reload }),
+    [orgs, activeOrg, orgId, selectOrg, loading, error, reload]
   )
   return <ActiveOrgContext.Provider value={value}>{children}</ActiveOrgContext.Provider>
 }

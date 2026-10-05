@@ -7,8 +7,8 @@ const ifMatch = (orgId, version) => inOrg(orgId, { 'If-Match': `"${version}"` })
 // ---------- Leads ----------
 export const leadsApi = {
   // Filters: status, source, vertical_id, owner_user_id.
-  list: (orgId, opts) => api.get(`${REVENUE}/leads?${pageQuery(opts)}`, { headers: inOrg(orgId) }),
-  get: (orgId, id) => api.get(`${REVENUE}/leads/${id}`, { headers: inOrg(orgId) }),
+  list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/leads?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/leads/${id}`, { headers: inOrg(orgId), signal }),
   create: (orgId, body) => api.post(`${REVENUE}/leads`, body, { headers: inOrg(orgId) }),
   update: (orgId, id, version, body) => api.patch(`${REVENUE}/leads/${id}`, body, { headers: ifMatch(orgId, version) }),
   disqualify: (orgId, id, version, body) =>
@@ -21,14 +21,14 @@ export const leadsApi = {
 // ---------- Opportunities ----------
 export const opportunitiesApi = {
   // Filters: stage, client_id, owner_user_id.
-  list: (orgId, opts) => api.get(`${REVENUE}/opportunities?${pageQuery(opts)}`, { headers: inOrg(orgId) }),
-  get: (orgId, id) => api.get(`${REVENUE}/opportunities/${id}`, { headers: inOrg(orgId) }),
+  list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/opportunities?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/opportunities/${id}`, { headers: inOrg(orgId), signal }),
   update: (orgId, id, version, body) =>
     api.patch(`${REVENUE}/opportunities/${id}`, body, { headers: ifMatch(orgId, version) }),
   markLost: (orgId, id, version, body) =>
     api.post(`${REVENUE}/opportunities/${id}/lost`, body, { headers: ifMatch(orgId, version) }),
   // Every revision, newest first.
-  quotations: (orgId, id) => api.get(`${REVENUE}/opportunities/${id}/quotations`, { headers: inOrg(orgId) }),
+  quotations: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/opportunities/${id}/quotations`, { headers: inOrg(orgId), signal }),
   createQuotation: (orgId, id, body) =>
     api.post(`${REVENUE}/opportunities/${id}/quotations`, body, { headers: inOrg(orgId) }),
 }
@@ -38,7 +38,7 @@ const quotationAction = (action) => (orgId, quote, body) =>
   api.post(`${REVENUE}/quotations/${quote.id}/${action}`, body, { headers: ifMatch(orgId, quote.version) })
 
 export const quotationsApi = {
-  get: (orgId, id) => api.get(`${REVENUE}/quotations/${id}`, { headers: inOrg(orgId) }),
+  get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/quotations/${id}`, { headers: inOrg(orgId), signal }),
   replaceItems: (orgId, quote, items) =>
     api.put(`${REVENUE}/quotations/${quote.id}/items`, { items }, { headers: ifMatch(orgId, quote.version) }),
   submit: quotationAction('submit'),
@@ -53,8 +53,8 @@ export const quotationsApi = {
 // ---------- Contracts ----------
 export const contractsApi = {
   // Filters: client_id, opportunity_id, status.
-  list: (orgId, opts) => api.get(`${REVENUE}/contracts?${pageQuery(opts)}`, { headers: inOrg(orgId) }),
-  get: (orgId, id) => api.get(`${REVENUE}/contracts/${id}`, { headers: inOrg(orgId) }),
+  list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/contracts?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/contracts/${id}`, { headers: inOrg(orgId), signal }),
   create: (orgId, body) => api.post(`${REVENUE}/contracts`, body, { headers: inOrg(orgId) }),
   activate: (orgId, contract) =>
     api.post(`${REVENUE}/contracts/${contract.id}/activate`, undefined, { headers: ifMatch(orgId, contract.version) }),
@@ -62,8 +62,8 @@ export const contractsApi = {
 
 // ---------- Offerings (what can be quoted) ----------
 export const offeringsApi = {
-  list: (orgId, opts) => api.get(`${REVENUE}/offerings?${pageQuery(opts)}`, { headers: inOrg(orgId) }),
-  listAll: (orgId) => listAll(`${REVENUE}/offerings`, orgId),
+  list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/offerings?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  listAll: (orgId, { signal } = {}) => listAll(`${REVENUE}/offerings`, orgId, {}, { signal }),
   create: (orgId, body) => api.post(`${REVENUE}/offerings`, body, { headers: inOrg(orgId) }),
 }
 
@@ -77,4 +77,4 @@ export const activitiesApi = {
 }
 
 // The client's verticals (business lines); leads and offerings belong to one.
-export const verticalOptions = (orgId) => listAll(`${IDENTITY}/verticals`, orgId, { status: 'active' })
+export const verticalOptions = (orgId, { signal } = {}) => listAll(`${IDENTITY}/verticals`, orgId, { status: 'active' }, { signal })

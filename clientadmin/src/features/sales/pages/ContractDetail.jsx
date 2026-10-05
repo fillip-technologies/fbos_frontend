@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { contractsApi } from '@/features/sales/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { formatMoney } from '@/features/customers/utils.js'
+import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
@@ -25,21 +27,22 @@ export default function ContractDetail() {
   const navigate = useNavigate()
   const { user: me } = useAuth()
   const { orgId } = useActiveOrg()
-  const [contract, setContract] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const {
+    data: contract,
+    error: loadError,
+    loading,
+    reload,
+    setData,
+  } = useQuery(['contract', orgId, id], ({ signal }) => contractsApi.get(orgId, id, { signal }), {
+    enabled: Boolean(orgId),
+  })
+  // Saves a changed contract into the cache; its list is refetched on the next visit.
+  const setContract = (next) => {
+    setData(next)
+    invalidate(['contracts', orgId])
+  }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-
-  const load = useCallback(() => {
-    if (!orgId) return
-    setError(null)
-    contractsApi
-      .get(orgId, id)
-      .then(setContract)
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, id])
-  useEffect(load, [load])
 
   async function activate() {
     if (!window.confirm('Mark this contract as signed and active?')) return
@@ -54,11 +57,11 @@ export default function ContractDetail() {
     }
   }
 
-  if (loading) return <div className="center-note">Loading…</div>
+  if (loading) return <DetailSkeleton />
   if (!contract)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={load} />
+        <ErrorBanner error={loadError} onRetry={reload} />
         <button className="btn secondary" onClick={() => navigate('/contracts')}>← Back</button>
       </div>
     )
@@ -97,7 +100,7 @@ export default function ContractDetail() {
         </div>
       </div>
 
-      <ErrorBanner error={error} />
+      <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
       <div className="panel">
         <div className="details-grid">
           <Detail label="Type">{CONTRACT_TYPES[contract.contract_type] || contract.contract_type}</Detail>

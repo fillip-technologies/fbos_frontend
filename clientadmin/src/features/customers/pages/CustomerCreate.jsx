@@ -8,6 +8,7 @@ import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import CustomerFields from '@/features/customers/components/CustomerFields.jsx'
 import { EMPTY_ADDRESS, addressFromForm } from '@/features/customers/utils.js'
 import useOwners from '@/features/customers/useOwners.js'
+import { invalidate } from '@/shared/api/useQuery.js'
 
 export default function CustomerCreate() {
   const navigate = useNavigate()
@@ -46,6 +47,7 @@ export default function CustomerCreate() {
       }
       for (const k of ['gstin', 'pan', 'source']) if (form[k].trim()) body[k] = form[k].trim()
       const created = await customersApi.create(orgId, body)
+      invalidate(['customers', orgId])
       navigate(`/customers/${created.id}`, { replace: true })
     } catch (err) {
       setError(err)

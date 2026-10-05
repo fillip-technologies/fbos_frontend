@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { clientServicesApi, customersApi } from '@/features/customers/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
+import { useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import ServicesTable from '@/features/customers/components/ServicesTable.jsx'
 import useServiceCatalog from '@/features/customers/useServiceCatalog.js'
@@ -23,39 +24,24 @@ export default function ClientServices() {
   const { user: me } = useAuth()
   const { orgId } = useActiveOrg()
   const catalog = useServiceCatalog(orgId)
-  const [customerNames, setCustomerNames] = useState({})
+  // Records carry only the customer's id; name them when customers may be read.
+  const { data: customers } = useLookup(
+    ['customers', orgId, 'all'],
+    ({ signal }) => customersApi.listAll(orgId, { signal }).catch(() => []),
+    { enabled: Boolean(orgId) && hasAccess(me, ACCESS.customers) }
+  )
+  const customerName = (id) => customers?.find((c) => c.id === id)?.name
 
-  const [services, setServices] = useState([])
   const [filters, setFilters] = useState(NO_FILTERS)
   const [cursor, setCursor] = useState(undefined)
   const [stack, setStack] = useState([])
-  const [next, setNext] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  // Records carry only the customer's id; name them when customers may be read.
-  useEffect(() => {
-    if (!orgId || !hasAccess(me, ACCESS.customers)) return
-    customersApi
-      .listAll(orgId)
-      .then((all) => setCustomerNames(Object.fromEntries(all.map((c) => [c.id, c.name]))))
-      .catch(() => setCustomerNames({}))
-  }, [orgId, me])
-
-  function load() {
-    if (!orgId) return
-    setLoading(true)
-    setError(null)
-    clientServicesApi
-      .list(orgId, { limit: 25, cursor, ...filters })
-      .then((res) => {
-        setServices(res.data)
-        setNext(res.page?.has_more ? res.page.next_cursor : null)
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }
-  useEffect(load, [orgId, cursor, filters])
+  const { data, error, loading, refreshing, reload } = useQuery(
+    ['client-services', orgId, { cursor, filters }],
+    ({ signal }) => clientServicesApi.list(orgId, { limit: 25, cursor, ...filters }, { signal }),
+    { enabled: Boolean(orgId), keepPrevious: true }
+  )
+  const services = data?.data ?? []
+  const next = data?.page?.has_more ? data.page.next_cursor : null
 
   function resetPaging() {
     setCursor(undefined)
@@ -114,12 +100,12 @@ export default function ClientServices() {
         </select>
       </div>
 
-      <ErrorBanner error={error} onRetry={load} />
-      <ServicesTable services={services} loading={loading} customerName={(id) => customerNames[id]} />
+      <ErrorBanner error={error} onRetry={reload} />
+      <ServicesTable services={services} loading={loading} refreshing={refreshing} customerName={customerName} />
       <div className="row-actions" style={{ marginTop: 16 }}>
         <button
           className="btn secondary"
-          disabled={loading || stack.length === 0}
+          disabled={loading || refreshing || stack.length === 0}
           onClick={() => {
             setCursor(stack[stack.length - 1])
             setStack(stack.slice(0, -1))
@@ -129,7 +115,7 @@ export default function ClientServices() {
         </button>
         <button
           className="btn secondary"
-          disabled={loading || !next}
+          disabled={loading || refreshing || !next}
           onClick={() => {
             setStack([...stack, cursor])
             setCursor(next)

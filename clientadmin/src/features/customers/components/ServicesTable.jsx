@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { daysUntil, formatDate } from '@/shared/utils/format.js'
 import { BILLING_CYCLES, MANAGED_BY, formatMoney } from '@/features/customers/utils.js'
@@ -25,13 +26,13 @@ function Renewal({ service }) {
 }
 
 // Outside services, for one customer or across all of them (`customerName` given).
-export default function ServicesTable({ services, loading, customerName, onEdit, onDelete }) {
+export default function ServicesTable({ services, loading, refreshing = false, customerName, onEdit, onDelete }) {
   const showCustomer = Boolean(customerName)
   const showActions = Boolean(onEdit || onDelete)
   const columns = 7 + (showCustomer ? 1 : 0) + (showActions ? 1 : 0)
 
   return (
-    <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+    <div className={`panel${refreshing ? ' is-refreshing' : ''}`} style={{ padding: 0, overflowX: 'auto' }}>
       <table>
         <thead>
           <tr>
@@ -48,7 +49,7 @@ export default function ServicesTable({ services, loading, customerName, onEdit,
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={columns} className="center-note">Loading…</td></tr>
+            <TableSkeleton cols={columns} />
           ) : services.length === 0 ? (
             <tr><td colSpan={columns} className="center-note">No services found.</td></tr>
           ) : (

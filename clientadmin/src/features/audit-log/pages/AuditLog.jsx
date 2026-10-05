@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { auditLogApi } from '@/features/audit-log/api.js'
 import { actionLabel, detailNote, STATUS_BADGES, STATUS_LABELS, VIEWS } from '@/features/audit-log/utils.js'
@@ -7,7 +7,9 @@ import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { describeDevice } from '@/features/sessions/utils.js'
 import { usersApi } from '@/features/users/api.js'
 import { formatDateTime } from '@/features/users/utils.js'
+import { useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 
 const NO_FILTERS = { view: 'activity', user_id: '', from: '', to: '' }
 
@@ -24,44 +26,38 @@ export default function AuditLog() {
   const { orgId, activeOrg } = useActiveOrg()
 
   const [filters, setFilters] = useState({ ...NO_FILTERS, user_id: params.get('user') || '' })
-  const [people, setPeople] = useState([]) // for the person filter; empty without user read access
-  const [entries, setEntries] = useState([])
   const [cursor, setCursor] = useState(undefined)
   const [stack, setStack] = useState([])
-  const [next, setNext] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
-  useEffect(() => {
-    if (!orgId) return
-    usersApi
-      .list(orgId, { limit: 100 })
-      .then((res) => setPeople(res.data))
-      .catch(() => setPeople([]))
-  }, [orgId])
+  // For the person filter; empty without user read access.
+  const { data: peoplePage } = useLookup(
+    ['users', orgId, { limit: 100 }],
+    ({ signal }) => usersApi.list(orgId, { limit: 100 }, { signal }),
+    { enabled: Boolean(orgId) }
+  )
+  const people = peoplePage?.data ?? []
 
-  const load = useCallback(() => {
-    if (!orgId) return
-    const view = VIEWS.find((v) => v.value === filters.view) || VIEWS[0]
-    setLoading(true)
-    setError(null)
-    auditLogApi
-      .list(orgId, {
-        limit: 25,
-        cursor,
-        ...view.params,
-        user_id: filters.user_id || undefined,
-        created_after: dayStart(filters.from),
-        created_before: dayStart(filters.to, 1), // the "to" day is included
-      })
-      .then((res) => {
-        setEntries(res.data)
-        setNext(res.page?.has_more ? res.page.next_cursor : null)
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, cursor, filters])
-  useEffect(load, [load])
+  const { data, error, loading, refreshing, reload } = useQuery(
+    ['audit-log', orgId, { cursor, filters }],
+    ({ signal }) => {
+      const view = VIEWS.find((v) => v.value === filters.view) || VIEWS[0]
+      return auditLogApi.list(
+        orgId,
+        {
+          limit: 25,
+          cursor,
+          ...view.params,
+          user_id: filters.user_id || undefined,
+          created_after: dayStart(filters.from),
+          created_before: dayStart(filters.to, 1), // the "to" day is included
+        },
+        { signal }
+      )
+    },
+    { enabled: Boolean(orgId), keepPrevious: true }
+  )
+  const entries = data?.data ?? []
+  const next = data?.page?.has_more ? data.page.next_cursor : null
 
   function resetPaging() {
     setCursor(undefined)
@@ -137,9 +133,9 @@ export default function AuditLog() {
         )}
       </div>
 
-      <ErrorBanner error={error} onRetry={load} />
+      <ErrorBanner error={error} onRetry={reload} />
 
-      <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+      <div className={`panel${refreshing ? ' is-refreshing' : ''}`} style={{ padding: 0, overflowX: 'auto' }}>
         <table className="compact">
           <thead>
             <tr>
@@ -152,7 +148,7 @@ export default function AuditLog() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="center-note">Loading…</td></tr>
+              <TableSkeleton cols={5} />
             ) : entries.length === 0 ? (
               <tr><td colSpan={5} className="center-note">Nothing recorded for these filters.</td></tr>
             ) : (
@@ -195,7 +191,7 @@ export default function AuditLog() {
       <div className="row-actions" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
         <button
           className="btn secondary"
-          disabled={loading || stack.length === 0}
+          disabled={loading || refreshing || stack.length === 0}
           onClick={() => {
             setCursor(stack[stack.length - 1])
             setStack(stack.slice(0, -1))
@@ -205,7 +201,7 @@ export default function AuditLog() {
         </button>
         <button
           className="btn secondary"
-          disabled={loading || !next}
+          disabled={loading || refreshing || !next}
           onClick={() => {
             setStack([...stack, cursor])
             setCursor(next)
