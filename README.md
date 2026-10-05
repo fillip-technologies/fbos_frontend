@@ -27,6 +27,15 @@ npm install
 npm run dev
 ```
 
+### Production Build
+
+From either app directory, build optimized static assets into `dist/` and preview them locally:
+
+```bash
+npm run build
+npm run preview
+```
+
 ## Backend Configuration
 
 During development, the Vite dev servers proxy `/api/*` calls to avoid CORS issues:
