@@ -1,4 +1,5 @@
-import { describeDevice, timeAgo } from '@/features/sessions/utils.js'
+import { describeDevice } from '@/features/sessions/utils.js'
+import { timeAgo } from '@/shared/utils/dates.js'
 import { formatDateTime } from '@/features/users/utils.js'
 
 // Sessions as a table. With `onSignOut`, every session but the current one gets a button.

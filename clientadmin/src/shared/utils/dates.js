@@ -16,3 +16,24 @@ export function addOneYear(iso) {
   if (next.getMonth() !== m - 1) next.setDate(0)
   return toIsoDate(next)
 }
+
+const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+const STEPS = [
+  [60, 'second'],
+  [60, 'minute'],
+  [24, 'hour'],
+  [7, 'day'],
+  [Infinity, 'week'],
+]
+
+// ISO timestamp -> "5 minutes ago", "yesterday", …
+export function timeAgo(iso) {
+  let value = (new Date(iso).getTime() - Date.now()) / 1000
+  if (Number.isNaN(value)) return '—'
+  if (Math.abs(value) < 45) return 'just now'
+  for (const [size, unit] of STEPS) {
+    if (Math.abs(value) < size) return relative.format(Math.round(value), unit)
+    value /= size
+  }
+  return '—'
+}

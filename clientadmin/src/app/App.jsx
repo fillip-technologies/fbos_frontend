@@ -28,6 +28,7 @@ const VerticalPacks = lazy(pages.VerticalPacks)
 const PackDesigner = lazy(pages.PackDesigner)
 const AuditLog = lazy(pages.AuditLog)
 const Profile = lazy(pages.Profile)
+const Notifications = lazy(pages.Notifications)
 const Customers = lazy(pages.Customers)
 const CustomerCreate = lazy(pages.CustomerCreate)
 const CustomerDetail = lazy(pages.CustomerDetail)
@@ -116,6 +117,7 @@ export default function App() {
           <Route path="/service-providers" element={<RequireAccess rule={ACCESS.clientServices}><ServiceProviders /></RequireAccess>} />
           <Route path="/audit-log" element={<RequireAccess rule={ACCESS.auditLog}><AuditLog /></RequireAccess>} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/notifications" element={<Notifications />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

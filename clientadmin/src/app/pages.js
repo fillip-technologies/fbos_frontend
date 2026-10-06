@@ -19,6 +19,7 @@ export const pages = {
   PackDesigner: () => import('@/features/verticals/pages/PackDesigner.jsx'),
   AuditLog: () => import('@/features/audit-log/pages/AuditLog.jsx'),
   Profile: () => import('@/features/profile/pages/Profile.jsx'),
+  Notifications: () => import('@/features/notifications/pages/Notifications.jsx'),
   Customers: () => import('@/features/customers/pages/Customers.jsx'),
   CustomerCreate: () => import('@/features/customers/pages/CustomerCreate.jsx'),
   CustomerDetail: () => import('@/features/customers/pages/CustomerDetail.jsx'),
@@ -65,6 +66,7 @@ const NAV_PAGES = {
   '/roles': [pages.Roles],
   '/audit-log': [pages.AuditLog],
   '/profile': [pages.Profile],
+  '/notifications': [pages.Notifications],
 }
 
 // Starts downloading a section's code; a failed preload is ignored (the click retries it).

@@ -6,8 +6,10 @@ import { fileURLToPath, URL } from 'node:url'
 // sit next to the super-admin console (:5173). Override the target with API_URL.
 // Revenue (customers, client services) is its own service on :8002; with API_URL pointing
 // at the gateway it goes through the gateway too. Override it alone with REVENUE_URL.
+// Communication (in-app notifications) is likewise its own service on :8006 (COMMUNICATION_URL).
 const API_URL = process.env.API_URL || 'http://localhost:8001'
 const REVENUE_URL = process.env.REVENUE_URL || process.env.API_URL || 'http://localhost:8002'
+const COMMUNICATION_URL = process.env.COMMUNICATION_URL || process.env.API_URL || 'http://localhost:8006'
 
 export default defineConfig({
   plugins: [react()],
@@ -32,6 +34,10 @@ export default defineConfig({
       // Listed first: the first matching prefix wins.
       '/api/revenue': {
         target: REVENUE_URL,
+        changeOrigin: true,
+      },
+      '/api/communication': {
+        target: COMMUNICATION_URL,
         changeOrigin: true,
       },
       '/api': {
