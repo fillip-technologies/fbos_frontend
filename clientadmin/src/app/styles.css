@@ -309,6 +309,19 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 .badge.paid, .badge.resolved { background: #dcfce7; color: #166534; }
 .badge.overdue, .badge.escalated, .badge.failed { background: #fee2e2; color: #991b1b; }
 .badge.written_off, .badge.refunded { background: #f1f5f9; color: #475569; }
+/* Delivery: projects, tasks, milestones, risks, handovers; health and task priority */
+.badge.planned, .badge.assigned, .badge.requested, .badge.submitted, .badge.in_review { background: #e0e7ff; color: #3730a3; }
+.badge.in_progress, .badge.mitigating { background: #dbeafe; color: #1e40af; }
+.badge.on_hold, .badge.rework, .badge.returned { background: #fef3c7; color: #92400e; }
+.badge.blocked, .badge.occurred { background: #fee2e2; color: #991b1b; }
+.badge.done { background: #dcfce7; color: #166534; }
+.badge.closed { background: #f1f5f9; color: #475569; }
+.badge.green { background: #dcfce7; color: #166534; }
+.badge.amber { background: #fef3c7; color: #92400e; }
+.badge.red, .badge.p1 { background: #fee2e2; color: #991b1b; }
+.badge.p2 { background: #fef3c7; color: #92400e; }
+.badge.p3 { background: #dbeafe; color: #1e40af; }
+.badge.p4 { background: #f1f5f9; color: #475569; }
 .field textarea.code-input {
   width: 100%;
   padding: 10px 12px;

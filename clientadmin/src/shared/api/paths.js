@@ -4,3 +4,5 @@ export const IDENTITY = '/api/identity/v1'
 export const REVENUE = '/api/revenue/v1'
 // Base path of the Communication service (in-app notifications).
 export const COMMUNICATION = '/api/communication/v1'
+// Base path of the Delivery service (projects, tasks, time, handovers, workflows).
+export const DELIVERY = '/api/delivery/v1'

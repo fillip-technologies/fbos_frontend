@@ -99,6 +99,23 @@ export const ACCESS = {
   recordPayments: { permissions: ['revenue.payment.write'] },
   collections: { permissions: ['revenue.collection.read'] },
   manageCollections: { permissions: ['revenue.collection.write'] },
+  // Delivery: projects (milestones, team, risks, change requests), tasks, time, handovers and
+  // workflows. Working your own task (start, submit, tick its checklist, log your time) needs
+  // only `tasks`; the backend checks you are the assignee.
+  projects: { permissions: ['delivery.work_unit.read'] },
+  manageProjects: { permissions: ['delivery.work_unit.write'] },
+  decideChangeRequests: { permissions: ['delivery.change_request.approve'] },
+  tasks: { permissions: ['delivery.task.read'] },
+  manageTasks: { permissions: ['delivery.task.write'] },
+  reviewTasks: { permissions: ['delivery.task.review'] },
+  everyonesTime: { permissions: ['delivery.time_entry.read'] },
+  handovers: { permissions: ['delivery.handover.read'] },
+  manageHandovers: { permissions: ['delivery.handover.write'] },
+  deliverySetup: { permissions: ['delivery.template.manage'] },
+  workflows: { permissions: ['delivery.workflow.read'] },
+  designWorkflows: { permissions: ['delivery.workflow.manage'] },
+  operateWorkflows: { permissions: ['delivery.workflow.operate'] },
+  approveWorkflowSteps: { permissions: ['delivery.workflow.approve'] },
   // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
   viewUserSessions: { permissions: ['identity.session.read'] },
   revokeUserSessions: { permissions: ['identity.session.revoke'] },

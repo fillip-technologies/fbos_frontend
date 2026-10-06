@@ -6,6 +6,8 @@ const titleCase = (s) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperC
 export const SERVICE_LABELS = {
   identity: 'Identity & access',
   revenue: 'Revenue',
+  delivery: 'Projects & tasks',
+  control: 'Approvals & SLAs',
   documents: 'Documents',
 }
 
@@ -20,7 +22,33 @@ export const ENTITY_LABELS = {
   vertical_pack: 'Vertical packs',
   session: 'Sign-in sessions',
   audit_log: 'Security audit log',
+  // Revenue, named as in the sidebar.
+  client: 'Customers',
+  client_service: 'Client services',
+  lead: 'Leads',
+  opportunity: 'Opportunities',
+  quotation: 'Quotations',
+  contract: 'Contracts',
+  offering: 'Offerings',
+  activity: 'Calls, meetings & notes',
+  invoice: 'Invoices',
+  payment: 'Payments',
+  collection: 'Collections',
   deal: 'Deals',
+  // Delivery: the backend's "work units" are projects.
+  work_unit: 'Projects',
+  change_request: 'Change requests',
+  task: 'Tasks',
+  time_entry: 'Logged time',
+  handover: 'Handovers',
+  template: 'Project & task setup',
+  workflow: 'Workflows',
+  // Control.
+  approval: 'Approvals',
+  sla: 'SLAs',
+  // Documents.
+  document: 'Documents',
+  category: 'Document categories',
 }
 
 export function parseCode(code) {
