@@ -1,7 +1,7 @@
 #!/bin/bash
 # Builds the client admin on the aaPanel server and publishes it to dist/, the site root.
 # Run by fbos-deploy after it has fast-forwarded this checkout to origin/main (setup:
-# growth-fbos docs/DEPLOY_AAPANEL.md), or by hand from the checkout.
+# growth-fbos DEPLOY_AAPANEL.md), or by hand from the checkout.
 #
 # Vite builds into dist-build/ because aaPanel keeps an undeletable .user.ini (plus
 # .well-known/ and its error pages) in the site root, which `vite build` would try to clear.

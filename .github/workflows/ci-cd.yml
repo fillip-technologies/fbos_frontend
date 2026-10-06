@@ -1,5 +1,5 @@
 # Builds both apps on pushes and pull requests; a push to main that builds is deployed to the
-# aaPanel server (client admin only). Setup: growth-fbos docs/DEPLOY_AAPANEL.md.
+# aaPanel server (client admin only). Setup: growth-fbos DEPLOY_AAPANEL.md.
 name: CI/CD
 
 on:
@@ -53,7 +53,7 @@ jobs:
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
-            echo "::error::Deploy secrets are not set (see growth-fbos docs/DEPLOY_AAPANEL.md)"
+            echo "::error::Deploy secrets are not set (see growth-fbos DEPLOY_AAPANEL.md)"
             exit 1
           fi
           install -m 700 -d ~/.ssh
