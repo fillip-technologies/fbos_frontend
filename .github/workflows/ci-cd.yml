@@ -1,16 +1,15 @@
-# Builds both apps on pushes and pull requests; a push to main that builds is deployed to the
-# aaPanel server (client admin only). Setup: growth-fbos DEPLOY_AAPANEL.md.
+# On every push to main: builds both apps, then deploys the client admin to the aaPanel server.
+# Setup: growth-fbos DEPLOY_AAPANEL.md.
 name: CI/CD
 
 on:
   push:
-    branches: [main, gkr]
-  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -24,8 +23,8 @@ jobs:
       run:
         working-directory: ${{ matrix.app }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -36,7 +35,7 @@ jobs:
   deploy:
     name: Deploy to aaPanel
     needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: production
