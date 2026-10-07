@@ -1,0 +1,140 @@
+import { customersApi } from '@/features/customers/api.js'
+import { api } from '@/shared/api/http.js'
+import { DELIVERY, IDENTITY } from '@/shared/api/paths.js'
+import { inOrg, listAll, pageQuery } from '@/shared/api/query.js'
+
+const ifMatch = (orgId, version) => inOrg(orgId, { 'If-Match': `"${version}"` })
+// Milestones, change requests and handovers carry no version: the backend only asks that
+// If-Match is present, so "*" (any version) states the change is meant for what's there.
+const anyVersion = (orgId) => inOrg(orgId, { 'If-Match': '*' })
+
+// ---------- Projects (the backend's "work units") ----------
+export const projectsApi = {
+  // Filters: status, health, manager_user_id, client_id, owning_unit_id, vertical_id, q.
+  list: (orgId, opts, { signal } = {}) => api.get(`${DELIVERY}/work-units?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  get: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/work-units/${id}`, { headers: inOrg(orgId), signal }),
+  // Every project, to pick one (a task's project, a timesheet entry's).
+  options: (orgId, { signal } = {}) => listAll(`${DELIVERY}/work-units`, orgId, {}, { signal }),
+  // { work_unit, phases, milestones, tasks_by_status, risks_open, pending_approvals }
+  summary: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/work-units/${id}/summary`, { headers: inOrg(orgId), signal }),
+  progress: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/work-units/${id}/progress`, { headers: inOrg(orgId), signal }),
+  // { template_code | work_unit_type_code, name, owning_unit_id, manager_user_id, planned_start, planned_end, ... }
+  create: (orgId, body) => api.post(`${DELIVERY}/work-units`, body, { headers: inOrg(orgId) }),
+  update: (orgId, id, version, body) => api.patch(`${DELIVERY}/work-units/${id}`, body, { headers: ifMatch(orgId, version) }),
+  // { to_status, reason, effective_on? }
+  changeStatus: (orgId, project, body) =>
+    api.post(`${DELIVERY}/work-units/${project.id}/status`, body, { headers: ifMatch(orgId, project.version) }),
+  members: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/work-units/${id}/members`, { headers: inOrg(orgId), signal }),
+  replaceMembers: (orgId, project, members) =>
+    api.put(`${DELIVERY}/work-units/${project.id}/members`, { members }, { headers: ifMatch(orgId, project.version) }),
+  milestones: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/work-units/${id}/milestones`, orgId, {}, { signal }),
+  addMilestone: (orgId, id, body) => api.post(`${DELIVERY}/work-units/${id}/milestones`, body, { headers: inOrg(orgId) }),
+  risks: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/work-units/${id}/risks`, orgId, {}, { signal }),
+  addRisk: (orgId, id, body) => api.post(`${DELIVERY}/work-units/${id}/risks`, body, { headers: inOrg(orgId) }),
+  changeRequests: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/work-units/${id}/change-requests`, orgId, {}, { signal }),
+  addChangeRequest: (orgId, id, body) => api.post(`${DELIVERY}/work-units/${id}/change-requests`, body, { headers: inOrg(orgId) }),
+}
+
+// ---------- Milestones: pending → submitted → accepted / completed, or rejected ----------
+export const milestonesApi = {
+  update: (orgId, id, body) => api.patch(`${DELIVERY}/milestones/${id}`, body, { headers: anyVersion(orgId) }),
+  submit: (orgId, id, body = { deliverable_document_ids: [] }) =>
+    api.post(`${DELIVERY}/milestones/${id}/submit`, body, { headers: anyVersion(orgId) }),
+  // { accepted_by_name, accepted_on, note? }
+  accept: (orgId, id, body) => api.post(`${DELIVERY}/milestones/${id}/accept`, body, { headers: anyVersion(orgId) }),
+  reject: (orgId, id, body) => api.post(`${DELIVERY}/milestones/${id}/reject`, body, { headers: anyVersion(orgId) }),
+}
+
+export const risksApi = {
+  update: (orgId, id, body) => api.patch(`${DELIVERY}/risks/${id}`, body, { headers: inOrg(orgId) }),
+}
+
+// ---------- Change requests: draft → submitted → approved / rejected ----------
+export const changeRequestsApi = {
+  submit: (orgId, id) => api.post(`${DELIVERY}/change-requests/${id}/submit`, undefined, { headers: anyVersion(orgId) }),
+  approve: (orgId, id, body = {}) => api.post(`${DELIVERY}/change-requests/${id}/approve`, body, { headers: anyVersion(orgId) }),
+  reject: (orgId, id, body) => api.post(`${DELIVERY}/change-requests/${id}/reject`, body, { headers: anyVersion(orgId) }),
+}
+
+// ---------- Tasks ----------
+const taskAction = (action) => (orgId, task, body) =>
+  api.post(`${DELIVERY}/tasks/${task.id}/${action}`, body, { headers: ifMatch(orgId, task.version) })
+
+export const tasksApi = {
+  // Filters: assignee ('me' or a user id), status, priority, owning_unit_id, subject_type, subject_id, overdue, q.
+  list: (orgId, opts, { signal } = {}) => api.get(`${DELIVERY}/tasks?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  get: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/tasks/${id}`, { headers: inOrg(orgId), signal }),
+  // The signed-in user's own open work: { assigned_open, due_today, overdue }.
+  mySummary: (orgId, { signal } = {}) => api.get(`${DELIVERY}/tasks/summary`, { headers: inOrg(orgId), signal }),
+  create: (orgId, body) => api.post(`${DELIVERY}/tasks`, body, { headers: inOrg(orgId) }),
+  update: (orgId, id, version, body) => api.patch(`${DELIVERY}/tasks/${id}`, body, { headers: ifMatch(orgId, version) }),
+  assign: taskAction('assign'),
+  start: taskAction('start'),
+  block: taskAction('block'),
+  unblock: taskAction('unblock'),
+  submit: taskAction('submit'),
+  cancel: taskAction('cancel'),
+  // { result: 'pass' | 'fail', rating?, feedback? } — fail needs feedback.
+  review: (orgId, id, body) => api.post(`${DELIVERY}/tasks/${id}/reviews`, body, { headers: inOrg(orgId) }),
+  reviews: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/tasks/${id}/reviews`, { headers: inOrg(orgId), signal }),
+  // Everyone the task was given to (assignees, reviewers), until when and why it ended.
+  assignments: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/tasks/${id}/assignments`, { headers: inOrg(orgId), signal }),
+  tickChecklistItem: (orgId, taskId, itemId, done) =>
+    api.patch(`${DELIVERY}/tasks/${taskId}/checklist/${itemId}`, { done }, { headers: inOrg(orgId) }),
+  history: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/tasks/${id}/history`, orgId, {}, { signal }),
+  comments: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/tasks/${id}/comments`, orgId, {}, { signal }),
+  addComment: (orgId, id, body) => api.post(`${DELIVERY}/tasks/${id}/comments`, body, { headers: inOrg(orgId) }),
+  dependencies: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/tasks/${id}/dependencies`, { headers: inOrg(orgId), signal }),
+  addDependency: (orgId, id, dependsOnTaskId) =>
+    api.post(`${DELIVERY}/tasks/${id}/dependencies`, { depends_on_task_id: dependsOnTaskId }, { headers: inOrg(orgId) }),
+  removeDependency: (orgId, id, dependsOnTaskId) =>
+    api.del(`${DELIVERY}/tasks/${id}/dependencies/${dependsOnTaskId}`, { headers: inOrg(orgId) }),
+}
+
+// ---------- Time: logged against a task; the timesheet lists a period ----------
+export const timeApi = {
+  forTask: (orgId, taskId, { signal } = {}) => listAll(`${DELIVERY}/tasks/${taskId}/time-entries`, orgId, {}, { signal }),
+  // { work_date, minutes, billable?, note? }
+  log: (orgId, taskId, body) => api.post(`${DELIVERY}/tasks/${taskId}/time-entries`, body, { headers: inOrg(orgId) }),
+  // { date_from, date_to, user_id? } — another user's time needs delivery.time_entry.read.
+  timesheet: (orgId, params, { signal } = {}) => listAll(`${DELIVERY}/time-entries`, orgId, params, { signal }),
+  remove: (orgId, id) => api.del(`${DELIVERY}/time-entries/${id}`, { headers: inOrg(orgId) }),
+}
+
+// ---------- Handovers: one unit passes a task or project to another ----------
+export const handoversApi = {
+  // Filters: to_unit_id, status.
+  list: (orgId, opts, { signal } = {}) => api.get(`${DELIVERY}/handovers?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  get: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/handovers/${id}`, { headers: inOrg(orgId), signal }),
+  // { subject: { type: 'task.task' | 'work.work_unit', id }, from_unit_id, to_unit_id, reason, notes? }
+  request: (orgId, body) => api.post(`${DELIVERY}/handovers`, body, { headers: inOrg(orgId) }),
+  accept: (orgId, id, body = {}) => api.post(`${DELIVERY}/handovers/${id}/accept`, body, { headers: anyVersion(orgId) }),
+  reject: (orgId, id, body) => api.post(`${DELIVERY}/handovers/${id}/reject`, body, { headers: anyVersion(orgId) }),
+}
+
+// ---------- Setup: project types and templates, task types and templates ----------
+export const setupApi = {
+  projectTypes: (orgId, { signal } = {}) => listAll(`${DELIVERY}/work-unit-types`, orgId, {}, { signal }),
+  createProjectType: (orgId, body) => api.post(`${DELIVERY}/work-unit-types`, body, { headers: inOrg(orgId) }),
+  updateProjectType: (orgId, id, body) => api.patch(`${DELIVERY}/work-unit-types/${id}`, body, { headers: inOrg(orgId) }),
+  templates: (orgId, { signal } = {}) => listAll(`${DELIVERY}/templates`, orgId, {}, { signal }),
+  createTemplate: (orgId, body) => api.post(`${DELIVERY}/templates`, body, { headers: inOrg(orgId) }),
+  templateVersions: (orgId, code, { signal } = {}) => listAll(`${DELIVERY}/templates/${code}/versions`, orgId, {}, { signal }),
+  createTemplateVersion: (orgId, code, body) => api.post(`${DELIVERY}/templates/${code}/versions`, body, { headers: inOrg(orgId) }),
+  publishTemplateVersion: (orgId, code, versionNo) =>
+    api.post(`${DELIVERY}/templates/${code}/versions/${versionNo}/publish`, undefined, { headers: anyVersion(orgId) }),
+  taskTypes: (orgId, { signal } = {}) => listAll(`${DELIVERY}/task-types`, orgId, {}, { signal }),
+  createTaskType: (orgId, body) => api.post(`${DELIVERY}/task-types`, body, { headers: inOrg(orgId) }),
+  updateTaskType: (orgId, id, body) => api.patch(`${DELIVERY}/task-types/${id}`, body, { headers: inOrg(orgId) }),
+  taskTemplates: (orgId, { signal } = {}) => listAll(`${DELIVERY}/task-templates`, orgId, {}, { signal }),
+  createTaskTemplate: (orgId, body) => api.post(`${DELIVERY}/task-templates`, body, { headers: inOrg(orgId) }),
+  updateTaskTemplate: (orgId, template, body) =>
+    api.patch(`${DELIVERY}/task-templates/${template.id}`, body, { headers: ifMatch(orgId, template.version) }),
+}
+
+// ---------- Lookups: delivery stores only ids for people, units, customers and verticals ----------
+export const lookupsApi = {
+  units: (orgId, { signal } = {}) => listAll(`${IDENTITY}/org-units`, orgId, {}, { signal }),
+  verticals: (orgId, { signal } = {}) => listAll(`${IDENTITY}/verticals`, orgId, { status: 'active' }, { signal }),
+  customers: (orgId, { signal } = {}) => customersApi.listAll(orgId, { signal }),
+}

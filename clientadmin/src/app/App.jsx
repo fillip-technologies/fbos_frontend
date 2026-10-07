@@ -50,6 +50,13 @@ const Payments = lazy(pages.Payments)
 const PaymentCreate = lazy(pages.PaymentCreate)
 const PaymentDetail = lazy(pages.PaymentDetail)
 const Collections = lazy(pages.Collections)
+const DocumentCategories = lazy(pages.DocumentCategories)
+const Projects = lazy(pages.Projects)
+const ProjectCreate = lazy(pages.ProjectCreate)
+const ProjectDetail = lazy(pages.ProjectDetail)
+const Tasks = lazy(pages.Tasks)
+const TaskCreate = lazy(pages.TaskCreate)
+const TaskDetail = lazy(pages.TaskDetail)
 
 function RequireAuth({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -110,11 +117,18 @@ export default function App() {
           <Route path="/payments/new" element={<RequireAccess rule={ACCESS.recordPayments}><PaymentCreate /></RequireAccess>} />
           <Route path="/payments/:id" element={<RequireAccess rule={ACCESS.payments}><PaymentDetail /></RequireAccess>} />
           <Route path="/collections" element={<RequireAccess rule={ACCESS.collections}><Collections /></RequireAccess>} />
+          <Route path="/projects" element={<RequireAccess rule={ACCESS.projects}><Projects /></RequireAccess>} />
+          <Route path="/projects/new" element={<RequireAccess rule={ACCESS.manageProjects}><ProjectCreate /></RequireAccess>} />
+          <Route path="/projects/:id" element={<RequireAccess rule={ACCESS.projects}><ProjectDetail /></RequireAccess>} />
+          <Route path="/tasks" element={<RequireAccess rule={ACCESS.tasks}><Tasks /></RequireAccess>} />
+          <Route path="/tasks/new" element={<RequireAccess rule={ACCESS.manageTasks}><TaskCreate /></RequireAccess>} />
+          <Route path="/tasks/:id" element={<RequireAccess rule={ACCESS.tasks}><TaskDetail /></RequireAccess>} />
           <Route path="/customers" element={<RequireAccess rule={ACCESS.customers}><Customers /></RequireAccess>} />
           <Route path="/customers/new" element={<RequireAccess rule={ACCESS.manageCustomers}><CustomerCreate /></RequireAccess>} />
           <Route path="/customers/:id" element={<RequireAccess rule={ACCESS.customers}><CustomerDetail /></RequireAccess>} />
           <Route path="/client-services" element={<RequireAccess rule={ACCESS.clientServices}><ClientServices /></RequireAccess>} />
           <Route path="/service-providers" element={<RequireAccess rule={ACCESS.clientServices}><ServiceProviders /></RequireAccess>} />
+          <Route path="/document-categories" element={<RequireAccess rule={ACCESS.documentCategories}><DocumentCategories /></RequireAccess>} />
           <Route path="/audit-log" element={<RequireAccess rule={ACCESS.auditLog}><AuditLog /></RequireAccess>} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />

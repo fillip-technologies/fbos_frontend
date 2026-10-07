@@ -56,6 +56,9 @@ export const contractsApi = {
   list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/contracts?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
   get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/contracts/${id}`, { headers: inOrg(orgId), signal }),
   create: (orgId, body) => api.post(`${REVENUE}/contracts`, body, { headers: inOrg(orgId) }),
+  // The signed copy is uploaded to the contract through the documents service first.
+  setSignedDocument: (orgId, contract, documentId) =>
+    api.put(`${REVENUE}/contracts/${contract.id}/signed-document`, { document_id: documentId }, { headers: ifMatch(orgId, contract.version) }),
   activate: (orgId, contract) =>
     api.post(`${REVENUE}/contracts/${contract.id}/activate`, undefined, { headers: ifMatch(orgId, contract.version) }),
 }

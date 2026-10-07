@@ -6,10 +6,14 @@ import { fileURLToPath, URL } from 'node:url'
 // sit next to the super-admin console (:5173). Override the target with API_URL.
 // Revenue (customers, client services) is its own service on :8002; with API_URL pointing
 // at the gateway it goes through the gateway too. Override it alone with REVENUE_URL.
-// Communication (in-app notifications) is likewise its own service on :8006 (COMMUNICATION_URL).
+// Communication (in-app notifications) is likewise its own service on :8006 (COMMUNICATION_URL),
+// and so is Delivery (projects, tasks, workflows) on :8003 (DELIVERY_URL).
 const API_URL = process.env.API_URL || 'http://localhost:8001'
 const REVENUE_URL = process.env.REVENUE_URL || process.env.API_URL || 'http://localhost:8002'
+// Documents (files attached to quotations, contracts, ...) is its own service on :8005.
+const DOCUMENTS_URL = process.env.DOCUMENTS_URL || process.env.API_URL || 'http://localhost:8005'
 const COMMUNICATION_URL = process.env.COMMUNICATION_URL || process.env.API_URL || 'http://localhost:8006'
+const DELIVERY_URL = process.env.DELIVERY_URL || process.env.API_URL || 'http://localhost:8003'
 
 export default defineConfig({
   plugins: [react()],
@@ -36,8 +40,16 @@ export default defineConfig({
         target: REVENUE_URL,
         changeOrigin: true,
       },
+      '/api/documents': {
+        target: DOCUMENTS_URL,
+        changeOrigin: true,
+      },
       '/api/communication': {
         target: COMMUNICATION_URL,
+        changeOrigin: true,
+      },
+      '/api/delivery': {
+        target: DELIVERY_URL,
         changeOrigin: true,
       },
       '/api': {
