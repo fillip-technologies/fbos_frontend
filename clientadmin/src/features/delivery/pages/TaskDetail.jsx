@@ -1,14 +1,28 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { tasksApi } from '@/features/delivery/api.js'
+import SlaBadge from '@/features/delivery/components/SlaBadge.jsx'
 import TaskActions from '@/features/delivery/components/TaskActions.jsx'
+import TaskAttributes from '@/features/delivery/components/TaskAttributes.jsx'
 import TaskChecklist from '@/features/delivery/components/TaskChecklist.jsx'
 import HandOver from '@/features/delivery/components/HandOver.jsx'
 import TaskComments from '@/features/delivery/components/TaskComments.jsx'
 import TaskDependencies from '@/features/delivery/components/TaskDependencies.jsx'
 import TaskHistory from '@/features/delivery/components/TaskHistory.jsx'
 import TaskTime from '@/features/delivery/components/TaskTime.jsx'
+import WorkflowPanel from '@/features/delivery/components/WorkflowPanel.jsx'
+import { disciplineLabel } from '@/features/delivery/taskFields.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
-import { SUBJECT_TYPES, TASK_PRIORITY_LABELS, TASK_STATUS_LABELS, formatDay, formatMinutes, isOverdue } from '@/features/delivery/utils.js'
+import useTaskTypes, { useTaskFields } from '@/features/delivery/useTaskTypes.js'
+import {
+  SUBJECT_TYPES,
+  TASK_PRIORITY_LABELS,
+  TASK_STATUS_LABELS,
+  formatDay,
+  formatMinutes,
+  isOverdue,
+  subjectLabel,
+  subjectPath,
+} from '@/features/delivery/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -34,6 +48,9 @@ export default function TaskDetail() {
     ({ signal }) => tasksApi.get(orgId, id, { signal }),
     { enabled: Boolean(orgId) }
   )
+  const { typeOf } = useTaskTypes(orgId)
+  const taskType = task ? typeOf(task.task_type) : null
+  const fields = useTaskFields(orgId, taskType, task?.owning_unit?.id)
 
   // A changed task: shown at once; lists, its project's counts and its history refetch.
   const setTask = (saved) => {
@@ -53,7 +70,9 @@ export default function TaskDetail() {
       </div>
     )
 
-  const props = { orgId, task, setTask, reload, names }
+  const props = { orgId, task, setTask, reload, names, taskType, fields }
+  const aboutPath = subjectPath(task.subject)
+  const points = task.task_type.estimation_unit === 'points' ? task.attributes?.story_points : null
   return (
     <div>
       <div className="page-head">
@@ -63,14 +82,27 @@ export default function TaskDetail() {
             <StatusBadge status={task.priority} label={TASK_PRIORITY_LABELS[task.priority]} />
           </h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
-            <span className="mono">{task.code}</span> · {task.task_type.name}
+            <span className={`discipline-dot ${task.task_type.discipline}`} /> <span className="mono">{task.code}</span> · {task.task_type.name}
+            {' '}({disciplineLabel(task.task_type.discipline)})
             {task.work_unit_id && (
               <>
                 {' · '}
                 <Link to={`/projects/${task.work_unit_id}?tab=tasks`}>Open project</Link>
               </>
             )}
+            {task.subject && task.subject.type !== SUBJECT_TYPES.project && (
+              <>
+                {' · '}
+                {aboutPath ? <Link to={aboutPath}>Open {subjectLabel(task.subject).toLowerCase()}</Link> : subjectLabel(task.subject)}
+              </>
+            )}
           </p>
+          {(task.sla || task.response_sla) && (
+            <div className="row-actions" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+              {task.response_sla && <SlaBadge task={{ response_sla: task.response_sla }} />}
+              {task.sla && <SlaBadge task={{ sla: task.sla }} />}
+            </div>
+          )}
         </div>
         <button className="btn secondary" onClick={() => navigate(-1)}>← Back</button>
       </div>
@@ -88,9 +120,17 @@ export default function TaskDetail() {
           <Detail label="Time">
             {`${formatMinutes(task.logged_minutes)} logged${task.estimate_minutes ? ` of ${formatMinutes(task.estimate_minutes)}` : ''}`}
           </Detail>
+          {points && <Detail label="Story points">{String(points)}</Detail>}
           <Detail label="Created by">{task.created_by && names.personName(task.created_by)}</Detail>
           <Detail label="Labels">{task.labels.length > 0 && task.labels.join(', ')}</Detail>
-          {task.review_round > 0 && <Detail label="Review rounds">{String(task.review_round)}</Detail>}
+          {task.review_round > 0 && (
+            <Detail label="Sent back">
+              {`${task.review_round} time${task.review_round === 1 ? '' : 's'}`}
+              {taskType?.review_rounds_included && task.review_round >= taskType.review_rounds_included && (
+                <span style={{ color: 'var(--danger)' }}> · past the {taskType.review_rounds_included} included rounds</span>
+              )}
+            </Detail>
+          )}
         </div>
         {task.description && <p style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{task.description}</p>}
         {task.status === 'blocked' && task.attributes.blocked_reason && (
@@ -98,6 +138,8 @@ export default function TaskDetail() {
         )}
       </div>
 
+      <TaskAttributes {...props} />
+      <WorkflowPanel orgId={orgId} subject={{ type: SUBJECT_TYPES.task, id: task.id }} />
       <HandOver
         orgId={orgId}
         subject={{ type: SUBJECT_TYPES.task, id: task.id }}
