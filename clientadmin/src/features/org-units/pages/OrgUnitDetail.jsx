@@ -39,13 +39,16 @@ export default function OrgUnitDetail() {
   const enabled = Boolean(orgId)
   const unitQuery = useQuery(['org-unit', orgId, id], ({ signal }) => orgUnitsApi.get(orgId, id, { signal }), { enabled })
   const unitsQuery = useLookup(['org-units', orgId, 'all'], ({ signal }) => orgUnitsApi.listAll(orgId, { signal }), { enabled })
-  // Optional reads: null when the user may not see them.
+  // Optional reads: not requested (and null) when the user may not see them.
+  const canReadPeople = enabled && hasAccess(me, ACCESS.users)
   const peopleQuery = useLookup(
     ['users', orgId, { status: 'active', limit: 100 }],
     ({ signal }) => usersApi.list(orgId, { limit: 100, status: 'active' }, { signal }).catch(() => ({ data: null })),
-    { enabled }
+    { enabled: canReadPeople }
   )
-  const calendarsQuery = useLookup(['calendars', orgId], ({ signal }) => calendarsApi.list(orgId, { signal }), { enabled })
+  const calendarsQuery = useLookup(['calendars', orgId], ({ signal }) => calendarsApi.list(orgId, { signal }), {
+    enabled: enabled && hasAccess(me, ACCESS.calendars),
+  })
   const unit = unitQuery.data
   // A team also lists its members who work elsewhere; other units list who works in them or below.
   const membersQuery = useQuery(
@@ -54,7 +57,7 @@ export default function OrgUnitDetail() {
       usersApi
         .list(orgId, { limit: 100, ...(unit.unit_type === 'team' ? { team_id: unit.id } : { unit_id: unit.id }) }, { signal })
         .catch(() => ({ data: null })),
-    { enabled: enabled && Boolean(unit) }
+    { enabled: canReadPeople && Boolean(unit) }
   )
   const units = useMemo(() => (unitsQuery.data ? sortedTree(unitsQuery.data) : []), [unitsQuery.data])
   const people = peopleQuery.data?.data ?? null // active users of the org, for the head picker

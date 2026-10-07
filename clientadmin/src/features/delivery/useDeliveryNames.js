@@ -1,3 +1,5 @@
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { lookupsApi } from '@/features/delivery/api.js'
 import useOwners from '@/features/customers/useOwners.js'
 import { useLookup } from '@/shared/api/useQuery.js'
@@ -8,15 +10,18 @@ const byId = (rows) => new Map((rows ?? []).map((row) => [row.id, row]))
 // verticals, and answers with `name: null`. This names them from the console's cached lookups.
 // Keys and error handling match the other pages that read the same lists, so they share one
 // request: units let the error through; a refused customer or vertical list is just empty.
-// A lookup the user may not read shows "—" rather than an error.
+// A lookup the user may not read is not requested, and shows "—" rather than an error.
 export default function useDeliveryNames(orgId) {
+  const { user: me } = useAuth()
   const enabled = Boolean(orgId)
   const { owners } = useOwners(orgId)
-  const unitsQuery = useLookup(['org-units', orgId, 'all'], ({ signal }) => lookupsApi.units(orgId, { signal }), { enabled })
+  const unitsQuery = useLookup(['org-units', orgId, 'all'], ({ signal }) => lookupsApi.units(orgId, { signal }), {
+    enabled: enabled && hasAccess(me, ACCESS.orgUnits),
+  })
   const customersQuery = useLookup(
     ['customers', orgId, 'all'],
     ({ signal }) => lookupsApi.customers(orgId, { signal }).catch(() => []),
-    { enabled }
+    { enabled: enabled && hasAccess(me, ACCESS.customers) }
   )
   const verticalsQuery = useLookup(
     ['verticals', orgId, 'active'],

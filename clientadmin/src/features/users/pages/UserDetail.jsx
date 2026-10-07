@@ -41,11 +41,14 @@ export default function UserDetail() {
 
   const enabled = Boolean(orgId)
   const userQuery = useQuery(['user', orgId, id], ({ signal }) => usersApi.get(orgId, id, { signal }), { enabled })
-  // The rest is optional: without the permission to read it the page still shows the person.
+  // The rest is optional: without the permission to read it the page still shows the person
+  // (and doesn't ask, so the console has no expected 403s).
   const accessQuery = useQuery(['user-permissions', orgId, id], ({ signal }) =>
-    usersApi.permissions(orgId, id, { signal }).catch(() => null), { enabled }
+    usersApi.permissions(orgId, id, { signal }).catch(() => null), { enabled: enabled && hasAccess(me, ACCESS.viewUserAccess) }
   )
-  const presetsQuery = useQuery(['user-roles', orgId, id], () => usersApi.roleAssignments(orgId, id).catch(() => []), { enabled })
+  const presetsQuery = useQuery(['user-roles', orgId, id], () => usersApi.roleAssignments(orgId, id).catch(() => []), {
+    enabled: enabled && hasAccess(me, ACCESS.viewRolePresets),
+  })
   const activesQuery = useLookup(
     ['users', orgId, { status: 'active', limit: 100 }],
     ({ signal }) => usersApi.list(orgId, { limit: 100, status: 'active' }, { signal }).catch(() => ({ data: null })),

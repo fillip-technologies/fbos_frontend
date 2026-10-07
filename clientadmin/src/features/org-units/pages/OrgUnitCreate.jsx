@@ -4,6 +4,8 @@ import { calendarsApi } from '@/features/calendars/api.js'
 import { orgUnitsApi } from '@/features/org-units/api.js'
 import { usersApi } from '@/features/users/api.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
 import { invalidate, useLookup } from '@/shared/api/useQuery.js'
@@ -34,22 +36,29 @@ function inheritedLabel(parent, org, calendars) {
 export default function OrgUnitCreate() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  const { user: me } = useAuth()
   const { orgId, activeOrg } = useActiveOrg()
 
   const enabled = Boolean(orgId)
   const unitsQuery = useLookup(['org-units', orgId, 'all'], ({ signal }) => orgUnitsApi.listAll(orgId, { signal }), { enabled })
-  // Picking a head needs user read access; without it the field is simply left out.
+  // Picking a head needs user read access; without it the list isn't requested and the
+  // field is simply left out.
+  const canReadPeople = enabled && hasAccess(me, ACCESS.users)
   const peopleQuery = useLookup(
     ['users', orgId, { status: 'active', limit: 100 }],
     ({ signal }) => usersApi.list(orgId, { limit: 100, status: 'active' }, { signal }).catch(() => ({ data: null })),
-    { enabled }
+    { enabled: canReadPeople }
   )
   // Likewise the calendar field needs calendar read access.
-  const calendarsQuery = useLookup(['calendars', orgId], ({ signal }) => calendarsApi.list(orgId, { signal }), { enabled })
+  const canReadCalendars = enabled && hasAccess(me, ACCESS.calendars)
+  const calendarsQuery = useLookup(['calendars', orgId], ({ signal }) => calendarsApi.list(orgId, { signal }), {
+    enabled: canReadCalendars,
+  })
   const units = useMemo(() => (unitsQuery.data ? sortedTree(unitsQuery.data) : []), [unitsQuery.data])
   const people = peopleQuery.data?.data ?? null
   const calendars = calendarsQuery.data ?? null
-  const loading = unitsQuery.loading || peopleQuery.loading || (calendarsQuery.loading && !calendarsQuery.error)
+  const loading =
+    unitsQuery.loading || (canReadPeople && peopleQuery.loading) || (canReadCalendars && calendarsQuery.loading && !calendarsQuery.error)
   const loadError = unitsQuery.error
   const [form, setForm] = useState({ unit_type: UNIT_TYPE_LABELS[params.get('type')] ? params.get('type') : '', parent_id: params.get('parent') || null, name: '', code: '', head_user_id: '', calendar_id: '' })
   const [codeTouched, setCodeTouched] = useState(false)
