@@ -88,6 +88,23 @@ const FRIENDLY = {
   ALLOCATION_CLIENT_MISMATCH: 'A payment can only settle invoices of the customer who paid it.',
   IDEMPOTENCY_KEY_REQUIRED: 'This request was missing its safety key. Please try again.',
   AUTH_SERVICE_UNAVAILABLE: 'Sign-in couldn\'t be checked right now. Please try again shortly.',
+  SIGNED_COPY_REQUIRED: 'Attach the signed copy of the contract before activating it.',
+  DOCUMENT_NOT_LINKED: 'That file isn\'t attached to this contract. Upload it here first.',
+  DOCUMENTS_SERVICE_UNAVAILABLE: 'Documents couldn\'t be reached right now. Please try again shortly.',
+
+  // ---- Documents ----
+  FILE_TOO_LARGE: 'That file is larger than this category allows.',
+  MIME_TYPE_NOT_ALLOWED: 'This category doesn\'t accept that type of file.',
+  CATEGORY_UNKNOWN: 'That document category isn\'t set up for this company.',
+  CATEGORY_CODE_EXISTS: 'A category with this code already exists.',
+  SUBJECT_LOCKED: 'This record is closed and no longer takes new files.',
+  SUBJECT_NOT_FOUND: 'The record these files belong to wasn\'t found, or you can\'t see it.',
+  SUBJECT_SERVICE_UNAVAILABLE: 'Access to this record couldn\'t be checked right now. Please try again shortly.',
+  UPLOAD_EXPIRED: 'The upload took too long and expired. Please try again.',
+  CHECKSUM_MISMATCH: 'The file didn\'t arrive intact. Please upload it again.',
+  DOCUMENT_SCAN_PENDING: 'This file is still being scanned. Try again in a moment.',
+  DOCUMENT_INFECTED: 'This file failed the virus scan and can\'t be downloaded.',
+  STORAGE_UPLOAD_FAILED: 'The file couldn\'t be sent to storage. Please try again.',
 
   // ---- Delivery: projects, tasks, time, handovers, workflows ----
   WORK_UNIT_NOT_FOUND: 'This project no longer exists.',
@@ -141,7 +158,7 @@ const FRIENDLY = {
   SERVICE_UNAVAILABLE: 'The service is temporarily unavailable. Please try again shortly.',
   GATEWAY_TIMEOUT: 'The server took too long to respond. Please try again.',
   BAD_REQUEST: 'The server could not process this request.',
-  NETWORK_ERROR: 'Unable to reach the server. Make sure the backend is running (identity on :8001 and revenue on :8002, or the gateway on :8000).',
+  NETWORK_ERROR: 'Unable to reach the server. Make sure the backend is running (identity on :8001, revenue on :8002 and documents on :8005, or the gateway on :8000).',
 }
 
 // Best human message for any thrown error: friendly copy by code, else the

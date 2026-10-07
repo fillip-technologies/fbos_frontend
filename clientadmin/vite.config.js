@@ -10,6 +10,8 @@ import { fileURLToPath, URL } from 'node:url'
 // and so is Delivery (projects, tasks, workflows) on :8003 (DELIVERY_URL).
 const API_URL = process.env.API_URL || 'http://localhost:8001'
 const REVENUE_URL = process.env.REVENUE_URL || process.env.API_URL || 'http://localhost:8002'
+// Documents (files attached to quotations, contracts, ...) is its own service on :8005.
+const DOCUMENTS_URL = process.env.DOCUMENTS_URL || process.env.API_URL || 'http://localhost:8005'
 const COMMUNICATION_URL = process.env.COMMUNICATION_URL || process.env.API_URL || 'http://localhost:8006'
 const DELIVERY_URL = process.env.DELIVERY_URL || process.env.API_URL || 'http://localhost:8003'
 
@@ -38,6 +40,8 @@ export default defineConfig({
         target: REVENUE_URL,
         changeOrigin: true,
       },
+      '/api/documents': {
+        target: DOCUMENTS_URL,
       '/api/communication': {
         target: COMMUNICATION_URL,
         changeOrigin: true,

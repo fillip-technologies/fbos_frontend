@@ -50,6 +50,7 @@ const Payments = lazy(pages.Payments)
 const PaymentCreate = lazy(pages.PaymentCreate)
 const PaymentDetail = lazy(pages.PaymentDetail)
 const Collections = lazy(pages.Collections)
+const DocumentCategories = lazy(pages.DocumentCategories)
 const Projects = lazy(pages.Projects)
 const ProjectCreate = lazy(pages.ProjectCreate)
 const ProjectDetail = lazy(pages.ProjectDetail)
@@ -127,6 +128,7 @@ export default function App() {
           <Route path="/customers/:id" element={<RequireAccess rule={ACCESS.customers}><CustomerDetail /></RequireAccess>} />
           <Route path="/client-services" element={<RequireAccess rule={ACCESS.clientServices}><ClientServices /></RequireAccess>} />
           <Route path="/service-providers" element={<RequireAccess rule={ACCESS.clientServices}><ServiceProviders /></RequireAccess>} />
+          <Route path="/document-categories" element={<RequireAccess rule={ACCESS.documentCategories}><DocumentCategories /></RequireAccess>} />
           <Route path="/audit-log" element={<RequireAccess rule={ACCESS.auditLog}><AuditLog /></RequireAccess>} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />

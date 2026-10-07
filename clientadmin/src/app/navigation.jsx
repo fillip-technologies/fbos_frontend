@@ -118,6 +118,12 @@ export const NAV_ITEMS = [
     icon: icon(<><path d="M20 12l-8 8-9-9V3h8l9 9z" /><circle cx="7.5" cy="7.5" r="1.5" /></>),
   },
   {
+    to: '/document-categories',
+    label: 'Document categories',
+    access: ACCESS.documentCategories,
+    icon: icon(<><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /><path d="M8 13h8" /></>),
+  },
+  {
     to: '/users',
     label: 'Users',
     access: ACCESS.users,

@@ -99,6 +99,11 @@ export const ACCESS = {
   recordPayments: { permissions: ['revenue.payment.write'] },
   collections: { permissions: ['revenue.collection.read'] },
   manageCollections: { permissions: ['revenue.collection.write'] },
+  // Documents attached to records. Seeing / attaching to a record also needs that record's
+  // own access (e.g. contracts / manageContracts); the documents service checks both.
+  documents: { permissions: ['document.read'] },
+  uploadDocuments: { permissions: ['document.upload'] },
+  documentCategories: { permissions: ['document.read', 'document.category.manage'] },
   // Delivery: projects (milestones, team, risks, change requests), tasks, time, handovers and
   // workflows. Working your own task (start, submit, tick its checklist, log your time) needs
   // only `tasks`; the backend checks you are the assignee.

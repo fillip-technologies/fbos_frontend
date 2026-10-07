@@ -2,6 +2,8 @@
 export const IDENTITY = '/api/identity/v1'
 // Base path of the Revenue service (customers, client services; later sales and billing).
 export const REVENUE = '/api/revenue/v1'
+// Base path of the Documents service: files attached to any record (quotations, contracts, ...).
+export const DOCUMENTS = '/api/documents/v1'
 // Base path of the Communication service (in-app notifications).
 export const COMMUNICATION = '/api/communication/v1'
 // Base path of the Delivery service (projects, tasks, time, handovers, workflows).

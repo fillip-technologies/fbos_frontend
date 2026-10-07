@@ -11,6 +11,8 @@ import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
+import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
+import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 import { CONTRACT_TYPES, PAYMENT_TRIGGERS, SUBJECTS, formatDateTime } from '@/features/sales/utils.js'
 
 function Detail({ label, children }) {
@@ -44,17 +46,21 @@ export default function ContractDetail() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
-  async function activate() {
-    if (!window.confirm('Mark this contract as signed and active?')) return
+  async function save(change) {
     setError(null)
     setBusy(true)
     try {
-      setContract(await contractsApi.activate(orgId, contract))
+      setContract(await change())
     } catch (err) {
       setError(err)
     } finally {
       setBusy(false)
     }
+  }
+
+  async function activate() {
+    if (!window.confirm('Activate this contract? Delivery and billing start from it.')) return
+    await save(() => contractsApi.activate(orgId, contract))
   }
 
   if (loading) return <DetailSkeleton />
@@ -66,8 +72,13 @@ export default function ContractDetail() {
       </div>
     )
 
-  const canActivate =
-    hasAccess(me, ACCESS.manageContracts) && ['draft', 'pending_signature'].includes(contract.status)
+  const signable = ['draft', 'pending_signature'].includes(contract.status)
+  const canManage = hasAccess(me, ACCESS.manageContracts)
+  const canActivate = canManage && signable
+  const hasSignedCopy = Boolean(contract.signed_document_id)
+  // A finished contract keeps its files but takes no new ones (the backend enforces it too).
+  const canAttach =
+    canManage && hasAccess(me, ACCESS.uploadDocuments) && !['completed', 'terminated', 'expired'].includes(contract.status)
 
   return (
     <div>
@@ -94,7 +105,14 @@ export default function ContractDetail() {
         </div>
         <div className="row-actions">
           {canActivate && (
-            <button className="btn" disabled={busy} onClick={activate}>Mark signed &amp; activate</button>
+            <button
+              className="btn"
+              disabled={busy || !hasSignedCopy}
+              title={hasSignedCopy ? undefined : 'Attach the signed copy first'}
+              onClick={activate}
+            >
+              Activate
+            </button>
           )}
           {/* Delivery, linked by route only: the project form reads the customer and contract. */}
           {hasAccess(me, ACCESS.manageProjects) && ['active', 'pending_signature'].includes(contract.status) && (
@@ -115,7 +133,40 @@ export default function ContractDetail() {
           <Detail label="Ends">{contract.end_date && formatDate(contract.end_date)}</Detail>
           <Detail label="Signed">{contract.signed_at && formatDateTime(contract.signed_at)}</Detail>
         </div>
+        {canActivate && !hasSignedCopy && (
+          <p className="muted small" style={{ margin: '12px 0 0' }}>
+            Upload the signed contract below and mark it as the signed copy; then it can be activated.
+          </p>
+        )}
       </div>
+
+      {hasAccess(me, ACCESS.documents) && (
+        <DocumentPanel
+          orgId={orgId}
+          subjectType={DOCUMENT_SUBJECTS.contract}
+          subjectId={contract.id}
+          canAttach={canAttach}
+          defaultCategory="contract"
+          linkRole={signable && !hasSignedCopy ? 'signed_copy' : 'attachment'}
+          rowAction={(doc) =>
+            doc.id === contract.signed_document_id ? (
+              <span className="chip">Signed copy</span>
+            ) : (
+              canManage &&
+              signable && (
+                <button
+                  type="button"
+                  className="btn secondary small-btn"
+                  disabled={busy}
+                  onClick={() => save(() => contractsApi.setSignedDocument(orgId, contract, doc.id))}
+                >
+                  Use as signed copy
+                </button>
+              )
+            )
+          }
+        />
+      )}
 
       <div className="panel">
         <h2 style={{ fontSize: 17, marginTop: 0 }}>Payment schedule</h2>
