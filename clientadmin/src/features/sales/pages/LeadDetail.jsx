@@ -15,6 +15,8 @@ import ConvertLead from '@/features/sales/components/ConvertLead.jsx'
 import useVerticals from '@/features/sales/useVerticals.js'
 import { DISQUALIFY_REASONS, LEAD_SOURCES, SUBJECTS } from '@/features/sales/utils.js'
 
+const OPEN_STATUSES = ['new', 'contacted', 'qualified']
+
 function Detail({ label, children }) {
   return (
     <div>
@@ -172,28 +174,21 @@ export default function LeadDetail() {
           </Detail>
         </div>
 
-        {canManage && open && !panel && (
+        {/* Any open status, either way; a disqualified lead can be reopened. Converted is final. */}
+        {canManage && lead.status !== 'converted' && !panel && (
           <div className="row-actions" style={{ marginTop: 16 }}>
-            {lead.status === 'new' && (
+            {OPEN_STATUSES.filter((status) => status !== lead.status).map((status) => (
               <button
+                key={status}
                 className="btn secondary"
                 disabled={busy}
-                onClick={() => run(() => leadsApi.update(orgId, lead.id, lead.version, { status: 'contacted' }))}
+                onClick={() => run(() => leadsApi.update(orgId, lead.id, lead.version, { status }))}
               >
-                Mark contacted
+                {open ? `Mark ${status}` : `Reopen as ${status}`}
               </button>
-            )}
-            {lead.status !== 'qualified' && (
-              <button
-                className="btn secondary"
-                disabled={busy}
-                onClick={() => run(() => leadsApi.update(orgId, lead.id, lead.version, { status: 'qualified' }))}
-              >
-                Mark qualified
-              </button>
-            )}
-            {canConvert && <button className="btn" onClick={() => setPanel('convert')}>Convert…</button>}
-            <button className="btn danger-outline" onClick={() => setPanel('disqualify')}>Disqualify…</button>
+            ))}
+            {open && canConvert && <button className="btn" onClick={() => setPanel('convert')}>Convert…</button>}
+            {open && <button className="btn danger-outline" onClick={() => setPanel('disqualify')}>Disqualify…</button>}
           </div>
         )}
 
