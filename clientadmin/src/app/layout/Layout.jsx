@@ -2,6 +2,8 @@ import { Suspense, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import NotificationBell, { NotificationLink } from '@/features/notifications/components/NotificationBell.jsx'
+import { useUnreadCountPolling } from '@/features/notifications/hooks.js'
 import { NAV_ITEMS } from '@/app/navigation.jsx'
 import { preloadPage } from '@/app/pages.js'
 import { PageSkeleton } from '@/shared/components/Skeleton.jsx'
@@ -32,6 +34,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [open, setOpen] = useState(false) // off-canvas sidebar on small screens
+  useUnreadCountPolling()
 
   // Close the mobile drawer after navigating.
   useEffect(() => setOpen(false), [location.pathname])
@@ -42,6 +45,7 @@ export default function Layout() {
   }
 
   const items = NAV_ITEMS.filter((item) => hasAccess(user, item.access))
+  const firstName = user?.name?.trim().split(/\s+/)[0]
 
   return (
     <div className={`app-shell with-sidebar${open ? ' sidebar-open' : ''}`}>
@@ -67,9 +71,10 @@ export default function Layout() {
         </nav>
         <div className="sidebar-user">
           <NavLink to="/profile" className="sidebar-user-name" onMouseEnter={() => preloadPage('/profile')} title={user ? `${user.name} · ${user.email}` : undefined}>
-            <span>Profile</span>
+            <span>{firstName || 'Profile'}</span>
             {user && !user.mfa_enabled && <span className="sidebar-dot" title="Two-factor sign-in is off" />}
           </NavLink>
+          <NotificationBell />
           <button className="sidebar-signout" onClick={handleLogout} title="Sign out" aria-label="Sign out">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -88,6 +93,7 @@ export default function Layout() {
             ☰
           </button>
           <span className="brand">FBOS</span>
+          <NotificationLink />
         </header>
         <main className="container">
           {/* The sidebar stays put while a page's code downloads. */}

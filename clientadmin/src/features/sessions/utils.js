@@ -26,24 +26,3 @@ export function describeDevice(userAgent) {
   if (browser && system) return `${browser} on ${system}`
   return browser || system || userAgent.split(/[\s/]/)[0]
 }
-
-const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
-const STEPS = [
-  [60, 'second'],
-  [60, 'minute'],
-  [24, 'hour'],
-  [7, 'day'],
-  [Infinity, 'week'],
-]
-
-// ISO timestamp -> "5 minutes ago", "yesterday", …
-export function timeAgo(iso) {
-  let value = (new Date(iso).getTime() - Date.now()) / 1000
-  if (Number.isNaN(value)) return '—'
-  if (Math.abs(value) < 45) return 'just now'
-  for (const [size, unit] of STEPS) {
-    if (Math.abs(value) < size) return relative.format(Math.round(value), unit)
-    value /= size
-  }
-  return '—'
-}

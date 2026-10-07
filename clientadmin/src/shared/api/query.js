@@ -3,7 +3,11 @@ import { api } from '@/shared/api/http.js'
 export function pageQuery({ limit = 25, cursor, ...rest } = {}) {
   const params = new URLSearchParams({ limit: String(limit) })
   if (cursor) params.set('cursor', cursor)
-  for (const [k, v] of Object.entries(rest)) if (v) params.set(k, v)
+  for (const [k, v] of Object.entries(rest)) {
+    // A list repeats the key (status=a&status=b), which is how the backends read many values.
+    if (Array.isArray(v)) v.forEach((item) => params.append(k, item))
+    else if (v) params.set(k, v)
+  }
   return params.toString()
 }
 

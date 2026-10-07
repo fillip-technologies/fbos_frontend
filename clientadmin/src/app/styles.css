@@ -309,6 +309,19 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 .badge.paid, .badge.resolved { background: #dcfce7; color: #166534; }
 .badge.overdue, .badge.escalated, .badge.failed { background: #fee2e2; color: #991b1b; }
 .badge.written_off, .badge.refunded { background: #f1f5f9; color: #475569; }
+/* Delivery: projects, tasks, milestones, risks, handovers; health and task priority */
+.badge.planned, .badge.assigned, .badge.requested, .badge.submitted, .badge.in_review { background: #e0e7ff; color: #3730a3; }
+.badge.in_progress, .badge.mitigating { background: #dbeafe; color: #1e40af; }
+.badge.on_hold, .badge.rework, .badge.returned { background: #fef3c7; color: #92400e; }
+.badge.blocked, .badge.occurred { background: #fee2e2; color: #991b1b; }
+.badge.done { background: #dcfce7; color: #166534; }
+.badge.closed { background: #f1f5f9; color: #475569; }
+.badge.green { background: #dcfce7; color: #166534; }
+.badge.amber { background: #fef3c7; color: #92400e; }
+.badge.red, .badge.p1 { background: #fee2e2; color: #991b1b; }
+.badge.p2 { background: #fef3c7; color: #92400e; }
+.badge.p3 { background: #dbeafe; color: #1e40af; }
+.badge.p4 { background: #f1f5f9; color: #475569; }
 .field textarea.code-input {
   width: 100%;
   padding: 10px 12px;
@@ -381,4 +394,55 @@ td.skeleton-wait { border-bottom: 0; }
   .skeleton, .top-progress.active, .btn[aria-busy='true']::before { animation: none; }
   .top-progress.active { transform: scaleX(0.6); }
   .is-refreshing { transition: none; }
+}
+
+/* ---------- Notifications ---------- */
+.bell { position: relative; display: inline-flex; }
+.bell-btn {
+  position: relative; display: inline-flex; padding: 6px; border: 0; border-radius: 6px;
+  background: none; color: #94a3b8; cursor: pointer;
+}
+.bell-btn:hover, .bell-btn.active { background: #1e293b; color: #fff; text-decoration: none; }
+.bell-badge {
+  position: absolute; top: 0; right: 0; transform: translate(35%, -25%);
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+}
+.bell-badge.urgent { background: var(--danger); }
+.bell-badge.inline { position: static; transform: none; display: inline-block; }
+.bell-panel {
+  position: fixed; left: 248px; bottom: 12px; z-index: 40;
+  width: 360px; max-width: calc(100vw - 24px); max-height: min(560px, calc(100vh - 24px));
+  display: flex; flex-direction: column;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+}
+.bell-panel .alert { margin: 8px 12px 0; }
+.bell-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.bell-panel .notice-list { overflow-y: auto; }
+.bell-panel-foot { display: block; padding: 10px 14px; border-top: 1px solid var(--border); font-size: 13px; text-align: center; }
+.bell-empty { padding: 20px 16px; margin: 0; text-align: center; }
+.notice-list { list-style: none; margin: 0; padding: 0; }
+.notice { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.notice:last-child { border-bottom: 0; }
+.notice.unread { background: #f8fafc; }
+.notice-dot { flex: none; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: transparent; }
+.notice.unread .notice-dot { background: var(--primary); }
+.notice.unread .notice-dot.urgent { background: var(--danger); }
+.notice-main {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  padding: 0; border: 0; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer;
+}
+.notice-main:disabled { cursor: default; }
+.notice-main:not(:disabled):hover .notice-title { color: var(--primary); }
+.notice-title { font-size: 14px; }
+.notice.unread .notice-title { font-weight: 600; }
+.notice-body { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.notice-meta { font-size: 12px; color: var(--muted); }
+.notice-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.mobile-bar .brand { flex: 1; }
+@media (max-width: 800px) {
+  .bell-panel { left: 12px; right: 12px; width: auto; }
+  .notice { flex-wrap: wrap; }
+  .notice-actions { flex-direction: row; width: 100%; padding-left: 18px; justify-content: flex-start; gap: 16px; }
 }

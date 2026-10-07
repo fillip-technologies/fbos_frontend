@@ -114,6 +114,12 @@ export default function ContractDetail() {
               Activate
             </button>
           )}
+          {/* Delivery, linked by route only: the project form reads the customer and contract. */}
+          {hasAccess(me, ACCESS.manageProjects) && ['active', 'pending_signature'].includes(contract.status) && (
+            <Link className="btn secondary" to={`/projects/new?customer=${contract.client.id}&contract=${contract.id}`}>
+              Start project
+            </Link>
+          )}
           <button className="btn secondary" onClick={() => navigate('/contracts')}>← Back</button>
         </div>
       </div>

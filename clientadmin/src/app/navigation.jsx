@@ -70,6 +70,18 @@ export const NAV_ITEMS = [
     icon: icon(<><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5z" /><path d="M14 3v5h5" /><path d="M8 13h8M8 17h5" /></>),
   },
   {
+    to: '/projects',
+    label: 'Projects',
+    access: ACCESS.projects,
+    icon: icon(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18" /><path d="M8 13h4M8 16h7" /></>),
+  },
+  {
+    to: '/tasks',
+    label: 'Tasks',
+    access: ACCESS.tasks,
+    icon: icon(<><path d="M9 11l3 3 8-8" /><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></>),
+  },
+  {
     to: '/invoices',
     label: 'Invoices',
     access: ACCESS.invoices,

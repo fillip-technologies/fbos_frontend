@@ -123,7 +123,7 @@ export function uuidv4() {
 // never reaches an error banner. Callers can test for it with isAbortError().
 export const isAbortError = (err) => err?.name === 'AbortError'
 
-async function send(method, path, { body, auth, headers, signal }) {
+async function send(method, path, { body, auth, headers, signal, background }) {
   const finalHeaders = {
     Accept: 'application/json',
     'X-Request-Id': uuidv4(),
@@ -135,7 +135,8 @@ async function send(method, path, { body, auth, headers, signal }) {
   const token = getAccessToken()
   if (auth && token) finalHeaders.Authorization = `Bearer ${token}`
 
-  requestStarted()
+  // Background checks (the unread-notifications poll) don't move the progress bar.
+  if (!background) requestStarted()
   try {
     return await fetch(path, {
       method,
@@ -154,7 +155,7 @@ async function send(method, path, { body, auth, headers, signal }) {
       cause,
     })
   } finally {
-    requestFinished()
+    if (!background) requestFinished()
   }
 }
 
@@ -223,10 +224,10 @@ async function sendWithRetry(method, path, opts) {
   return send(method, path, opts)
 }
 
-async function request(method, path, { body, auth = true, headers = {}, signal } = {}) {
+async function request(method, path, { body, auth = true, headers = {}, signal, background = false } = {}) {
   // The signal only cancels this call's own fetches: the token refresh below is shared by
   // every caller and must never be aborted on one page's behalf.
-  let res = await sendWithRetry(method, path, { body, auth, headers, signal })
+  let res = await sendWithRetry(method, path, { body, auth, headers, signal, background })
 
   if (auth && (await isSessionFailure(res))) {
     try {
@@ -240,7 +241,7 @@ async function request(method, path, { body, auth = true, headers = {}, signal }
         details: payload,
       })
     }
-    res = await send(method, path, { body, auth, headers, signal })
+    res = await send(method, path, { body, auth, headers, signal, background })
   }
 
   if (res.status === 204) return null

@@ -19,6 +19,7 @@ export const pages = {
   PackDesigner: () => import('@/features/verticals/pages/PackDesigner.jsx'),
   AuditLog: () => import('@/features/audit-log/pages/AuditLog.jsx'),
   Profile: () => import('@/features/profile/pages/Profile.jsx'),
+  Notifications: () => import('@/features/notifications/pages/Notifications.jsx'),
   Customers: () => import('@/features/customers/pages/Customers.jsx'),
   CustomerCreate: () => import('@/features/customers/pages/CustomerCreate.jsx'),
   CustomerDetail: () => import('@/features/customers/pages/CustomerDetail.jsx'),
@@ -41,6 +42,12 @@ export const pages = {
   PaymentDetail: () => import('@/features/billing/pages/PaymentDetail.jsx'),
   Collections: () => import('@/features/billing/pages/Collections.jsx'),
   DocumentCategories: () => import('@/features/documents/pages/DocumentCategories.jsx'),
+  Projects: () => import('@/features/delivery/pages/Projects.jsx'),
+  ProjectCreate: () => import('@/features/delivery/pages/ProjectCreate.jsx'),
+  ProjectDetail: () => import('@/features/delivery/pages/ProjectDetail.jsx'),
+  Tasks: () => import('@/features/delivery/pages/Tasks.jsx'),
+  TaskCreate: () => import('@/features/delivery/pages/TaskCreate.jsx'),
+  TaskDetail: () => import('@/features/delivery/pages/TaskDetail.jsx'),
 }
 
 // Sidebar path -> the pages of that section. Hovering an entry downloads the list page
@@ -56,6 +63,8 @@ const NAV_PAGES = {
   '/opportunities': [pages.Opportunities, pages.OpportunityDetail, pages.QuotationDetail],
   '/customers': [pages.Customers, pages.CustomerDetail, pages.CustomerCreate],
   '/contracts': [pages.Contracts, pages.ContractDetail],
+  '/projects': [pages.Projects, pages.ProjectDetail, pages.ProjectCreate],
+  '/tasks': [pages.Tasks, pages.TaskDetail, pages.TaskCreate],
   '/invoices': [pages.Invoices, pages.InvoiceDetail, pages.InvoiceCreate],
   '/payments': [pages.Payments, pages.PaymentDetail, pages.PaymentCreate],
   '/collections': [pages.Collections],
@@ -67,6 +76,7 @@ const NAV_PAGES = {
   '/roles': [pages.Roles],
   '/audit-log': [pages.AuditLog],
   '/profile': [pages.Profile],
+  '/notifications': [pages.Notifications],
 }
 
 // Starts downloading a section's code; a failed preload is ignored (the click retries it).
