@@ -24,6 +24,27 @@ function Detail({ label, children }) {
   )
 }
 
+// What the person wrote on the company website; revenue imports it with the lead.
+function WebsiteEnquiry({ details }) {
+  return (
+    <div className="panel">
+      <h2 style={{ fontSize: 17, marginTop: 0 }}>Website enquiry</h2>
+      <div className="details-grid">
+        <Detail label="Form">{details.website_form}</Detail>
+        <Detail label="Package">{details.package}</Detail>
+        <Detail label="Budget">{details.budget}</Detail>
+        <Detail label="Location">{details.location}</Detail>
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <div className="detail-label">Message</div>
+        <div className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>
+          {details.message || <span className="muted">—</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function LeadDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -229,6 +250,8 @@ export default function LeadDetail() {
           </form>
         )}
       </div>
+
+      {lead.attributes?.website_lead_id && <WebsiteEnquiry details={lead.attributes} />}
 
       {hasAccess(me, ACCESS.activities) && <ActivityTimeline orgId={orgId} subjectType={SUBJECTS.lead} subjectId={lead.id} />}
     </div>
