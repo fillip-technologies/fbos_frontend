@@ -42,6 +42,8 @@ export default defineConfig({
       },
       '/api/documents': {
         target: DOCUMENTS_URL,
+        changeOrigin: true,
+      },
       '/api/communication': {
         target: COMMUNICATION_URL,
         changeOrigin: true,
