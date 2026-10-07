@@ -45,6 +45,7 @@ export default function Layout() {
   }
 
   const items = NAV_ITEMS.filter((item) => hasAccess(user, item.access))
+  const firstName = user?.name?.trim().split(/\s+/)[0]
 
   return (
     <div className={`app-shell with-sidebar${open ? ' sidebar-open' : ''}`}>
@@ -70,7 +71,7 @@ export default function Layout() {
         </nav>
         <div className="sidebar-user">
           <NavLink to="/profile" className="sidebar-user-name" onMouseEnter={() => preloadPage('/profile')} title={user ? `${user.name} · ${user.email}` : undefined}>
-            <span>Profile</span>
+            <span>{firstName || 'Profile'}</span>
             {user && !user.mfa_enabled && <span className="sidebar-dot" title="Two-factor sign-in is off" />}
           </NavLink>
           <NotificationBell />
