@@ -66,7 +66,25 @@ export const HANDOVER_STATUS_LABELS = {
 }
 
 // What a task or handover is about, as identity's object-type registry names it.
-export const SUBJECT_TYPES = { project: 'work.work_unit', task: 'task.task' }
+export const SUBJECT_TYPES = { project: 'work.work_unit', task: 'task.task', lead: 'revenue.lead' }
+export const SUBJECT_LABELS = {
+  'work.work_unit': 'Project',
+  'task.task': 'Task',
+  'revenue.lead': 'Lead',
+  'revenue.deal': 'Deal',
+  'revenue.contract': 'Contract',
+  'billing.invoice': 'Invoice',
+}
+// The console page of a task's subject, when it has one (other services' records link by route).
+const SUBJECT_ROUTES = {
+  'work.work_unit': '/projects/',
+  'task.task': '/tasks/',
+  'revenue.lead': '/leads/',
+  'revenue.contract': '/contracts/',
+  'billing.invoice': '/invoices/',
+}
+export const subjectPath = (subject) => (subject && SUBJECT_ROUTES[subject.type] ? `${SUBJECT_ROUTES[subject.type]}${subject.id}` : null)
+export const subjectLabel = (subject) => (subject ? SUBJECT_LABELS[subject.type] || subject.type : null)
 
 // 90 -> "1h 30m", 45 -> "45m", 0/null -> "0m".
 export function formatMinutes(minutes) {

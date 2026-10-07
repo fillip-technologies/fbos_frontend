@@ -48,6 +48,7 @@ export const pages = {
   Tasks: () => import('@/features/delivery/pages/Tasks.jsx'),
   TaskCreate: () => import('@/features/delivery/pages/TaskCreate.jsx'),
   TaskDetail: () => import('@/features/delivery/pages/TaskDetail.jsx'),
+  TaskTypes: () => import('@/features/delivery/pages/TaskTypes.jsx'),
 }
 
 // Sidebar path -> the pages of that section. Hovering an entry downloads the list page
@@ -65,6 +66,7 @@ const NAV_PAGES = {
   '/contracts': [pages.Contracts, pages.ContractDetail],
   '/projects': [pages.Projects, pages.ProjectDetail, pages.ProjectCreate],
   '/tasks': [pages.Tasks, pages.TaskDetail, pages.TaskCreate],
+  '/task-types': [pages.TaskTypes],
   '/invoices': [pages.Invoices, pages.InvoiceDetail, pages.InvoiceCreate],
   '/payments': [pages.Payments, pages.PaymentDetail, pages.PaymentCreate],
   '/collections': [pages.Collections],

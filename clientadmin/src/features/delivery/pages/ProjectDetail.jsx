@@ -6,8 +6,9 @@ import ProjectOverview from '@/features/delivery/components/ProjectOverview.jsx'
 import ProjectRisks from '@/features/delivery/components/ProjectRisks.jsx'
 import ProjectTasks from '@/features/delivery/components/ProjectTasks.jsx'
 import ProjectTeam from '@/features/delivery/components/ProjectTeam.jsx'
+import WorkflowPanel from '@/features/delivery/components/WorkflowPanel.jsx'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
-import { HEALTH_LABELS, PROJECT_STATUS_LABELS } from '@/features/delivery/utils.js'
+import { HEALTH_LABELS, PROJECT_STATUS_LABELS, SUBJECT_TYPES } from '@/features/delivery/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -84,7 +85,12 @@ export default function ProjectDetail() {
         ))}
       </div>
 
-      {tab === 'overview' && <ProjectOverview {...tabProps} />}
+      {tab === 'overview' && (
+        <>
+          <ProjectOverview {...tabProps} />
+          <WorkflowPanel orgId={orgId} subject={{ type: SUBJECT_TYPES.project, id: project.id }} />
+        </>
+      )}
       {tab === 'tasks' && <ProjectTasks {...tabProps} />}
       {tab === 'milestones' && <ProjectMilestones {...tabProps} />}
       {tab === 'team' && <ProjectTeam {...tabProps} />}

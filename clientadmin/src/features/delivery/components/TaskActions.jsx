@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { tasksApi } from '@/features/delivery/api.js'
+import { ReasonForm, ReviewForm, SubmitForm } from '@/features/delivery/components/TaskForms.jsx'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -7,11 +8,12 @@ import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 const FINISHED = ['done', 'cancelled']
 
 // The steps open to the signed-in user from the task's status. The backend decides in the
-// end; this only offers what it would allow (the assignee starts and submits, the reviewer
-// or a reviewer by permission reviews, task managers assign and cancel).
-export default function TaskActions({ orgId, task, setTask, names }) {
+// end; this only offers what it would allow (the assignee starts and submits, anyone may take
+// an unassigned task from the queue, the reviewer or a reviewer by permission reviews, task
+// managers assign and cancel). `taskType` and `fields` come from the task's type.
+export default function TaskActions({ orgId, task, setTask, names, taskType, fields }) {
   const { user: me } = useAuth()
-  const [form, setForm] = useState(null) // 'assign' | 'block' | 'cancel' | 'review'
+  const [form, setForm] = useState(null) // 'assign' | 'block' | 'cancel' | 'review' | 'submit'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -20,6 +22,12 @@ export default function TaskActions({ orgId, task, setTask, names }) {
   const worksOn = isAssignee || canManage
   const mayReview = task.reviewer?.id === me?.id || hasAccess(me, ACCESS.reviewTasks)
   const open = !FINISHED.includes(task.status)
+  const hasSla = Boolean(task.sla)
+
+  const openForm = (name) => {
+    setError(null)
+    setForm(name)
+  }
 
   async function run(call, { refetch = false } = {}) {
     setError(null)
@@ -36,52 +44,54 @@ export default function TaskActions({ orgId, task, setTask, names }) {
   }
 
   const buttons = [
+    !task.assignee && ['draft', 'open'].includes(task.status) && (
+      <button key="claim" className="btn" disabled={busy} onClick={() => run(() => tasksApi.claim(orgId, task))}>Take it</button>
+    ),
     isAssignee && ['assigned', 'rework'].includes(task.status) && (
       <button key="start" className="btn" disabled={busy} onClick={() => run(() => tasksApi.start(orgId, task))}>Start work</button>
     ),
     isAssignee && ['in_progress', 'rework'].includes(task.status) && (
-      <button key="submit" className="btn" disabled={busy} onClick={() => run(() => tasksApi.submit(orgId, task, {}))}>
-        {task.status === 'rework' ? 'Resubmit' : 'Submit'}
+      <button key="submit" className="btn" onClick={() => openForm('submit')}>
+        {task.status === 'rework'
+          ? 'Resubmit'
+          : taskType?.requires_review ? 'Submit for review' : taskType?.outcomes?.length ? 'Log outcome' : 'Complete'}
       </button>
     ),
     mayReview && ['submitted', 'in_review'].includes(task.status) && (
-      <button key="review" className="btn" onClick={() => setForm('review')}>Review</button>
+      <button key="review" className="btn" onClick={() => openForm('review')}>Review</button>
     ),
     worksOn && task.status === 'blocked' && (
       <button key="unblock" className="btn" disabled={busy} onClick={() => run(() => tasksApi.unblock(orgId, task))}>Unblock</button>
     ),
     canManage && open && (
-      <button key="assign" className="btn secondary" onClick={() => setForm('assign')}>{task.assignee ? 'Reassign' : 'Assign'}</button>
+      <button key="assign" className="btn secondary" onClick={() => openForm('assign')}>{task.assignee ? 'Reassign' : 'Assign'}</button>
     ),
-    worksOn && open && task.status !== 'blocked' && (
-      <button key="block" className="btn secondary" onClick={() => setForm('block')}>Mark blocked</button>
+    worksOn && open && !['blocked', 'submitted', 'in_review'].includes(task.status) && (
+      <button key="block" className="btn secondary" onClick={() => openForm('block')}>Mark blocked</button>
     ),
     canManage && open && (
-      <button key="cancel" className="btn secondary" onClick={() => setForm('cancel')}>Cancel task</button>
+      <button key="cancel" className="btn secondary" onClick={() => openForm('cancel')}>Cancel task</button>
     ),
   ].filter(Boolean)
 
   if (buttons.length === 0 && !error) return null
+  const close = () => setForm(null)
   return (
     <div className="panel">
-      <ErrorBanner error={error} />
+      {!form && <ErrorBanner error={error} />}
       <div className="row-actions" style={{ flexWrap: 'wrap' }}>{buttons}</div>
       {form === 'assign' && (
-        <AssignForm
-          task={task}
-          names={names}
-          busy={busy}
-          onCancel={() => setForm(null)}
-          onSubmit={(body) => run(() => tasksApi.assign(orgId, task, body))}
-        />
+        <AssignForm task={task} names={names} busy={busy} error={error} onCancel={close} onSubmit={(body) => run(() => tasksApi.assign(orgId, task, body))} />
       )}
       {form === 'block' && (
         <ReasonForm
           label="What is it waiting for? *"
           action="Mark blocked"
+          withSlaPause={hasSla}
           busy={busy}
-          onCancel={() => setForm(null)}
-          onSubmit={(reason) => run(() => tasksApi.block(orgId, task, { reason }))}
+          error={error}
+          onCancel={close}
+          onSubmit={(body) => run(() => tasksApi.block(orgId, task, body))}
         />
       )}
       {form === 'cancel' && (
@@ -89,14 +99,31 @@ export default function TaskActions({ orgId, task, setTask, names }) {
           label="Why cancel it? *"
           action="Cancel task"
           busy={busy}
-          onCancel={() => setForm(null)}
-          onSubmit={(reason) => run(() => tasksApi.cancel(orgId, task, { reason }))}
+          error={error}
+          onCancel={close}
+          onSubmit={(body) => run(() => tasksApi.cancel(orgId, task, body))}
+        />
+      )}
+      {form === 'submit' && (
+        <SubmitForm
+          task={task}
+          taskType={taskType}
+          fields={fields}
+          busy={busy}
+          error={error}
+          onCancel={close}
+          onSubmit={(body) => run(() => tasksApi.submit(orgId, task, body))}
         />
       )}
       {form === 'review' && (
         <ReviewForm
+          orgId={orgId}
+          task={task}
+          taskType={taskType}
+          names={names}
           busy={busy}
-          onCancel={() => setForm(null)}
+          error={error}
+          onCancel={close}
           // The review answers with the review, not the task: fetch the task again.
           onSubmit={(body) => run(() => tasksApi.review(orgId, task.id, body), { refetch: true })}
         />
@@ -105,20 +132,22 @@ export default function TaskActions({ orgId, task, setTask, names }) {
   )
 }
 
-function AssignForm({ task, names, busy, onCancel, onSubmit }) {
+function AssignForm({ task, names, busy, error, onCancel, onSubmit }) {
   const { user: me } = useAuth()
   const [assignee, setAssignee] = useState(task.assignee?.id || '')
   const [reviewer, setReviewer] = useState(task.reviewer?.id || '')
+  const [note, setNote] = useState('')
   const people = names.people || [me].filter(Boolean)
   return (
     <form
       style={{ marginTop: 14 }}
       onSubmit={(e) => {
         e.preventDefault()
-        onSubmit({ assignee_user_id: assignee, ...(reviewer ? { reviewer_user_id: reviewer } : {}) })
+        onSubmit({ assignee_user_id: assignee, ...(reviewer ? { reviewer_user_id: reviewer } : {}), ...(note.trim() ? { note: note.trim() } : {}) })
       }}
     >
-      <div className="grid-2">
+      <ErrorBanner error={error} />
+      <div className="grid-3">
         <div className="field">
           <label htmlFor="assign_to">Assign to *</label>
           <select id="assign_to" required value={assignee} onChange={(e) => setAssignee(e.target.value)}>
@@ -137,71 +166,13 @@ function AssignForm({ task, names, busy, onCancel, onSubmit }) {
             ))}
           </select>
         </div>
+        <div className="field">
+          <label htmlFor="assign_note">Why</label>
+          <input id="assign_note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" />
+        </div>
       </div>
       <div className="row-actions">
         <button className="btn" type="submit" disabled={busy} aria-busy={busy}>Assign</button>
-        <button className="btn secondary" type="button" onClick={onCancel}>Close</button>
-      </div>
-    </form>
-  )
-}
-
-function ReasonForm({ label, action, busy, onCancel, onSubmit }) {
-  const [reason, setReason] = useState('')
-  return (
-    <form
-      style={{ marginTop: 14 }}
-      onSubmit={(e) => {
-        e.preventDefault()
-        onSubmit(reason.trim())
-      }}
-    >
-      <div className="field">
-        <label htmlFor="action_reason">{label}</label>
-        <input id="action_reason" required value={reason} onChange={(e) => setReason(e.target.value)} />
-      </div>
-      <div className="row-actions">
-        <button className="btn" type="submit" disabled={busy} aria-busy={busy}>{action}</button>
-        <button className="btn secondary" type="button" onClick={onCancel}>Close</button>
-      </div>
-    </form>
-  )
-}
-
-function ReviewForm({ busy, onCancel, onSubmit }) {
-  const [result, setResult] = useState('pass')
-  const [rating, setRating] = useState('')
-  const [feedback, setFeedback] = useState('')
-  return (
-    <form
-      style={{ marginTop: 14 }}
-      onSubmit={(e) => {
-        e.preventDefault()
-        onSubmit({ result, ...(rating ? { rating: Number(rating) } : {}), ...(feedback.trim() ? { feedback: feedback.trim() } : {}) })
-      }}
-    >
-      <div className="grid-2">
-        <div className="field">
-          <label htmlFor="review_result">Outcome</label>
-          <select id="review_result" value={result} onChange={(e) => setResult(e.target.value)}>
-            <option value="pass">Approve: the task is done</option>
-            <option value="fail">Send back for rework</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="review_rating">Rating</label>
-          <select id="review_rating" value={rating} onChange={(e) => setRating(e.target.value)}>
-            <option value="">—</option>
-            {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="field">
-        <label htmlFor="review_feedback">Feedback{result === 'fail' ? ' *' : ''}</label>
-        <textarea id="review_feedback" rows={2} required={result === 'fail'} value={feedback} onChange={(e) => setFeedback(e.target.value)} />
-      </div>
-      <div className="row-actions">
-        <button className="btn" type="submit" disabled={busy} aria-busy={busy}>Save review</button>
         <button className="btn secondary" type="button" onClick={onCancel}>Close</button>
       </div>
     </form>

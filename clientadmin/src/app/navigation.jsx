@@ -82,6 +82,12 @@ export const NAV_ITEMS = [
     icon: icon(<><path d="M9 11l3 3 8-8" /><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></>),
   },
   {
+    to: '/task-types',
+    label: 'Task types',
+    access: ACCESS.deliverySetup,
+    icon: icon(<><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 17.5h7M17.5 14v7" /></>),
+  },
+  {
     to: '/invoices',
     label: 'Invoices',
     access: ACCESS.invoices,
