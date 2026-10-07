@@ -447,7 +447,7 @@ function AccessForm({ orgId, user, grants, catalog, roles, units, onCancel, onSa
     setError(null)
     setSaving(true)
     try {
-      await usersApi.replacePermissions(orgId, user.id, { ...toRequestAccess(value), reason: reason.trim() })
+      await usersApi.replacePermissions(orgId, user.id, { ...toRequestAccess(value, roles), reason: reason.trim() })
       onSaved()
     } catch (err) {
       setError(err)

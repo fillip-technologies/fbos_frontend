@@ -74,7 +74,7 @@ export default function UserInvite() {
         user_type: profile.user_type,
         home_unit_id: profile.home_unit_id || null,
         manager_user_id: profile.manager_user_id || null,
-        ...(canGrantAccess ? toRequestAccess(access) : {}),
+        ...(canGrantAccess ? toRequestAccess(access, roles) : {}),
       })
       invalidate(['users', orgId])
       navigate(`/users/${created.id}`, {

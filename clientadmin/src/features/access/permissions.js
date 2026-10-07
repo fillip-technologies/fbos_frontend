@@ -89,40 +89,53 @@ export function scopeLabel(unitId, unitsById, selfOnly) {
 }
 
 // Same merge rule as the backend: one grant per (code, unit); self-only only if every
-// source is self-only. Returns [{ code, scope_unit_id, self_only, sources: [label] }].
-export function effectiveAccess({ presets, permissions }, rolesById) {
+// source is self-only. Applied roles are already expanded into `permissions`.
+// Returns [{ code, scope_unit_id, self_only, sources: [label] }].
+export function effectiveAccess({ permissions }) {
   const merged = new Map()
-  const add = (code, scopeUnitId, selfOnly, source) => {
-    const key = `${code}|${scopeUnitId || ''}`
+  for (const perm of permissions) {
+    const key = `${perm.code}|${perm.scope_unit_id || ''}`
+    const source = perm.source_role ? `${perm.source_role} role` : 'Direct'
     const existing = merged.get(key)
     if (existing) {
-      existing.self_only = existing.self_only && selfOnly
+      existing.self_only = existing.self_only && perm.self_only
       if (!existing.sources.includes(source)) existing.sources.push(source)
     } else {
-      merged.set(key, { code, scope_unit_id: scopeUnitId || null, self_only: selfOnly, sources: [source] })
+      merged.set(key, { code: perm.code, scope_unit_id: perm.scope_unit_id || null, self_only: perm.self_only, sources: [source] })
     }
-  }
-  for (const preset of presets) {
-    const role = rolesById[preset.role_id]
-    if (!role) continue
-    for (const code of role.permissions) add(code, preset.scope_unit_id, preset.self_only, role.name)
-  }
-  for (const perm of permissions) {
-    add(perm.code, perm.scope_unit_id, perm.self_only, perm.source_role ? `${perm.source_role} role` : 'Direct')
   }
   return [...merged.values()].sort((a, b) => a.code.localeCompare(b.code))
 }
 
-// Request body pieces for POST /users and PUT /users/{id}/permissions.
-export function toRequestAccess({ presets, permissions }) {
+const sameLevel = (perm, level) => (perm.scope_unit_id || null) === level.scope_unit_id && perm.self_only === level.self_only
+
+// The one level at which every permission of a role applied in the editor is still held,
+// or undefined once its permissions were moved to different levels or removed.
+function uniformLevel(preset, role, permissions) {
+  const levels = permissions
+    .filter((p) => p.preset_key === preset.key)
+    .map((p) => ({ scope_unit_id: p.scope_unit_id || null, self_only: p.self_only }))
+  return levels.find((level) => role.permissions.every((code) => permissions.some((p) => p.code === code && sameLevel(p, level))))
+}
+
+// Request body pieces for POST /users and PUT /users/{id}/permissions. Every permission
+// names the role it came from; a role applied here is also recorded as a preset (shown on
+// the user, and used to find users by role) while it still applies at one level.
+export function toRequestAccess({ presets, permissions }, roles) {
+  const rolesById = Object.fromEntries(roles.map((r) => [r.id, r]))
+  const roleAssignments = []
+  for (const preset of presets) {
+    const role = rolesById[preset.role_id]
+    const level = role && uniformLevel(preset, role, permissions)
+    if (level) roleAssignments.push({ role_id: role.id, ...level })
+  }
   return {
-    role_assignments: presets
-      .filter((p) => p.role_id)
-      .map((p) => ({ role_id: p.role_id, scope_unit_id: p.scope_unit_id || null, self_only: p.self_only })),
+    role_assignments: roleAssignments,
     permissions: permissions.map((p) => ({
       code: p.code,
       scope_unit_id: p.scope_unit_id || null,
       self_only: p.self_only,
+      ...(p.source_role ? { source_role_code: p.source_role } : {}),
     })),
   }
 }
