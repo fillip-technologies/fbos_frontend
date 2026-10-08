@@ -70,7 +70,8 @@ export default function TaskCreate() {
   const chosenLead = form.subject_kind === 'lead' ? (leads ?? []).find((l) => l.id === form.lead_id) : null
   // The project's delivering team owns its tasks unless another team is chosen.
   const owningUnitId = form.owning_unit_id || chosenProject?.owning_unit?.id || ''
-  const fields = useTaskFields(orgId, taskType, owningUnitId)
+  const verticalId = chosenProject?.vertical?.id || ''
+  const fields = useTaskFields(orgId, taskType, owningUnitId, verticalId)
   const createFields = fields.filter((f) => !f.required_on_submit)
   const people = names.people || [me].filter(Boolean)
   const estimateMinutes = parseDuration(form.estimate)

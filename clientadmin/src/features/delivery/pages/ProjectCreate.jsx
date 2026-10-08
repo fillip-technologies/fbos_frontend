@@ -3,10 +3,16 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { projectsApi, setupApi } from '@/features/delivery/api.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import { PROJECT_PRIORITY_LABELS } from '@/features/delivery/utils.js'
+import { orgUnitsApi } from '@/features/org-units/api.js'
+import { customFieldsApi } from '@/features/verticals/api.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { invalidate, useLookup } from '@/shared/api/useQuery.js'
+import DynamicCustomFields, {
+  cleanCustomFieldValues,
+  parseDefinitionsFields,
+} from '@/shared/components/DynamicCustomFields.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { todayIso } from '@/shared/utils/dates.js'
 
@@ -36,10 +42,28 @@ export default function ProjectCreate() {
     priority: 'medium',
     billable: true,
   })
+  const [customAttributes, setCustomAttributes] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const fieldErrors = getFieldErrors(error)
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+
+  // Fetch applicable custom field schemas for work.work_unit based on vertical and owning unit
+  const { data: customFieldDefs = [] } = useLookup(
+    ['project-custom-fields', orgId, form.vertical_id || 'all', form.owning_unit_id || 'none'],
+    ({ signal }) =>
+      customFieldsApi.list(
+        orgId,
+        {
+          object_type: 'work.work_unit',
+          status: 'published',
+          ...(form.vertical_id ? { vertical_id: form.vertical_id } : {}),
+          ...(form.owning_unit_id ? { org_unit_id: form.owning_unit_id } : {}),
+        },
+        { signal }
+      ).catch(() => []),
+    { enabled }
+  )
 
   const projectType = types.find((t) => t.code === form.work_unit_type_code)
   const typeTemplates = templates.filter(
@@ -50,6 +74,29 @@ export default function ProjectCreate() {
 
   function chooseType(code) {
     setForm((f) => ({ ...f, work_unit_type_code: code, template_code: '' }))
+  }
+
+  function chooseTemplate(code) {
+    const t = templates.find((item) => item.code === code)
+    setForm((f) => ({
+      ...f,
+      template_code: code,
+      ...(t?.vertical_id && !f.vertical_id ? { vertical_id: t.vertical_id } : {}),
+    }))
+  }
+
+  async function handleUnitChange(unitId) {
+    set('owning_unit_id', unitId)
+    if (!unitId) return
+    try {
+      const res = await orgUnitsApi.verticals(orgId, unitId)
+      const effective = res?.effective || []
+      if (effective.length > 0 && !form.vertical_id) {
+        set('vertical_id', effective[0].id)
+      }
+    } catch {
+      // ignore
+    }
   }
 
   async function handleSubmit(e) {
@@ -71,6 +118,13 @@ export default function ProjectCreate() {
       if (form.client_id) body.client_id = form.client_id
       if (contractId) body.contract_id = contractId
       if (form.vertical_id) body.vertical_id = form.vertical_id
+
+      const fields = parseDefinitionsFields(customFieldDefs)
+      const cleaned = cleanCustomFieldValues(fields, customAttributes)
+      if (Object.keys(cleaned).length > 0) {
+        body.attributes = cleaned
+      }
+
       const created = await projectsApi.create(orgId, body)
       invalidate(['projects', orgId])
       navigate(`/projects/${created.id}`, { replace: true })
@@ -105,7 +159,7 @@ export default function ProjectCreate() {
           </div>
           <div className="field">
             <label htmlFor="template_code">Template</label>
-            <select id="template_code" value={form.template_code} onChange={(e) => set('template_code', e.target.value)}>
+            <select id="template_code" value={form.template_code} onChange={(e) => chooseTemplate(e.target.value)}>
               <option value="">— Start empty —</option>
               {typeTemplates.map((t) => (
                 <option key={t.code} value={t.code}>{t.name}</option>
@@ -163,7 +217,7 @@ export default function ProjectCreate() {
           </div>
           <div className="field">
             <label htmlFor="owning_unit_id">Delivering team *</label>
-            <select id="owning_unit_id" required value={form.owning_unit_id} onChange={(e) => set('owning_unit_id', e.target.value)}>
+            <select id="owning_unit_id" required value={form.owning_unit_id} onChange={(e) => handleUnitChange(e.target.value)}>
               <option value="">— Choose —</option>
               {units.map((u) => (
                 <option key={u.id} value={u.id}>{u.name}</option>
@@ -202,6 +256,18 @@ export default function ProjectCreate() {
           <input type="checkbox" checked={form.billable} onChange={(e) => set('billable', e.target.checked)} />
           Billable to the customer
         </label>
+
+        {customFieldDefs.length > 0 && (
+          <div className="subpanel" style={{ marginTop: 16 }}>
+            <div className="subpanel-title">Custom Fields</div>
+            <DynamicCustomFields
+              definitions={customFieldDefs}
+              values={customAttributes}
+              onChange={setCustomAttributes}
+              errors={fieldErrors}
+            />
+          </div>
+        )}
 
         <div className="row-actions" style={{ marginTop: 16 }}>
           <button className="btn" type="submit" disabled={submitting} aria-busy={submitting}>Create project</button>
