@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { setupApi } from '@/features/delivery/api.js'
+import AssignmentPolicies from '@/features/delivery/components/AssignmentPolicies.jsx'
 import DeliverySettings from '@/features/delivery/components/DeliverySettings.jsx'
 import RoutingRules from '@/features/delivery/components/RoutingRules.jsx'
 import {
@@ -67,6 +68,7 @@ export default function TaskTypes() {
 
       {canManage && <DeliverySettings orgId={orgId} />}
       {canManage && <RoutingRules orgId={orgId} names={names} taskTypes={active} />}
+      {canManage && <AssignmentPolicies orgId={orgId} names={names} />}
 
       {editing && (
         <TaskTypeEditor

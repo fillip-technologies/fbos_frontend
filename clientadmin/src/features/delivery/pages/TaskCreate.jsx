@@ -13,6 +13,7 @@ import {
   toAttributes,
 } from '@/features/delivery/taskFields.js'
 import useAssignablePeople from '@/features/delivery/useAssignablePeople.js'
+import useAssignmentPolicies from '@/features/delivery/useAssignmentPolicies.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import useTaskTypes, { useTaskFields } from '@/features/delivery/useTaskTypes.js'
 import { SUBJECT_TYPES, TASK_PRIORITY_LABELS, dueAtFromDate, parseDuration } from '@/features/delivery/utils.js'
@@ -90,6 +91,7 @@ export default function TaskCreate() {
   // Reviewers may be anyone; the assignee is someone the task's team may give its work to.
   const people = names.people || [me].filter(Boolean)
   const assignable = useAssignablePeople(orgId, owningUnitId)
+  const givenOut = useAssignmentPolicies(orgId).givenOut(owningUnitId)
   const estimateMinutes = parseDuration(form.estimate)
   const estimateInvalid = form.estimate.trim() !== '' && estimateMinutes === null
   const usesTime = (taskType?.estimation_unit ?? 'minutes') === 'minutes'
@@ -286,10 +288,11 @@ export default function TaskCreate() {
           <div className="field">
             <label htmlFor="assignee_user_id">Assignee</label>
             <select id="assignee_user_id" value={form.assignee_user_id} onChange={(e) => set('assignee_user_id', e.target.value)}>
-              <option value="">— Leave in the team's queue —</option>
+              <option value="">{givenOut ? '— Let the team give it out —' : '— Leave in the team’s queue —'}</option>
               <AssigneeOptions people={assignable.people} me={me} />
             </select>
             {!owningUnitId && <div className="hint">Choose the team to see its people.</div>}
+            {givenOut && !form.assignee_user_id && <div className="hint">Left empty, {givenOut}.</div>}
             {assignable.teamOnly && <div className="hint">Only people in this team can be given its tasks.</div>}
             {assignable.error && <div className="hint">The team’s people couldn’t be loaded, so only you are offered. Try again shortly.</div>}
           </div>

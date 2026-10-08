@@ -178,6 +178,11 @@ export const setupApi = {
   // The company's delivery settings: each is off until turned on. Version 0 = never changed.
   settings: (orgId, { signal } = {}) => api.get(`${DELIVERY}/settings`, { headers: inOrg(orgId), signal }),
   updateSettings: (orgId, settings, body) => api.patch(`${DELIVERY}/settings`, body, { headers: ifMatch(orgId, settings.version) }),
+  // How each team hands out work left in its queue: { data: [{ unit, policy, version }] }; a team not listed keeps it queued.
+  assignmentPolicies: (orgId, { signal } = {}) => api.get(`${DELIVERY}/assignment-policies`, { headers: inOrg(orgId), signal }),
+  // policy: 'queue' | 'round_robin' | 'least_busy'; version 0 for a team without one yet.
+  setAssignmentPolicy: (orgId, unitId, version, policy) =>
+    api.put(`${DELIVERY}/assignment-policies/${unitId}`, { policy }, { headers: ifMatch(orgId, version) }),
 }
 
 // ---------- Routing: which team does which kind of work ----------
