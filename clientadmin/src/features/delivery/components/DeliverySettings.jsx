@@ -19,8 +19,10 @@ export default function DeliverySettings({ orgId }) {
     setError(null)
     try {
       setData(await setupApi.updateSettings(orgId, settings, body))
-      // The assign forms offer other people now.
+      // The assign forms offer other people now, and lists may show other tasks and projects.
       invalidate(['assignable-people', orgId])
+      invalidate(['tasks', orgId])
+      invalidate(['projects', orgId])
     } catch (err) {
       setError(err)
     } finally {
@@ -47,6 +49,21 @@ export default function DeliverySettings({ orgId }) {
         When on, a task can be assigned, taken from the queue, or accepted from a handover only by someone who
         belongs to its team: their home unit is the team (or a unit below it), or they are an extra member of it.
         Reviewers can still be anyone.
+      </p>
+      <label className="inline-check" style={{ marginTop: 14 }}>
+        <input
+          type="checkbox"
+          checked={settings.team_visibility}
+          disabled={busy}
+          aria-busy={busy}
+          onChange={(e) => change({ team_visibility: e.target.checked })}
+        />
+        People see work by their teams
+      </label>
+      <p className="muted small" style={{ margin: '6px 0 0' }}>
+        When on, someone whose access to tasks or projects covers only some branches, departments or teams sees just
+        their work, plus their own. Everyone whose view is limited also sees their teams’ unassigned tasks, so they can
+        take work from the queue. When off, access limited to a unit shows the whole company, as before.
       </p>
     </div>
   )

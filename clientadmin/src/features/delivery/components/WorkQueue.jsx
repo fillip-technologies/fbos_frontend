@@ -29,7 +29,8 @@ export default function WorkQueue({ orgId, names, taskTypes }) {
   const params = {
     ...filters,
     limit: 50,
-    ...(mode === 'mine' ? { assignee: 'me' } : { unassigned: true, assignee: '' }),
+    // The pool: a chosen team's unassigned tasks, else those of every team I belong to.
+    ...(mode === 'mine' ? { assignee: 'me' } : { unassigned: true, assignee: '', my_teams: !filters.owning_unit_id }),
     ...(dueSoonOnly ? { due_before: endOfToday.toISOString() } : {}),
   }
   const { data, error, loading, refreshing, reload } = useQuery(
@@ -86,7 +87,11 @@ export default function WorkQueue({ orgId, names, taskTypes }) {
         <PanelSkeleton />
       ) : tasks.length === 0 ? (
         <div className="panel center-note">
-          {mode === 'mine' ? 'Your queue is clear.' : 'Nothing waiting in the pool. Pick a team to see its queue.'}
+          {mode === 'mine'
+            ? 'Your queue is clear.'
+            : filters.owning_unit_id
+              ? 'Nothing waiting in this team’s queue.'
+              : 'Nothing waiting in your teams’ queues. Pick a team to see another one.'}
         </div>
       ) : (
         <div className={`queue${refreshing ? ' is-refreshing' : ''}`}>
