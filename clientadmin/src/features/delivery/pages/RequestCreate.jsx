@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { requestsApi } from '@/features/delivery/api.js'
 import TaskFieldInputs from '@/features/delivery/components/TaskFieldInputs.jsx'
 import { DISCIPLINE_ORDER, attributeErrors, checkFields, disciplineLabel, toAttributes } from '@/features/delivery/taskFields.js'
+import useAssignmentPolicies from '@/features/delivery/useAssignmentPolicies.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import useTaskTypes, { useTaskFields } from '@/features/delivery/useTaskTypes.js'
 import { TASK_PRIORITY_LABELS, dueAtFromDate } from '@/features/delivery/utils.js'
@@ -47,6 +48,7 @@ export default function RequestCreate() {
   const offer = forKind.find((o) => (o.vertical?.id ?? ANY_VERTICAL) === form.vertical) ?? (askVertical ? null : forKind[0] ?? null)
 
   const taskType = byCode.get(form.task_type_code)
+  const givenOut = useAssignmentPolicies(orgId).givenOut(offer?.unit?.id)
   // The fields a task of that team carries: its type's, and the company's custom fields for the team.
   const fields = useTaskFields(orgId, taskType, offer?.unit?.id ?? null, null)
   const createFields = fields.filter((f) => !f.required_on_submit)
@@ -145,7 +147,8 @@ export default function RequestCreate() {
           )}
           {offer && (
             <p className="muted small" style={{ marginTop: 0 }}>
-              Goes to <strong>{names.unitName(offer.unit)}</strong>, where someone in the team takes it from their queue.
+              Goes to <strong>{names.unitName(offer.unit)}</strong>
+              {givenOut ? `, and ${givenOut}.` : ', where someone in the team takes it from their queue.'}
             </p>
           )}
 
