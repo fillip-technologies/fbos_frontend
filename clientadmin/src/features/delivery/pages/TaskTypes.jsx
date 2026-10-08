@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { setupApi } from '@/features/delivery/api.js'
+import DeliverySettings from '@/features/delivery/components/DeliverySettings.jsx'
 import {
   DISCIPLINES,
   DISCIPLINE_ORDER,
@@ -60,6 +61,8 @@ export default function TaskTypes() {
           {canManage && <button className="btn" onClick={() => setEditing({ draft: blankDraft() })}>+ New task type</button>}
         </div>
       </div>
+
+      {canManage && <DeliverySettings orgId={orgId} />}
 
       {editing && (
         <TaskTypeEditor

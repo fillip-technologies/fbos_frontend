@@ -127,6 +127,8 @@ const FRIENDLY = {
   TASK_TYPE_ARCHIVED: 'That task type is archived and takes no new tasks. Choose another one.',
   TASK_ATTRIBUTES_INVALID: 'Some of the task\'s fields are missing or invalid.',
   TASK_ALREADY_CLAIMED: 'Someone already took this task. Pick another one from the queue.',
+  ASSIGNEE_NOT_IN_UNIT: 'Only someone in the task’s team can be given it. Choose a person from that team, or hand the task over to the other team.',
+  TEAM_MEMBERS_UNAVAILABLE: 'Who belongs to the team couldn’t be checked right now. Please try again shortly.',
   CHECKLIST_ITEM_NOT_FOUND: 'That checklist item no longer exists.',
   NOT_ASSIGNEE: 'Only the person the task is assigned to can do this.',
   NOT_REVIEWER: 'Only the task\'s reviewer, or someone allowed to review tasks, can review it.',

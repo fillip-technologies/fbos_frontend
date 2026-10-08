@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { handoversApi, projectsApi, tasksApi } from '@/features/delivery/api.js'
+import AssigneeOptions from '@/features/delivery/components/AssigneeOptions.jsx'
+import useAssignablePeople from '@/features/delivery/useAssignablePeople.js'
 import { HANDOVER_STATUS_LABELS, SUBJECT_TYPES, formatDateTime } from '@/features/delivery/utils.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
@@ -195,6 +197,7 @@ export default function Handovers({ orgId, names }) {
 
       {answering && (
         <AnswerForm
+          orgId={orgId}
           answering={answering}
           record={data?.subjects?.[answering.handover.subject.id]}
           names={names}
@@ -214,13 +217,15 @@ const EMPTY = {
   history: 'No answered handovers yet.',
 }
 
-function AnswerForm({ answering, record, names, busy, error, onCancel, onSubmit }) {
+function AnswerForm({ orgId, answering, record, names, busy, error, onCancel, onSubmit }) {
   const { user: me } = useAuth()
   const [text, setText] = useState('')
   const [assignee, setAssignee] = useState('')
   const { handover, action } = answering
   const isTask = handover.subject.type === SUBJECT_TYPES.task
   const to = names.unitName(handover.to_unit)
+  // Who in the receiving team can take the task on (asked only when accepting a task).
+  const assignable = useAssignablePeople(orgId, action === 'accept' && isTask ? handover.to_unit?.id : null)
   const title = { accept: `Accept the handover to ${to}`, reject: `Reject the handover to ${to}`, cancel: 'Withdraw the handover' }[action]
 
   function handleSubmit(e) {
@@ -243,13 +248,15 @@ function AnswerForm({ answering, record, names, busy, error, onCancel, onSubmit 
         </p>
       )}
       <div className="grid-2">
-        {action === 'accept' && isTask && names.people && (
+        {action === 'accept' && isTask && (assignable.people || assignable.error) && (
           <div className="field">
             <label htmlFor="handover_assignee">Who takes it on</label>
             <select id="handover_assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
               <option value="">— Leave it in {to}’s queue —</option>
-              {names.people.map((u) => <option key={u.id} value={u.id}>{u.id === me?.id ? `${u.name} (you)` : u.name}</option>)}
+              <AssigneeOptions people={assignable.people} me={me} />
             </select>
+            {assignable.teamOnly && <div className="hint">Only people in {to} can take it on.</div>}
+            {assignable.error && <div className="hint">The team’s people couldn’t be loaded, so only you are offered. Try again shortly.</div>}
           </div>
         )}
         <div className="field">

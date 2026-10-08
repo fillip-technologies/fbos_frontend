@@ -1,4 +1,4 @@
-import { lookupsApi, setupApi, projectsApi } from '@/features/delivery/api.js'
+import { lookupsApi, setupApi } from '@/features/delivery/api.js'
 import { fieldsFromSchemas, mergeFields } from '@/features/delivery/taskFields.js'
 import { useLookup } from '@/shared/api/useQuery.js'
 
@@ -25,21 +25,12 @@ export function useTaskFields(orgId, taskType, unitId, verticalId) {
   return mergeFields(taskType?.fields ?? [], fieldsFromSchemas(definitions))
 }
 
-// Resolves custom fields respecting Section 4.3 vertical precedence:
-// 1. If the task is part of a project, the project dictates the vertical scope.
-//    If the project has no vertical, vertical is null (does not inherit delivering team's vertical).
-// 2. If the task is standalone (no project), the owning unit's effective vertical applies.
+// The fields of a saved task. Delivery says which custom fields apply (`custom_field_scope`):
+// a task in a project takes the project's vertical (none when it has none) and no team; any
+// other task takes its team. So every page shows the same fields, and nobody needs to be
+// allowed to read the project for it.
 export function useEffectiveTaskFields(orgId, task, taskType) {
-  const workUnitId = task?.work_unit_id
-  const { data: project } = useLookup(
-    ['project', orgId, workUnitId],
-    ({ signal }) => projectsApi.get(orgId, workUnitId, { signal }).catch(() => null),
-    { enabled: Boolean(orgId && workUnitId) }
-  )
-
-  const taskVerticalId = workUnitId ? (project?.vertical?.id || null) : null
-  const taskUnitId = workUnitId ? null : (task?.owning_unit?.id || null)
-
-  return useTaskFields(orgId, taskType, taskUnitId, taskVerticalId)
+  const scope = task?.custom_field_scope
+  return useTaskFields(orgId, taskType, scope?.unit_id ?? null, scope?.vertical_id ?? null)
 }
 

@@ -175,24 +175,25 @@ export const setupApi = {
   createTaskTemplate: (orgId, body) => api.post(`${DELIVERY}/task-templates`, body, { headers: inOrg(orgId) }),
   updateTaskTemplate: (orgId, template, body) =>
     api.patch(`${DELIVERY}/task-templates/${template.id}`, body, { headers: ifMatch(orgId, template.version) }),
+  // The company's delivery settings: each is off until turned on. Version 0 = never changed.
+  settings: (orgId, { signal } = {}) => api.get(`${DELIVERY}/settings`, { headers: inOrg(orgId), signal }),
+  updateSettings: (orgId, settings, body) => api.patch(`${DELIVERY}/settings`, body, { headers: ifMatch(orgId, settings.version) }),
 }
 
 // ---------- Lookups: delivery stores only ids for people, units, customers and verticals ----------
 export const lookupsApi = {
   units: (orgId, { signal } = {}) => listAll(`${IDENTITY}/org-units`, orgId, {}, { signal }),
+  // Who a task of the team may be given to: { data: [{ id, name, in_unit }], team_only }.
+  // Needs delivery.task.write or delivery.handover.write (not identity.user.read).
+  assignablePeople: (orgId, unitId, { signal } = {}) =>
+    api.get(`${DELIVERY}/assignable-people?unit_id=${encodeURIComponent(unitId)}`, { headers: inOrg(orgId), signal }),
   verticals: (orgId, { signal } = {}) => listAll(`${IDENTITY}/verticals`, orgId, { status: 'active' }, { signal }),
   customers: (orgId, { signal } = {}) => customersApi.listAll(orgId, { signal }),
   // Leads to attach a task to (a sales touch is about a lead): one page, newest first.
   leads: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/leads?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
   // The company's published custom fields for tasks (installed by vertical packs), for a team or vertical when given:
-  taskCustomFields: (orgId, unitId, verticalId, { signal } = {}) => {
-    let vert = verticalId
-    let sig = signal
-    if (verticalId && typeof verticalId === 'object' && 'signal' in verticalId) {
-      sig = verticalId.signal
-      vert = undefined
-    }
-    return listAll(
+  taskCustomFields: (orgId, unitId, verticalId, { signal } = {}) =>
+    listAll(
       `${IDENTITY}/field-definitions`,
       orgId,
       {
@@ -200,9 +201,8 @@ export const lookupsApi = {
         status: 'published',
         scoped: true,
         ...(unitId ? { org_unit_id: unitId } : {}),
-        ...(vert ? { vertical_id: vert } : {}),
+        ...(verticalId ? { vertical_id: verticalId } : {}),
       },
-      { signal: sig }
-    )
-  },
+      { signal }
+    ),
 }

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { tasksApi } from '@/features/delivery/api.js'
+import AssigneeOptions from '@/features/delivery/components/AssigneeOptions.jsx'
 import { ReasonForm, ReviewForm, SubmitForm } from '@/features/delivery/components/TaskForms.jsx'
+import useAssignablePeople from '@/features/delivery/useAssignablePeople.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -81,7 +83,7 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
       {!form && <ErrorBanner error={error} />}
       <div className="row-actions" style={{ flexWrap: 'wrap' }}>{buttons}</div>
       {form === 'assign' && (
-        <AssignForm task={task} names={names} busy={busy} error={error} onCancel={close} onSubmit={(body) => run(() => tasksApi.assign(orgId, task, body))} />
+        <AssignForm orgId={orgId} task={task} names={names} busy={busy} error={error} onCancel={close} onSubmit={(body) => run(() => tasksApi.assign(orgId, task, body))} />
       )}
       {form === 'block' && (
         <ReasonForm
@@ -132,12 +134,14 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
   )
 }
 
-function AssignForm({ task, names, busy, error, onCancel, onSubmit }) {
+function AssignForm({ orgId, task, names, busy, error, onCancel, onSubmit }) {
   const { user: me } = useAuth()
   const [assignee, setAssignee] = useState(task.assignee?.id || '')
   const [reviewer, setReviewer] = useState(task.reviewer?.id || '')
   const [note, setNote] = useState('')
+  // Reviewers may be anyone; the assignee is someone the task's team may give its work to.
   const people = names.people || [me].filter(Boolean)
+  const assignable = useAssignablePeople(orgId, task.owning_unit?.id)
   return (
     <form
       style={{ marginTop: 14 }}
@@ -152,10 +156,10 @@ function AssignForm({ task, names, busy, error, onCancel, onSubmit }) {
           <label htmlFor="assign_to">Assign to *</label>
           <select id="assign_to" required value={assignee} onChange={(e) => setAssignee(e.target.value)}>
             <option value="">— Choose —</option>
-            {people.map((u) => (
-              <option key={u.id} value={u.id}>{u.id === me?.id ? `${u.name} (you)` : u.name}</option>
-            ))}
+            <AssigneeOptions people={assignable.people} me={me} />
           </select>
+          {assignable.teamOnly && <div className="hint">Only people in this team can be given its tasks.</div>}
+          {assignable.error && <div className="hint">The team’s people couldn’t be loaded, so only you are offered. Try again shortly.</div>}
         </div>
         <div className="field">
           <label htmlFor="review_by">Reviewer</label>
