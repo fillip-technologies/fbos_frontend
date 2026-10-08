@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { setupApi } from '@/features/delivery/api.js'
 import DeliverySettings from '@/features/delivery/components/DeliverySettings.jsx'
+import RoutingRules from '@/features/delivery/components/RoutingRules.jsx'
 import {
   DISCIPLINES,
   DISCIPLINE_ORDER,
@@ -12,6 +13,7 @@ import {
   disciplineLabel,
   formatTarget,
 } from '@/features/delivery/taskFields.js'
+import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import useTaskTypes from '@/features/delivery/useTaskTypes.js'
 import { TASK_PRIORITY_LABELS } from '@/features/delivery/utils.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
@@ -40,7 +42,8 @@ export default function TaskTypes() {
   const { user: me } = useAuth()
   const { orgId, activeOrg } = useActiveOrg()
   const canManage = hasAccess(me, ACCESS.deliverySetup)
-  const { types, error, loading } = useTaskTypes(orgId)
+  const { types, active, error, loading } = useTaskTypes(orgId)
+  const names = useDeliveryNames(orgId)
   const [editing, setEditing] = useState(null) // { type?: existing, draft }
   const [showArchived, setShowArchived] = useState(false)
 
@@ -63,6 +66,7 @@ export default function TaskTypes() {
       </div>
 
       {canManage && <DeliverySettings orgId={orgId} />}
+      {canManage && <RoutingRules orgId={orgId} names={names} taskTypes={active} />}
 
       {editing && (
         <TaskTypeEditor

@@ -49,6 +49,7 @@ export default function Tasks() {
         <div className="row-actions">
           <OrgSwitcher />
           {hasAccess(me, ACCESS.deliverySetup) && <Link className="btn secondary" to="/task-types">Task types</Link>}
+          {hasAccess(me, ACCESS.requestWork) && <Link className="btn secondary" to="/requests/new">Ask another team</Link>}
           {hasAccess(me, ACCESS.manageTasks) && <Link className="btn" to="/tasks/new">+ New task</Link>}
         </div>
       </div>

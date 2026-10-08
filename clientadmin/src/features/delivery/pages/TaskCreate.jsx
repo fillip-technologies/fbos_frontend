@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { lookupsApi, projectsApi, tasksApi } from '@/features/delivery/api.js'
+import { lookupsApi, projectsApi, routingApi, tasksApi } from '@/features/delivery/api.js'
 import AssigneeOptions from '@/features/delivery/components/AssigneeOptions.jsx'
 import TaskFieldInputs from '@/features/delivery/components/TaskFieldInputs.jsx'
 import {
@@ -70,14 +70,21 @@ export default function TaskCreate() {
   const openProjects = projects.filter((p) => !['closed', 'cancelled'].includes(p.status))
   const chosenProject = form.subject_kind === 'project' ? projects.find((p) => p.id === form.project_id) : null
   const chosenLead = form.subject_kind === 'lead' ? (leads ?? []).find((l) => l.id === form.lead_id) : null
-  // The project's delivering team owns its tasks unless another team is chosen.
-  const owningUnitId = form.owning_unit_id || chosenProject?.owning_unit?.id || ''
   // Which custom fields apply, by the rule delivery answers for saved tasks (custom_field_scope):
   // a task in a project takes the project's vertical (none when it has none) and no team;
-  // any other task takes its chosen team, and through it the team's verticals.
+  // any other task takes its team, and through it the team's verticals.
   const isProjectTask = form.subject_kind === 'project' && Boolean(form.project_id)
   const taskVerticalId = isProjectTask ? (chosenProject?.vertical?.id || null) : null
-  const taskUnitId = isProjectTask ? null : (form.owning_unit_id || null)
+  // The team delivery's routing rules give this kind of work (for the project's vertical).
+  const { data: routed } = useLookup(
+    ['task-routing', orgId, form.task_type_code, taskVerticalId || 'none'],
+    ({ signal }) => routingApi.route(orgId, form.task_type_code, taskVerticalId, { signal }),
+    { enabled: enabled && Boolean(form.task_type_code) && (!isProjectTask || Boolean(chosenProject)) }
+  )
+  const routedUnitId = routed?.unit?.id || ''
+  // A chosen team, else the one the rules give this work, else the project's delivering team.
+  const owningUnitId = form.owning_unit_id || routedUnitId || chosenProject?.owning_unit?.id || ''
+  const taskUnitId = isProjectTask ? null : (owningUnitId || null)
   const fields = useTaskFields(orgId, taskType, taskUnitId, taskVerticalId)
   const createFields = fields.filter((f) => !f.required_on_submit)
   // Reviewers may be anyone; the assignee is someone the task's team may give its work to.
@@ -88,6 +95,11 @@ export default function TaskCreate() {
   const usesTime = (taskType?.estimation_unit ?? 'minutes') === 'minutes'
   const serverProblems = attributeErrors(error)
   const fieldErrors = { ...getFieldErrors(error), ...serverProblems, ...problems }
+
+  // Without a chosen team the rules may give the new kind of work another team, with other people.
+  function chooseType(code) {
+    setForm((f) => ({ ...f, task_type_code: code, ...(f.owning_unit_id ? {} : { assignee_user_id: '' }) }))
+  }
 
   function chooseLead(leadId) {
     set('lead_id', leadId)
@@ -170,7 +182,7 @@ export default function TaskCreate() {
               <div className="type-options">
                 {taskTypes.filter((t) => t.discipline === discipline).map((t) => (
                   <label key={t.code} className={`type-option${form.task_type_code === t.code ? ' chosen' : ''}`}>
-                    <input type="radio" name="task_type" value={t.code} checked={form.task_type_code === t.code} onChange={() => set('task_type_code', t.code)} />
+                    <input type="radio" name="task_type" value={t.code} checked={form.task_type_code === t.code} onChange={() => chooseType(t.code)} />
                     {t.name}
                     {t.requires_review && <span className="muted small"> · reviewed</span>}
                   </label>
@@ -254,6 +266,7 @@ export default function TaskCreate() {
                 <option key={u.id} value={u.id}>{u.name}</option>
               ))}
             </select>
+            {!form.owning_unit_id && routedUnitId && <div className="hint">From the routing rule for this kind of work.</div>}
           </div>
           <div className="field">
             <label htmlFor="due_date">Due</label>
