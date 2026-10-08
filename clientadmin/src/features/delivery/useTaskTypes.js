@@ -14,12 +14,12 @@ export default function useTaskTypes(orgId) {
 }
 
 // Every field a task of `taskType` shows: the type's own, then the company's custom fields for
-// tasks that apply to the owning team (identity filters them by the team's verticals). Custom
+// tasks that apply to the owning team or project vertical (identity filters them by verticals). Custom
 // fields the user may not read are simply left out.
-export function useTaskFields(orgId, taskType, unitId) {
+export function useTaskFields(orgId, taskType, unitId, verticalId) {
   const { data: definitions } = useLookup(
-    ['task-custom-fields', orgId, unitId || 'all'],
-    ({ signal }) => lookupsApi.taskCustomFields(orgId, unitId, { signal }).catch(() => []),
+    ['task-custom-fields', orgId, unitId || 'all', verticalId || 'none'],
+    ({ signal }) => lookupsApi.taskCustomFields(orgId, unitId, verticalId, { signal }).catch(() => []),
     { enabled: Boolean(orgId) }
   )
   return mergeFields(taskType?.fields ?? [], fieldsFromSchemas(definitions))

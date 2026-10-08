@@ -71,6 +71,23 @@ export default function ProjectOverview({ orgId, project, setProject, names }) {
         {project.objective && <p style={{ marginBottom: 0 }}>{project.objective}</p>}
       </div>
 
+      {project.attributes && Object.keys(project.attributes).length > 0 && (
+        <div className="panel">
+          <h2 style={{ fontSize: 15, margin: '0 0 12px', fontWeight: 600 }}>Custom attributes</h2>
+          <div className="details-grid">
+            {Object.entries(project.attributes).map(([key, val]) => (
+              <Detail key={key} label={key.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())}>
+                {typeof val === 'boolean'
+                  ? val ? 'Yes' : 'No'
+                  : typeof val === 'object' && val !== null
+                  ? JSON.stringify(val)
+                  : String(val ?? '—')}
+              </Detail>
+            ))}
+          </div>
+        </div>
+      )}
+
       {summaryLoading ? <PanelSkeleton /> : summary && <ProjectCounts summary={summary} />}
       <HandOver
         orgId={orgId}

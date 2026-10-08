@@ -21,4 +21,5 @@ export const usersApi = {
   replacePermissions: (orgId, id, body) =>
     api.put(`${IDENTITY}/users/${id}/permissions`, body, { headers: inOrg(orgId) }),
   roleAssignments: (orgId, userId) => listAll(`${IDENTITY}/role-assignments`, orgId, { user_id: userId }),
+  verticals: (orgId, id, { signal } = {}) => api.get(`${IDENTITY}/users/${id}/verticals`, { headers: inOrg(orgId), signal }),
 }
