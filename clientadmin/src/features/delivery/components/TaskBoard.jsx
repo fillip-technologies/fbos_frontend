@@ -5,7 +5,7 @@ import Dialog from '@/features/delivery/components/Dialog.jsx'
 import TaskCard from '@/features/delivery/components/TaskCard.jsx'
 import TaskFilterBar, { NO_TASK_FILTERS } from '@/features/delivery/components/TaskFilterBar.jsx'
 import { ReasonForm, ReviewForm, SubmitForm } from '@/features/delivery/components/TaskForms.jsx'
-import { useTaskFields } from '@/features/delivery/useTaskTypes.js'
+import { useEffectiveTaskFields } from '@/features/delivery/useTaskTypes.js'
 import { TASK_PRIORITY_LABELS } from '@/features/delivery/utils.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
@@ -233,7 +233,7 @@ export default function TaskBoard({ orgId, names, taskTypes }) {
 
 function BoardDialog({ orgId, dialog, taskType, names, busy, error, onClose, finish }) {
   const { task, kind } = dialog
-  const fields = useTaskFields(orgId, taskType, task.owning_unit?.id)
+  const fields = useEffectiveTaskFields(orgId, task, taskType)
   const props = { busy, error, onCancel: onClose }
   return (
     <Dialog title={`${task.code} · ${task.title}`} onClose={onClose} wide={kind === 'submit'}>

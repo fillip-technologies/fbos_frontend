@@ -68,10 +68,14 @@ export default function TaskCreate() {
   const openProjects = projects.filter((p) => !['closed', 'cancelled'].includes(p.status))
   const chosenProject = form.subject_kind === 'project' ? projects.find((p) => p.id === form.project_id) : null
   const chosenLead = form.subject_kind === 'lead' ? (leads ?? []).find((l) => l.id === form.lead_id) : null
-  // The project's delivering team owns its tasks unless another team is chosen.
-  const owningUnitId = form.owning_unit_id || chosenProject?.owning_unit?.id || ''
-  const verticalId = chosenProject?.vertical?.id || ''
-  const fields = useTaskFields(orgId, taskType, owningUnitId, verticalId)
+  // Precedence per Section 4.3:
+  // 1. If project is chosen, the project dictates the vertical scope.
+  //    If the project has no vertical, no vertical-specific fields should apply.
+  // 2. Only standalone tasks (not under a project) inherit from the chosen owning team.
+  const isProjectTask = form.subject_kind === 'project' && Boolean(form.project_id)
+  const taskVerticalId = isProjectTask ? (chosenProject?.vertical?.id || null) : null
+  const taskUnitId = isProjectTask ? null : (form.owning_unit_id || null)
+  const fields = useTaskFields(orgId, taskType, taskUnitId, taskVerticalId)
   const createFields = fields.filter((f) => !f.required_on_submit)
   const people = names.people || [me].filter(Boolean)
   const estimateMinutes = parseDuration(form.estimate)

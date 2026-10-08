@@ -198,6 +198,7 @@ export const lookupsApi = {
       {
         object_type: 'task.task',
         status: 'published',
+        scoped: true,
         ...(unitId ? { org_unit_id: unitId } : {}),
         ...(vert ? { vertical_id: vert } : {}),
       },

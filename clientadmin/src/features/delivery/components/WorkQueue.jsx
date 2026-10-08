@@ -5,7 +5,7 @@ import SlaBadge from '@/features/delivery/components/SlaBadge.jsx'
 import TaskFilterBar, { NO_TASK_FILTERS } from '@/features/delivery/components/TaskFilterBar.jsx'
 import { SubmitForm } from '@/features/delivery/components/TaskForms.jsx'
 import { formatFieldValue, isEmpty } from '@/features/delivery/taskFields.js'
-import { useTaskFields } from '@/features/delivery/useTaskTypes.js'
+import { useEffectiveTaskFields } from '@/features/delivery/useTaskTypes.js'
 import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS, formatDay, isOverdue, subjectLabel, subjectPath } from '@/features/delivery/utils.js'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -125,7 +125,7 @@ export default function WorkQueue({ orgId, names, taskTypes }) {
 }
 
 function FocusedTask({ orgId, task, taskType, names, pool, position, total, onSkip, onDone }) {
-  const fields = useTaskFields(orgId, taskType, task.owning_unit?.id)
+  const fields = useEffectiveTaskFields(orgId, task, taskType)
   const [logging, setLogging] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
