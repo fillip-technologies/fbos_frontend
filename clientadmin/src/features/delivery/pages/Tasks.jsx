@@ -20,7 +20,7 @@ import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 // One task engine, several ways to work it: a list, a board (agile teams, review pipelines),
 // a queue worked one task at a time (sales cadences, service desks), time, and handovers.
 const TABS = [
-  ['mine', 'My tasks'],
+  ['mine', 'My work'],
   ['board', 'Board'],
   ['queue', 'Queue'],
   ['all', 'All tasks'],
@@ -68,13 +68,55 @@ export default function Tasks() {
         ))}
       </div>
 
-      {tab === 'mine' && <TaskList key={`mine-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} mine />}
+      {tab === 'mine' && (
+        <>
+          <TaskList key={`mine-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} mine />
+          <TeamQueue key={`team-queue-${orgId}`} orgId={orgId} names={names} />
+        </>
+      )}
       {tab === 'board' && <TaskBoard key={`board-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
       {tab === 'queue' && <WorkQueue key={`queue-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
       {tab === 'all' && <TaskList key={`all-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
       {tab === 'timesheet' && <Timesheet orgId={orgId} names={names} />}
       {tab === 'handovers' && <Handovers key={orgId} orgId={orgId} names={names} />}
     </div>
+  )
+}
+
+// My work, second half: what waits in the queues of the teams I belong to (my home unit and my
+// extra teams, with the units above them), nearest due first, to open and take.
+const TEAM_QUEUE_SIZE = 10
+
+function TeamQueue({ orgId, names }) {
+  const query = { unassigned: true, my_teams: true, status: OPEN_TASK_STATUSES }
+  const { data, error, loading, refreshing, reload } = useQuery(
+    ['tasks', orgId, { query, size: TEAM_QUEUE_SIZE }],
+    ({ signal }) => tasksApi.list(orgId, { limit: TEAM_QUEUE_SIZE, ...query }, { signal }),
+    { enabled: Boolean(orgId) }
+  )
+  const tasks = data?.data ?? []
+  return (
+    <section style={{ marginTop: 28 }}>
+      <div className="page-head" style={{ marginBottom: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 17 }}>Your teams’ queue</h2>
+        <Link className="btn secondary" to="/tasks?view=queue">Work the queue →</Link>
+      </div>
+      <p className="muted small" style={{ marginTop: 0 }}>
+        Tasks nobody has taken yet in the teams you belong to. Open one and choose “Take it” to make it yours.
+      </p>
+      <ErrorBanner error={error} onRetry={reload} />
+      <TaskTable
+        orgId={orgId}
+        tasks={tasks}
+        loading={loading}
+        refreshing={refreshing}
+        names={names}
+        empty="Nothing waiting in your teams’ queues."
+      />
+      {data?.page?.has_more && (
+        <p className="muted small">Showing the first {TEAM_QUEUE_SIZE}. The queue view has the rest.</p>
+      )}
+    </section>
   )
 }
 
