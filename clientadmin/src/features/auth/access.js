@@ -113,6 +113,8 @@ export const ACCESS = {
   decideChangeRequests: { permissions: ['delivery.change_request.approve'] },
   tasks: { permissions: ['delivery.task.read'] },
   manageTasks: { permissions: ['delivery.task.write'] },
+  // Ask another team for work it takes requests for, and follow your requests.
+  requestWork: { permissions: ['delivery.task.request'] },
   reviewTasks: { permissions: ['delivery.task.review'] },
   everyonesTime: { permissions: ['delivery.time_entry.read'] },
   handovers: { permissions: ['delivery.handover.read'] },

@@ -180,6 +180,29 @@ export const setupApi = {
   updateSettings: (orgId, settings, body) => api.patch(`${DELIVERY}/settings`, body, { headers: ifMatch(orgId, settings.version) }),
 }
 
+// ---------- Routing: which team does which kind of work ----------
+export const routingApi = {
+  // Every rule, turned-off ones included: [{ id, task_type_code | discipline, vertical, unit, accepts_requests, active, version }].
+  rules: (orgId, { signal } = {}) => listAll(`${DELIVERY}/routing-rules`, orgId, { include_inactive: 'true' }, { signal }),
+  // { task_type_code | discipline, vertical_id?, unit_id, accepts_requests? }
+  createRule: (orgId, body) => api.post(`${DELIVERY}/routing-rules`, body, { headers: inOrg(orgId) }),
+  // { unit_id?, accepts_requests?, active? }
+  updateRule: (orgId, rule, body) => api.patch(`${DELIVERY}/routing-rules/${rule.id}`, body, { headers: ifMatch(orgId, rule.version) }),
+  // Where this kind of work goes by the rules: { unit, rule_id, accepts_requests } (unit null when no rule covers it).
+  route: (orgId, taskTypeCode, verticalId, { signal } = {}) =>
+    api.get(`${DELIVERY}/task-routing?${pageQuery({ task_type_code: taskTypeCode, vertical_id: verticalId })}`, { headers: inOrg(orgId), signal }),
+}
+
+// ---------- Requests: asking another team for work (delivery.task.request) ----------
+export const requestsApi = {
+  // What teams take requests for: { data: [{ task_type_code, name, discipline, vertical, unit }] }.
+  types: (orgId, { signal } = {}) => api.get(`${DELIVERY}/requestable-types`, { headers: inOrg(orgId), signal }),
+  // { task_type_code, title, description?, vertical_id?, subject?, priority?, due_at?, attributes? } -> the task.
+  create: (orgId, body) => api.post(`${DELIVERY}/requests`, body, { headers: inOrg(orgId) }),
+  // The requests I sent, newest first (a page of tasks). Filter: status (one or many).
+  mine: (orgId, opts, { signal } = {}) => api.get(`${DELIVERY}/requests?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+}
+
 // ---------- Lookups: delivery stores only ids for people, units, customers and verticals ----------
 export const lookupsApi = {
   units: (orgId, { signal } = {}) => listAll(`${IDENTITY}/org-units`, orgId, {}, { signal }),

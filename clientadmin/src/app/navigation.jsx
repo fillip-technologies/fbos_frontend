@@ -82,6 +82,12 @@ export const NAV_ITEMS = [
     icon: icon(<><path d="M9 11l3 3 8-8" /><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></>),
   },
   {
+    to: '/requests',
+    label: 'My requests',
+    access: ACCESS.requestWork,
+    icon: icon(<><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></>),
+  },
+  {
     to: '/task-types',
     label: 'Task types',
     access: ACCESS.deliverySetup,
