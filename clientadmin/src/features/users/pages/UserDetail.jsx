@@ -49,6 +49,10 @@ export default function UserDetail() {
   const presetsQuery = useQuery(['user-roles', orgId, id], () => usersApi.roleAssignments(orgId, id).catch(() => []), {
     enabled: enabled && hasAccess(me, ACCESS.viewRolePresets),
   })
+  // Same permission as reading the person (identity.user.read), so no extra gate.
+  const verticalsQuery = useQuery(['user-verticals', orgId, id], ({ signal }) =>
+    usersApi.verticals(orgId, id, { signal }).catch(() => null), { enabled }
+  )
   const activesQuery = useLookup(
     ['users', orgId, { status: 'active', limit: 100 }],
     ({ signal }) => usersApi.list(orgId, { limit: 100, status: 'active' }, { signal }).catch(() => ({ data: null })),
@@ -57,6 +61,7 @@ export default function UserDetail() {
   const user = userQuery.data
   const access = accessQuery.data ?? null // GET /users/{id}/permissions
   const presets = presetsQuery.data ?? []
+  const userVerticals = verticalsQuery.data ?? null
   const managers = useMemo(() => (activesQuery.data?.data ?? []).filter((m) => m.id !== id), [activesQuery.data, id])
   const loading = userQuery.loading
   const [error, setError] = useState(null)
@@ -69,6 +74,7 @@ export default function UserDetail() {
     userQuery.reload()
     accessQuery.reload()
     presetsQuery.reload()
+    verticalsQuery.reload()
     invalidate(['users', orgId])
   }
 
@@ -166,6 +172,24 @@ export default function UserDetail() {
             <Detail label="Employee code">{user.employee_code && <span className="mono">{user.employee_code}</span>}</Detail>
             <Detail label="User type">{USER_TYPE_LABELS[user.user_type] || user.user_type}</Detail>
             <Detail label="Works in">{user.home_unit && `${user.home_unit.name} (${user.home_unit.unit_type})`}</Detail>
+            <Detail label="Verticals">
+              {userVerticals?.effective?.length > 0 ? (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {userVerticals.effective.map((v) => (
+                    <span key={v.id} className="badge" style={{ background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe' }}>
+                      {v.name}
+                    </span>
+                  ))}
+                  {userVerticals.inherited_from && (
+                    <span className="muted small" style={{ marginLeft: 4 }}>
+                      (from {userVerticals.inherited_from.name})
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="muted">—</span>
+              )}
+            </Detail>
             <Detail label="Also in teams">
               {user.teams?.length > 0 &&
                 user.teams.map((team, i) => (

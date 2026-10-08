@@ -1,6 +1,6 @@
 import { customersApi } from '@/features/customers/api.js'
 import { api } from '@/shared/api/http.js'
-import { DELIVERY, IDENTITY } from '@/shared/api/paths.js'
+import { DELIVERY, IDENTITY, REVENUE } from '@/shared/api/paths.js'
 import { inOrg, listAll, pageQuery } from '@/shared/api/query.js'
 
 const ifMatch = (orgId, version) => inOrg(orgId, { 'If-Match': `"${version}"` })
@@ -61,30 +61,42 @@ const taskAction = (action) => (orgId, task, body) =>
   api.post(`${DELIVERY}/tasks/${task.id}/${action}`, body, { headers: ifMatch(orgId, task.version) })
 
 export const tasksApi = {
-  // Filters: assignee ('me' or a user id), status, priority, owning_unit_id, subject_type, subject_id, overdue, q.
+  // Filters (list, board and queue alike): assignee ('me' or a user id), unassigned, status, priority,
+  // owning_unit_id, subject_type, subject_id, work_unit_id, task_type (codes), discipline, overdue, q.
   list: (orgId, opts, { signal } = {}) => api.get(`${DELIVERY}/tasks?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  // { group_by, columns: [{ key, label, statuses, count, tasks, has_more }] }
+  // group_by: status | assignee | priority | task_type; per_column; done_within_days.
+  board: (orgId, opts, { signal } = {}) => api.get(`${DELIVERY}/tasks/board?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  // What to work next, nearest due first: { data, total }. unassigned=true lists a team's pool to claim from.
+  queue: (orgId, opts, { signal } = {}) => api.get(`${DELIVERY}/tasks/queue?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
   get: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/tasks/${id}`, { headers: inOrg(orgId), signal }),
   // The signed-in user's own open work: { assigned_open, due_today, overdue }.
   mySummary: (orgId, { signal } = {}) => api.get(`${DELIVERY}/tasks/summary`, { headers: inOrg(orgId), signal }),
   create: (orgId, body) => api.post(`${DELIVERY}/tasks`, body, { headers: inOrg(orgId) }),
   update: (orgId, id, version, body) => api.patch(`${DELIVERY}/tasks/${id}`, body, { headers: ifMatch(orgId, version) }),
   assign: taskAction('assign'),
+  // Take an unassigned task from the team's queue.
+  claim: taskAction('claim'),
   start: taskAction('start'),
   block: taskAction('block'),
   unblock: taskAction('unblock'),
+  // { note?, outcome?, attributes?, follow_up_at?, skip_follow_up? } — the type says which outcome and fields it needs.
   submit: taskAction('submit'),
   cancel: taskAction('cancel'),
   // { result: 'pass' | 'fail', rating?, feedback? } — fail needs feedback.
   review: (orgId, id, body) => api.post(`${DELIVERY}/tasks/${id}/reviews`, body, { headers: inOrg(orgId) }),
-  reviews: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/tasks/${id}/reviews`, { headers: inOrg(orgId), signal }),
+  reviews: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/tasks/${id}/reviews`, orgId, {}, { signal }),
   // Everyone the task was given to (assignees, reviewers), until when and why it ended.
-  assignments: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/tasks/${id}/assignments`, { headers: inOrg(orgId), signal }),
+  assignments: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/tasks/${id}/assignments`, orgId, {}, { signal }),
   tickChecklistItem: (orgId, taskId, itemId, done) =>
     api.patch(`${DELIVERY}/tasks/${taskId}/checklist/${itemId}`, { done }, { headers: inOrg(orgId) }),
   history: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/tasks/${id}/history`, orgId, {}, { signal }),
   comments: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/tasks/${id}/comments`, orgId, {}, { signal }),
   addComment: (orgId, id, body) => api.post(`${DELIVERY}/tasks/${id}/comments`, body, { headers: inOrg(orgId) }),
-  dependencies: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/tasks/${id}/dependencies`, { headers: inOrg(orgId), signal }),
+  // The tasks this one waits for; `dependents` the ones waiting for it.
+  dependencies: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/tasks/${id}/dependencies`, orgId, {}, { signal }),
+  dependents: (orgId, id, { signal } = {}) =>
+    listAll(`${DELIVERY}/tasks/${id}/dependencies`, orgId, { direction: 'blocks' }, { signal }),
   addDependency: (orgId, id, dependsOnTaskId) =>
     api.post(`${DELIVERY}/tasks/${id}/dependencies`, { depends_on_task_id: dependsOnTaskId }, { headers: inOrg(orgId) }),
   removeDependency: (orgId, id, dependsOnTaskId) =>
@@ -103,13 +115,45 @@ export const timeApi = {
 
 // ---------- Handovers: one unit passes a task or project to another ----------
 export const handoversApi = {
-  // Filters: to_unit_id, status.
+  // Filters: to_unit_id (incoming), from_unit_id (outgoing), status (one or many), subject_type, subject_id.
   list: (orgId, opts, { signal } = {}) => api.get(`${DELIVERY}/handovers?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
   get: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/handovers/${id}`, { headers: inOrg(orgId), signal }),
   // { subject: { type: 'task.task' | 'work.work_unit', id }, from_unit_id, to_unit_id, reason, notes? }
   request: (orgId, body) => api.post(`${DELIVERY}/handovers`, body, { headers: inOrg(orgId) }),
   accept: (orgId, id, body = {}) => api.post(`${DELIVERY}/handovers/${id}/accept`, body, { headers: anyVersion(orgId) }),
   reject: (orgId, id, body) => api.post(`${DELIVERY}/handovers/${id}/reject`, body, { headers: anyVersion(orgId) }),
+  // The sending side withdraws one nobody has answered: { reason }.
+  cancel: (orgId, id, body) => api.post(`${DELIVERY}/handovers/${id}/cancel`, body, { headers: anyVersion(orgId) }),
+}
+
+// ---------- Workflows: versioned stage graphs, run per record ----------
+const instance = (id) => `${DELIVERY}/workflow/instances/${id}`
+
+export const workflowsApi = {
+  // Filters: subject_type, vertical_id.
+  definitions: (orgId, opts = {}, { signal } = {}) => listAll(`${DELIVERY}/workflow/definitions`, orgId, opts, { signal }),
+  createDefinition: (orgId, body) => api.post(`${DELIVERY}/workflow/definitions`, body, { headers: inOrg(orgId) }),
+  createVersion: (orgId, code, content) =>
+    api.post(`${DELIVERY}/workflow/definitions/${code}/versions`, content, { headers: inOrg(orgId) }),
+  replaceVersion: (orgId, code, versionNo, content) =>
+    api.put(`${DELIVERY}/workflow/definitions/${code}/versions/${versionNo}`, content, { headers: anyVersion(orgId) }),
+  validateVersion: (orgId, code, versionNo) =>
+    api.post(`${DELIVERY}/workflow/definitions/${code}/versions/${versionNo}/validate`, undefined, { headers: inOrg(orgId) }),
+  publishVersion: (orgId, code, versionNo) =>
+    api.post(`${DELIVERY}/workflow/definitions/${code}/versions/${versionNo}/publish`, undefined, { headers: anyVersion(orgId) }),
+  // Filters: subject_type, subject_id, status, definition_code.
+  instances: (orgId, opts = {}, { signal } = {}) => listAll(`${DELIVERY}/workflow/instances`, orgId, opts, { signal }),
+  instance: (orgId, id, { signal } = {}) => api.get(instance(id), { headers: inOrg(orgId), signal }),
+  // { definition_code, subject: { type, id }, context? }
+  start: (orgId, body) => api.post(`${DELIVERY}/workflow/instances`, body, { headers: inOrg(orgId) }),
+  // [{ code, name, to_stage, requires_approval, allowed, blocked_reasons }]
+  availableTransitions: (orgId, id, { signal } = {}) => listAll(`${instance(id)}/transitions`, orgId, {}, { signal }),
+  // { transition_code, reason?, context_patch? } -> { outcome, instance, approval_request_id? }
+  transition: (orgId, run, body) => api.post(`${instance(run.id)}/transitions`, body, { headers: ifMatch(orgId, run.version) }),
+  hold: (orgId, run, reason) => api.post(`${instance(run.id)}/hold`, { reason }, { headers: ifMatch(orgId, run.version) }),
+  resume: (orgId, run) => api.post(`${instance(run.id)}/resume`, undefined, { headers: ifMatch(orgId, run.version) }),
+  cancel: (orgId, run, reason) => api.post(`${instance(run.id)}/cancel`, { reason }, { headers: ifMatch(orgId, run.version) }),
+  history: (orgId, id, { signal } = {}) => listAll(`${instance(id)}/history`, orgId, {}, { signal }),
 }
 
 // ---------- Setup: project types and templates, task types and templates ----------
@@ -123,7 +167,8 @@ export const setupApi = {
   createTemplateVersion: (orgId, code, body) => api.post(`${DELIVERY}/templates/${code}/versions`, body, { headers: inOrg(orgId) }),
   publishTemplateVersion: (orgId, code, versionNo) =>
     api.post(`${DELIVERY}/templates/${code}/versions/${versionNo}/publish`, undefined, { headers: anyVersion(orgId) }),
-  taskTypes: (orgId, { signal } = {}) => listAll(`${DELIVERY}/task-types`, orgId, {}, { signal }),
+  // Built-in and own task types, each with its discipline, fields, outcomes and SLA targets.
+  taskTypes: (orgId, { signal } = {}) => listAll(`${DELIVERY}/task-types`, orgId, { include_archived: 'true' }, { signal }),
   createTaskType: (orgId, body) => api.post(`${DELIVERY}/task-types`, body, { headers: inOrg(orgId) }),
   updateTaskType: (orgId, id, body) => api.patch(`${DELIVERY}/task-types/${id}`, body, { headers: inOrg(orgId) }),
   taskTemplates: (orgId, { signal } = {}) => listAll(`${DELIVERY}/task-templates`, orgId, {}, { signal }),
@@ -137,4 +182,26 @@ export const lookupsApi = {
   units: (orgId, { signal } = {}) => listAll(`${IDENTITY}/org-units`, orgId, {}, { signal }),
   verticals: (orgId, { signal } = {}) => listAll(`${IDENTITY}/verticals`, orgId, { status: 'active' }, { signal }),
   customers: (orgId, { signal } = {}) => customersApi.listAll(orgId, { signal }),
+  // Leads to attach a task to (a sales touch is about a lead): one page, newest first.
+  leads: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/leads?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  // The company's published custom fields for tasks (installed by vertical packs), for a team or vertical when given:
+  taskCustomFields: (orgId, unitId, verticalId, { signal } = {}) => {
+    let vert = verticalId
+    let sig = signal
+    if (verticalId && typeof verticalId === 'object' && 'signal' in verticalId) {
+      sig = verticalId.signal
+      vert = undefined
+    }
+    return listAll(
+      `${IDENTITY}/field-definitions`,
+      orgId,
+      {
+        object_type: 'task.task',
+        status: 'published',
+        ...(unitId ? { org_unit_id: unitId } : {}),
+        ...(vert ? { vertical_id: vert } : {}),
+      },
+      { signal: sig }
+    )
+  },
 }

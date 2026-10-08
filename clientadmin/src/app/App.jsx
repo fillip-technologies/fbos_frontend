@@ -57,6 +57,7 @@ const ProjectDetail = lazy(pages.ProjectDetail)
 const Tasks = lazy(pages.Tasks)
 const TaskCreate = lazy(pages.TaskCreate)
 const TaskDetail = lazy(pages.TaskDetail)
+const TaskTypes = lazy(pages.TaskTypes)
 
 function RequireAuth({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -123,6 +124,7 @@ export default function App() {
           <Route path="/tasks" element={<RequireAccess rule={ACCESS.tasks}><Tasks /></RequireAccess>} />
           <Route path="/tasks/new" element={<RequireAccess rule={ACCESS.manageTasks}><TaskCreate /></RequireAccess>} />
           <Route path="/tasks/:id" element={<RequireAccess rule={ACCESS.tasks}><TaskDetail /></RequireAccess>} />
+          <Route path="/task-types" element={<RequireAccess rule={ACCESS.tasks}><TaskTypes /></RequireAccess>} />
           <Route path="/customers" element={<RequireAccess rule={ACCESS.customers}><Customers /></RequireAccess>} />
           <Route path="/customers/new" element={<RequireAccess rule={ACCESS.manageCustomers}><CustomerCreate /></RequireAccess>} />
           <Route path="/customers/:id" element={<RequireAccess rule={ACCESS.customers}><CustomerDetail /></RequireAccess>} />

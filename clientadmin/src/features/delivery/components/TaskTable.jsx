@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { tasksApi } from '@/features/delivery/api.js'
+import SlaBadge from '@/features/delivery/components/SlaBadge.jsx'
 import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS, formatDay, isOverdue } from '@/features/delivery/utils.js'
 import { prefetch } from '@/shared/api/useQuery.js'
 import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
@@ -35,13 +36,17 @@ export default function TaskTable({ orgId, tasks, loading, refreshing, names, sh
                 <td>
                   <div style={{ fontWeight: 600 }}>{t.title}</div>
                   <div className="muted small">
-                    <span className="mono">{t.code}</span> · {t.task_type.name}
+                    <span className={`discipline-dot ${t.task_type.discipline}`} /> <span className="mono">{t.code}</span> · {t.task_type.name}
+                    {t.outcome && ` · ${t.outcome.replace(/_/g, ' ')}`}
                   </div>
                 </td>
                 <td>{t.assignee ? names.personName(t.assignee) : <span className="muted">Unassigned</span>}</td>
                 {showTeam && <td>{names.unitName(t.owning_unit)}</td>}
                 <td><StatusBadge status={t.priority} label={TASK_PRIORITY_LABELS[t.priority]} /></td>
-                <td><StatusBadge status={t.status} label={TASK_STATUS_LABELS[t.status]} /></td>
+                <td>
+                  <StatusBadge status={t.status} label={TASK_STATUS_LABELS[t.status]} />
+                  {(t.sla || t.response_sla) && <div style={{ marginTop: 4 }}><SlaBadge task={t} compact /></div>}
+                </td>
                 <td className={isOverdue(t) ? 'small' : 'muted small'} style={isOverdue(t) ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>
                   {formatDay(t.due_at)}
                 </td>
