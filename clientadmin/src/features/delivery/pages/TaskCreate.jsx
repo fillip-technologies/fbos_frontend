@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { lookupsApi, projectsApi, tasksApi } from '@/features/delivery/api.js'
+import AssigneeOptions from '@/features/delivery/components/AssigneeOptions.jsx'
 import TaskFieldInputs from '@/features/delivery/components/TaskFieldInputs.jsx'
 import {
   DISCIPLINE_ORDER,
@@ -11,6 +12,7 @@ import {
   isEmpty,
   toAttributes,
 } from '@/features/delivery/taskFields.js'
+import useAssignablePeople from '@/features/delivery/useAssignablePeople.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import useTaskTypes, { useTaskFields } from '@/features/delivery/useTaskTypes.js'
 import { SUBJECT_TYPES, TASK_PRIORITY_LABELS, dueAtFromDate, parseDuration } from '@/features/delivery/utils.js'
@@ -70,16 +72,17 @@ export default function TaskCreate() {
   const chosenLead = form.subject_kind === 'lead' ? (leads ?? []).find((l) => l.id === form.lead_id) : null
   // The project's delivering team owns its tasks unless another team is chosen.
   const owningUnitId = form.owning_unit_id || chosenProject?.owning_unit?.id || ''
-  // Precedence per Section 4.3:
-  // 1. If project is chosen, the project dictates the vertical scope.
-  //    If the project has no vertical, no vertical-specific fields should apply.
-  // 2. Only standalone tasks (not under a project) inherit from the chosen owning team.
+  // Which custom fields apply, by the rule delivery answers for saved tasks (custom_field_scope):
+  // a task in a project takes the project's vertical (none when it has none) and no team;
+  // any other task takes its chosen team, and through it the team's verticals.
   const isProjectTask = form.subject_kind === 'project' && Boolean(form.project_id)
   const taskVerticalId = isProjectTask ? (chosenProject?.vertical?.id || null) : null
   const taskUnitId = isProjectTask ? null : (form.owning_unit_id || null)
   const fields = useTaskFields(orgId, taskType, taskUnitId, taskVerticalId)
   const createFields = fields.filter((f) => !f.required_on_submit)
+  // Reviewers may be anyone; the assignee is someone the task's team may give its work to.
   const people = names.people || [me].filter(Boolean)
+  const assignable = useAssignablePeople(orgId, owningUnitId)
   const estimateMinutes = parseDuration(form.estimate)
   const estimateInvalid = form.estimate.trim() !== '' && estimateMinutes === null
   const usesTime = (taskType?.estimation_unit ?? 'minutes') === 'minutes'
@@ -245,7 +248,7 @@ export default function TaskCreate() {
           </div>
           <div className="field">
             <label htmlFor="owning_unit_id">Team *</label>
-            <select id="owning_unit_id" required value={owningUnitId} onChange={(e) => set('owning_unit_id', e.target.value)}>
+            <select id="owning_unit_id" required value={owningUnitId} onChange={(e) => setForm((f) => ({ ...f, owning_unit_id: e.target.value, assignee_user_id: '' }))}>
               <option value="">— Choose —</option>
               {(names.units || []).filter((u) => u.status !== 'inactive').map((u) => (
                 <option key={u.id} value={u.id}>{u.name}</option>
@@ -271,10 +274,11 @@ export default function TaskCreate() {
             <label htmlFor="assignee_user_id">Assignee</label>
             <select id="assignee_user_id" value={form.assignee_user_id} onChange={(e) => set('assignee_user_id', e.target.value)}>
               <option value="">— Leave in the team's queue —</option>
-              {people.map((u) => (
-                <option key={u.id} value={u.id}>{u.id === me?.id ? `${u.name} (you)` : u.name}</option>
-              ))}
+              <AssigneeOptions people={assignable.people} me={me} />
             </select>
+            {!owningUnitId && <div className="hint">Choose the team to see its people.</div>}
+            {assignable.teamOnly && <div className="hint">Only people in this team can be given its tasks.</div>}
+            {assignable.error && <div className="hint">The team’s people couldn’t be loaded, so only you are offered. Try again shortly.</div>}
           </div>
           <div className="field">
             <label htmlFor="reviewer_user_id">Reviewer</label>
