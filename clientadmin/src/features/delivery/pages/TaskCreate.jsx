@@ -68,6 +68,8 @@ export default function TaskCreate() {
   const openProjects = projects.filter((p) => !['closed', 'cancelled'].includes(p.status))
   const chosenProject = form.subject_kind === 'project' ? projects.find((p) => p.id === form.project_id) : null
   const chosenLead = form.subject_kind === 'lead' ? (leads ?? []).find((l) => l.id === form.lead_id) : null
+  // The project's delivering team owns its tasks unless another team is chosen.
+  const owningUnitId = form.owning_unit_id || chosenProject?.owning_unit?.id || ''
   // Precedence per Section 4.3:
   // 1. If project is chosen, the project dictates the vertical scope.
   //    If the project has no vertical, no vertical-specific fields should apply.

@@ -28,11 +28,12 @@ Both apps share one feature-based layout; `@` is an alias for `src/`.
 cd superadmin   # or: cd portal
 npm install
 npm run dev        # Vite dev server (5173 / 5180)
+npm run lint       # ESLint guard (eslint.config.js)
 npm run build      # production build → dist/
 npm run preview    # serve the built dist/
 ```
 
-There is **no test runner and no linter configured** — the only scripts are `dev`, `build`, `preview`. (A stray `eslint-disable` comment in superadmin's `AuthContext.jsx` is leftover; ESLint is not installed.)
+There is **no test runner**. `npm run lint` is a guard, not a style guide: it fails only on mistakes `vite build` lets through and that crash at runtime — a name used but never defined (`no-undef`), a component never imported (`react/jsx-no-undef`), a hook called conditionally (`react-hooks/rules-of-hooks`). CI (`.github/workflows/ci-cd.yml`) runs lint + build on every pull request to `main` and again before each deploy.
 
 ### Backend dependency
 
@@ -135,5 +136,5 @@ Identical file in both apps, configured at the top of each `api/client.js`:
 - **Backend rules:** read `server/.agents/AGENT_DEV.md` for the general code-quality principles (early returns, meaningful names, keep external API shapes at the boundary, useful errors, focused diffs); they apply to the frontend too.
 - **Permissions, every time:** any change to a backend service (`server/src/v1/*`) that adds or changes an endpoint also adds its permissions in the same piece of work, following `server/.agents/AGENT_PERMISSIONS.md`: authentication through Identity, `<service>.<entity>.<action>` codes in Identity's catalog, a guard on every route, tests. On this side, add the page or action's `ACCESS` rule (`features/auth/access.js`), the access editor's labels for new services and entities (`features/access/permissions.js`) and `FRIENDLY` copy for new error codes.
 - **Keep the two apps in step:** `shared/api/session.js`, `errors.js` and `http.js` are near-identical copies; a fix in one usually belongs in the other.
-- **Verify** with `npm run build` in the app you changed (there is no test runner or linter).
+- **Verify** with `npm run lint && npm run build` in the app you changed (there is no test runner).
 - **Git:** never add Claude as co-author or any attribution line to commits or PR descriptions.
