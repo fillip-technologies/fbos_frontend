@@ -65,6 +65,22 @@ export default function DeliverySettings({ orgId }) {
         their work, plus their own. Everyone whose view is limited also sees their teams’ unassigned tasks, so they can
         take work from the queue. When off, access limited to a unit shows the whole company, as before.
       </p>
+      <label className="inline-check" style={{ marginTop: 14 }}>
+        <input
+          type="checkbox"
+          checked={settings.team_alerts}
+          disabled={busy}
+          aria-busy={busy}
+          onChange={(e) => change({ team_alerts: e.target.checked })}
+        />
+        Warn about time limits and tell team heads
+      </label>
+      <p className="muted small" style={{ margin: '6px 0 0' }}>
+        When on, a task’s assignee is warned when its time limit is close (or its team head, when nobody has it), the
+        assignee and team head hear when the limit is missed, and the head above them when it is half as long again
+        overdue. Team heads also hear about new requests and handovers for their team. Work that ran out of time long
+        before this is switched on isn’t announced. When off, only the people a task names hear about it.
+      </p>
     </div>
   )
 }
