@@ -54,6 +54,7 @@ export const ACCESS = {
   updateUsers: { permissions: ['identity.user.update'] },
   deactivateUsers: { permissions: ['identity.user.deactivate'] },
   viewUserAccess: { permissions: ['identity.user_permission.read'] },
+  viewRolePresets: { permissions: ['identity.role_assignment.read'] },
   // Editing access needs the permission catalog too, which is part of role read access.
   manageUserAccess: { permissions: ['identity.user_permission.manage', 'identity.role.read'] },
   roles: { permissions: ['identity.role.read'] },

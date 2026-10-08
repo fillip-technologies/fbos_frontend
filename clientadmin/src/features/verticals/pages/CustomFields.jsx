@@ -40,6 +40,7 @@ export default function CustomFields() {
   const [publishing, setPublishing] = useState(null)
   const [notice, setNotice] = useState('')
 
+  const canReadPacks = hasAccess(user, ACCESS.verticalPacks)
   const load = useCallback(() => {
     if (!orgId) return
     setLoading(true)
@@ -48,8 +49,9 @@ export default function CustomFields() {
       customFieldsApi.list(orgId, { object_type: objectType, status }),
       verticalsApi.objectTypes(orgId),
       verticalsApi.list(orgId).catch(() => []),
-      // Only to name the pack a definition came from; not everyone may read packs.
-      verticalPacksApi.list(orgId).catch(() => []),
+      // Only to name the pack a definition came from; not everyone may read packs (and
+      // then they aren't asked for).
+      canReadPacks ? verticalPacksApi.list(orgId).catch(() => []) : [],
     ])
       .then(([defs, types, verts, packList]) => {
         // Retired definitions were replaced by a pack update; show them only when asked.
@@ -60,7 +62,7 @@ export default function CustomFields() {
       })
       .catch(setError)
       .finally(() => setLoading(false))
-  }, [orgId, objectType, status])
+  }, [orgId, objectType, status, canReadPacks])
   useEffect(load, [load])
 
   const typeName = useMemo(() => Object.fromEntries(objectTypes.map((t) => [t.code, t.display_name])), [objectTypes])

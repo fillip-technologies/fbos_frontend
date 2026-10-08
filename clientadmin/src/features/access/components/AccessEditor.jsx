@@ -30,26 +30,43 @@ export function accessFromGrants(grants) {
   }
 }
 
+const NO_ROLE_DRAFT = { role_id: '', scope_unit_id: null, self_only: false }
+
 /**
- * Edits a user's access: role presets (copied onto the user) plus individual permissions,
- * each with a scope (whole organization or a unit and everything below it) and an
- * "own records only" switch. `value`/`onChange` hold { presets, permissions }.
+ * Edits a user's access as individual permissions, each with a scope (whole organization or
+ * a unit and everything below it) and an "own records only" switch. Applying a role adds
+ * its permissions (tagged "from <role>") at a starting level that can then be changed per
+ * permission. `value`/`onChange` hold { presets: roles applied here, permissions }.
  */
 export default function AccessEditor({ catalog, roles, units, value, onChange, fieldErrors = {} }) {
   const rolesById = useMemo(() => Object.fromEntries(roles.map((r) => [r.id, r])), [roles])
   const unitsById = useMemo(() => Object.fromEntries(units.map((u) => [u.id, u])), [units])
   const groups = useMemo(() => groupCatalog(catalog), [catalog])
   const describe = useMemo(() => Object.fromEntries(catalog.map((p) => [p.code, p.description])), [catalog])
-  const effective = useMemo(() => effectiveAccess(value, rolesById), [value, rolesById])
+  const effective = useMemo(() => effectiveAccess(value), [value])
   const [openServices, setOpenServices] = useState(() => new Set(groups.map((g) => g.service)))
+  const [roleDraft, setRoleDraft] = useState(NO_ROLE_DRAFT)
 
-  const setPresets = (presets) => onChange({ ...value, presets })
   const setPermissions = (permissions) => onChange({ ...value, permissions })
 
-  const addPreset = () =>
-    setPresets([...value.presets, { key: key(), role_id: roles[0]?.id || '', scope_unit_id: null, self_only: false }])
-  const updatePreset = (k, patch) => setPresets(value.presets.map((p) => (p.key === k ? { ...p, ...patch } : p)))
-  const removePreset = (k) => setPresets(value.presets.filter((p) => p.key !== k))
+  const applyRole = () => {
+    const role = rolesById[roleDraft.role_id]
+    if (!role) return
+    const preset = { key: key(), ...roleDraft }
+    const level = { scope_unit_id: roleDraft.scope_unit_id || null, self_only: roleDraft.self_only }
+    const heldThere = (code) =>
+      value.permissions.some((p) => p.code === code && (p.scope_unit_id || null) === level.scope_unit_id)
+    const added = role.permissions
+      .filter((code) => !heldThere(code))
+      .map((code) => ({ key: key(), code, ...level, source_role: role.code, preset_key: preset.key }))
+    onChange({ presets: [...value.presets, preset], permissions: [...value.permissions, ...added] })
+    setRoleDraft(NO_ROLE_DRAFT)
+  }
+  const removePreset = (k) =>
+    onChange({
+      presets: value.presets.filter((p) => p.key !== k),
+      permissions: value.permissions.filter((p) => p.preset_key !== k),
+    })
 
   const entriesFor = (code) => value.permissions.filter((p) => p.code === code)
   const togglePermission = (code, on) =>
@@ -90,64 +107,66 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
         <div className="section-head">
           <div>
             <h3>Role presets</h3>
-            <p className="muted">A preset copies all of a role's permissions onto this user, in the scope you choose.</p>
+            <p className="muted">
+              Applying a role adds each of its permissions below at the level you pick here. You can then change any
+              permission's level on its own.
+            </p>
           </div>
-          <button type="button" className="btn secondary" onClick={addPreset} disabled={!roles.length}>
-            + Add role
-          </button>
         </div>
-        {value.presets.length === 0 && <p className="muted small">No role presets. You can still pick individual permissions below.</p>}
-        {value.presets.map((preset) => {
-          const role = rolesById[preset.role_id]
-          return (
-            <div key={preset.key} className="preset-row">
-              <div className="grid-3">
-                <div className="field">
-                  <label>Role</label>
-                  <select value={preset.role_id} onChange={(e) => updatePreset(preset.key, { role_id: e.target.value })}>
-                    {roles.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name} ({r.permissions.length} permissions)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label>Applies to</label>
-                  <UnitSelect
-                    units={units}
-                    value={preset.scope_unit_id}
-                    emptyLabel="Whole company"
-                    onChange={(id) => updatePreset(preset.key, { scope_unit_id: id })}
-                  />
-                </div>
-                <div className="field checkbox-field">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={preset.self_only}
-                      onChange={(e) => updatePreset(preset.key, { self_only: e.target.checked })}
-                    />
-                    Only their own records
-                  </label>
-                  <button type="button" className="link-btn danger" onClick={() => removePreset(preset.key)}>
-                    Remove
-                  </button>
-                </div>
-              </div>
-              {role && (
-                <div className="chips">
-                  {role.permissions.length === 0 && <span className="muted small">This role has no permissions.</span>}
-                  {role.permissions.map((code) => (
-                    <span key={code} className="chip" title={describe[code] || code}>
-                      {code}
-                    </span>
-                  ))}
-                </div>
-              )}
+        <div className="preset-row">
+          <div className="grid-3">
+            <div className="field">
+              <label htmlFor="apply-role">Role</label>
+              <select id="apply-role" value={roleDraft.role_id} onChange={(e) => setRoleDraft((d) => ({ ...d, role_id: e.target.value }))}>
+                <option value="">{roles.length ? '— Choose a role —' : 'No roles yet'}</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({r.permissions.length} permissions)
+                  </option>
+                ))}
+              </select>
             </div>
-          )
-        })}
+            <div className="field">
+              <label>Applies to</label>
+              <UnitSelect
+                units={units}
+                value={roleDraft.scope_unit_id}
+                emptyLabel="Whole company"
+                onChange={(id) => setRoleDraft((d) => ({ ...d, scope_unit_id: id }))}
+              />
+            </div>
+            <div className="field checkbox-field">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={roleDraft.self_only}
+                  onChange={(e) => setRoleDraft((d) => ({ ...d, self_only: e.target.checked }))}
+                />
+                Only their own records
+              </label>
+              <button type="button" className="btn secondary" onClick={applyRole} disabled={!rolesById[roleDraft.role_id]}>
+                Apply role
+              </button>
+            </div>
+          </div>
+        </div>
+        {value.presets.length > 0 && (
+          <div className="chips">
+            {value.presets.map((preset) => (
+              <span key={preset.key} className="chip">
+                {rolesById[preset.role_id]?.name || 'Role'} · {scopeLabel(preset.scope_unit_id, unitsById, preset.self_only)}{' '}
+                <button
+                  type="button"
+                  className="link-btn danger"
+                  onClick={() => removePreset(preset.key)}
+                  aria-label={`Remove the ${rolesById[preset.role_id]?.name || ''} role and the permissions it added`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ---------------- Individual permissions ---------------- */}
