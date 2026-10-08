@@ -12,7 +12,7 @@ import TaskTime from '@/features/delivery/components/TaskTime.jsx'
 import WorkflowPanel from '@/features/delivery/components/WorkflowPanel.jsx'
 import { disciplineLabel } from '@/features/delivery/taskFields.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
-import useTaskTypes, { useTaskFields } from '@/features/delivery/useTaskTypes.js'
+import useTaskTypes, { useEffectiveTaskFields } from '@/features/delivery/useTaskTypes.js'
 import {
   SUBJECT_TYPES,
   TASK_PRIORITY_LABELS,
@@ -50,7 +50,7 @@ export default function TaskDetail() {
   )
   const { typeOf } = useTaskTypes(orgId)
   const taskType = task ? typeOf(task.task_type) : null
-  const fields = useTaskFields(orgId, taskType, task?.owning_unit?.id)
+  const fields = useEffectiveTaskFields(orgId, task, taskType)
 
   // A changed task: shown at once; lists, its project's counts and its history refetch.
   const setTask = (saved) => {
