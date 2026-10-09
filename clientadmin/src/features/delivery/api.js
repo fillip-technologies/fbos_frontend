@@ -97,6 +97,16 @@ export const tasksApi = {
   dependencies: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/tasks/${id}/dependencies`, orgId, {}, { signal }),
   dependents: (orgId, id, { signal } = {}) =>
     listAll(`${DELIVERY}/tasks/${id}/dependencies`, orgId, { direction: 'blocks' }, { signal }),
+  // A task whose type follows a workflow (task.governing_workflow) moves by the workflow's steps:
+  // [{ code, name, to_stage, requires_approval, allowed, blocked_reasons }] from its stage.
+  steps: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/tasks/${id}/transitions`, orgId, {}, { signal }),
+  // Answers with the task. `reason` goes with the step (to the assignee when work goes back from review).
+  takeStep: (orgId, task, transitionCode, reason) =>
+    api.post(
+      `${DELIVERY}/tasks/${task.id}/transitions`,
+      { transition_code: transitionCode, ...(reason ? { reason } : {}) },
+      { headers: ifMatch(orgId, task.version) }
+    ),
   addDependency: (orgId, id, dependsOnTaskId) =>
     api.post(`${DELIVERY}/tasks/${id}/dependencies`, { depends_on_task_id: dependsOnTaskId }, { headers: inOrg(orgId) }),
   removeDependency: (orgId, id, dependsOnTaskId) =>
@@ -130,6 +140,11 @@ export const handoversApi = {
 const instance = (id) => `${DELIVERY}/workflow/instances/${id}`
 
 export const workflowsApi = {
+  // Ready-made task workflows: [{ code, name, discipline, summary, stages: [{ code, name, status_category }], steps }].
+  templates: (orgId, { signal } = {}) => api.get(`${DELIVERY}/workflow/templates`, { headers: inOrg(orgId), signal }),
+  // Makes one the company's own task workflow, published: { code?, name? } -> the definition.
+  installTemplate: (orgId, code, body = {}) =>
+    api.post(`${DELIVERY}/workflow/templates/${code}/install`, body, { headers: inOrg(orgId) }),
   // Filters: subject_type, vertical_id.
   definitions: (orgId, opts = {}, { signal } = {}) => listAll(`${DELIVERY}/workflow/definitions`, orgId, opts, { signal }),
   createDefinition: (orgId, body) => api.post(`${DELIVERY}/workflow/definitions`, body, { headers: inOrg(orgId) }),
@@ -171,6 +186,9 @@ export const setupApi = {
   taskTypes: (orgId, { signal } = {}) => listAll(`${DELIVERY}/task-types`, orgId, { include_archived: 'true' }, { signal }),
   createTaskType: (orgId, body) => api.post(`${DELIVERY}/task-types`, body, { headers: inOrg(orgId) }),
   updateTaskType: (orgId, id, body) => api.patch(`${DELIVERY}/task-types/${id}`, body, { headers: inOrg(orgId) }),
+  // The company's task workflow new tasks of a type follow; null: none. Answers with the type.
+  setTypeWorkflow: (orgId, id, definitionCode) =>
+    api.put(`${DELIVERY}/task-types/${id}/workflow`, { definition_code: definitionCode }, { headers: inOrg(orgId) }),
   taskTemplates: (orgId, { signal } = {}) => listAll(`${DELIVERY}/task-templates`, orgId, {}, { signal }),
   createTaskTemplate: (orgId, body) => api.post(`${DELIVERY}/task-templates`, body, { headers: inOrg(orgId) }),
   updateTaskTemplate: (orgId, template, body) =>

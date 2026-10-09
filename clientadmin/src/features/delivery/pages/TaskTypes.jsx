@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { setupApi } from '@/features/delivery/api.js'
+import { setupApi, workflowsApi } from '@/features/delivery/api.js'
 import AssignmentPolicies from '@/features/delivery/components/AssignmentPolicies.jsx'
 import DeliverySettings from '@/features/delivery/components/DeliverySettings.jsx'
 import RoutingRules from '@/features/delivery/components/RoutingRules.jsx'
+import TaskWorkflows from '@/features/delivery/components/TaskWorkflows.jsx'
 import {
   DISCIPLINES,
   DISCIPLINE_ORDER,
@@ -22,7 +23,7 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
-import { invalidate } from '@/shared/api/useQuery.js'
+import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
@@ -48,6 +49,13 @@ export default function TaskTypes() {
   const [editing, setEditing] = useState(null) // { type?: existing, draft }
   const [showArchived, setShowArchived] = useState(false)
 
+  // The company's published task workflows, for the types to follow (shared with the workflow panel's list).
+  const { data: workflowDefinitions } = useQuery(
+    ['workflow-definitions', orgId, 'task.task'],
+    ({ signal }) => workflowsApi.definitions(orgId, { subject_type: 'task.task' }, { signal }),
+    { enabled: Boolean(orgId) && canManage && hasAccess(me, ACCESS.workflows) }
+  )
+  const taskWorkflows = (workflowDefinitions ?? []).filter((d) => d.status === 'active' && d.current_version_no)
   const visible = types.filter((t) => showArchived || !t.archived)
   const disciplines = [...new Set([...DISCIPLINE_ORDER, ...visible.map((t) => t.discipline)])].filter((d) => visible.some((t) => t.discipline === d))
 
@@ -69,6 +77,9 @@ export default function TaskTypes() {
       {canManage && <DeliverySettings orgId={orgId} />}
       {canManage && <RoutingRules orgId={orgId} names={names} taskTypes={active} />}
       {canManage && <AssignmentPolicies orgId={orgId} names={names} />}
+      {canManage && hasAccess(me, ACCESS.workflows) && (
+        <TaskWorkflows orgId={orgId} types={types} installed={taskWorkflows} canDesign={hasAccess(me, ACCESS.designWorkflows)} />
+      )}
 
       {editing && (
         <TaskTypeEditor
@@ -95,7 +106,9 @@ export default function TaskTypes() {
               {visible.filter((t) => t.discipline === discipline).map((t) => (
                 <TypeCard
                   key={t.id}
+                  orgId={orgId}
                   type={t}
+                  taskWorkflows={taskWorkflows}
                   canManage={canManage}
                   onEdit={() => setEditing({ type: t, draft: toDraft(t) })}
                   onCopy={() => setEditing({ draft: { ...toDraft(t), code: `${t.code}_custom`, name: `${t.name} (ours)` } })}
@@ -109,7 +122,7 @@ export default function TaskTypes() {
   )
 }
 
-function TypeCard({ type, canManage, onEdit, onCopy }) {
+function TypeCard({ orgId, type, taskWorkflows, canManage, onEdit, onCopy }) {
   const sla = type.resolution_sla_minutes || type.response_sla_minutes
   return (
     <article className="type-card">
@@ -145,6 +158,11 @@ function TypeCard({ type, canManage, onEdit, onCopy }) {
           {type.resolution_sla_minutes?.p1 ? `resolve ${formatTarget(type.resolution_sla_minutes.p1)}` : ''}
         </div>
       )}
+      {canManage ? (
+        <WorkflowPicker orgId={orgId} type={type} taskWorkflows={taskWorkflows} />
+      ) : (
+        type.workflow && <div className="small muted">Follows the “{type.workflow.name}” workflow</div>
+      )}
       {canManage && (
         <div className="row-actions" style={{ marginTop: 10 }}>
           {!type.is_builtin && <button className="btn secondary small-btn" onClick={onEdit}>Edit</button>}
@@ -152,6 +170,46 @@ function TypeCard({ type, canManage, onEdit, onCopy }) {
         </div>
       )}
     </article>
+  )
+}
+
+// Which workflow the company's new tasks of the type follow: its stages then move them (and may
+// hand them to other teams), in place of start, submit and review. Tasks already made keep theirs.
+function WorkflowPicker({ orgId, type, taskWorkflows }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const current = type.workflow?.code ?? ''
+  const offered = taskWorkflows.some((w) => w.code === current) || !current ? taskWorkflows : [...taskWorkflows, type.workflow]
+
+  async function choose(code) {
+    setBusy(true)
+    setError(null)
+    try {
+      await setupApi.setTypeWorkflow(orgId, type.id, code || null)
+      invalidate(['task-types', orgId])
+    } catch (err) {
+      setError(err)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (type.outcomes.length > 0 && !current) {
+    return <div className="small muted" style={{ marginTop: 6 }}>Records outcomes, so it can’t follow a workflow yet.</div>
+  }
+  return (
+    <div className="field" style={{ margin: '8px 0 0' }}>
+      <label htmlFor={`workflow-${type.id}`} className="small">Follows workflow</label>
+      <select id={`workflow-${type.id}`} value={current} disabled={busy} aria-busy={busy} onChange={(e) => choose(e.target.value)}>
+        <option value="">— None: tasks move by their own actions —</option>
+        {offered.map((w) => <option key={w.code} value={w.code}>{w.name}</option>)}
+      </select>
+      {taskWorkflows.length === 0 && !current && <div className="hint">No published task workflows yet.</div>}
+      {type.is_builtin && taskWorkflows.length > 0 && (
+        <div className="hint">A built-in type: every new task of it in this company follows the workflow, requests included.</div>
+      )}
+      <ErrorBanner error={error} />
+    </div>
   )
 }
 

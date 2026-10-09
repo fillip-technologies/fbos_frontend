@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { workflowsApi } from '@/features/delivery/api.js'
-import { formatDateTime } from '@/features/delivery/utils.js'
+import { SUBJECT_TYPES, formatDateTime } from '@/features/delivery/utils.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
@@ -35,6 +35,15 @@ export default function WorkflowPanel({ orgId, subject }) {
   )
   if (!canRead) return null
 
+  function changed() {
+    invalidate(runsKey)
+    // A workflow a task follows moves the task itself (its status, its team): read it again.
+    if (subject.type === SUBJECT_TYPES.task) {
+      invalidate(['task', orgId, subject.id])
+      invalidate(['tasks', orgId])
+    }
+  }
+
   const instances = runs.data ?? []
   const startable = (definitions.data ?? []).filter(
     (d) => d.status === 'active' && d.current_version_no && !instances.some((i) => i.definition.code === d.code && !FINISHED.includes(i.status))
@@ -46,9 +55,9 @@ export default function WorkflowPanel({ orgId, subject }) {
       <h2 style={{ marginTop: 0, fontSize: 17 }}>Workflow</h2>
       <ErrorBanner error={runs.error} onRetry={runs.reload} />
       {instances.map((run) => (
-        <WorkflowRun key={run.id} orgId={orgId} run={run} canOperate={canOperate} onChanged={() => invalidate(runsKey)} />
+        <WorkflowRun key={run.id} orgId={orgId} run={run} canOperate={canOperate} onChanged={changed} />
       ))}
-      {canOperate && startable.length > 0 && <StartWorkflow orgId={orgId} subject={subject} definitions={startable} onStarted={() => invalidate(runsKey)} />}
+      {canOperate && startable.length > 0 && <StartWorkflow orgId={orgId} subject={subject} definitions={startable} onStarted={changed} />}
     </div>
   )
 }

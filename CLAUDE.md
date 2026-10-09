@@ -170,7 +170,28 @@ A long-term plan for tasks across many teams and domains, built phase by phase. 
   - Missed occurrences: only the latest, if under a day old. Rules end when their series is over.
   - There's no screen for recurring rules yet (API only: `POST/GET /recurring-task-rules`).
 
-**Next:** Phase F, a workflow per task type: stage status categories, one status writer, one workflow per task. Count the workflow instances already running on tasks first.
+**F1, workflows task types follow (2026-10-09):**
+- A company links a task type to one of its published task workflows: `PUT /task-types/{id}/workflow`, a picker on the Task types page. The link is stored per company in `task_type_workflows`.
+- Every stage needs a status category (`open`, `in_progress`, `in_review`, `done`, `cancelled`), and end stages must be done or cancelled. A type whose tasks record outcomes can't be linked yet.
+- A new task of a linked type (requests and recurring tasks too) starts the workflow (`governs_status`). Its stage sets the task's status, and a stage owned by another team moves the task to that team's queue.
+- The task moves by `GET/POST /tasks/{id}/transitions`:
+  - the assignee or a task manager moves it on; out of a review stage, the reviewer does;
+  - start, submit and review answer `WORKFLOW_GOVERNS_STATUS`;
+  - cancelling the task or its workflow ends both.
+- Workflows started by hand on a task leave its status alone, as before.
+- Code: `services/task_workflows.py`; the status helpers are in `services/tasks.py`. Migration `e7c2a5d8f3b1`.
+- The task's version moves whenever its workflow moves it (from any route) or a step waits for approval.
+- Work sent back from review tells the assignee, with the step's note.
+- Backend live (PRs #46, #47). The website part: steps on the task page (with a note when leaving review), the type picker (it warns that a built-in type affects every new task of it), the stage in task lists, and the workflow panel refreshing the task.
+
+**F2, ready-made task workflows (2026-10-09):**
+- `services/workflow_templates.py` holds six templates: bug fix, feature, creative deliverable, service ticket, field work order, and do-and-review.
+- `GET /workflow/templates` lists them (`workflow.read`).
+- `POST /workflow/templates/{code}/install` makes one the company's own task workflow, published as version 1 (`workflow.manage`).
+- Every stage names its task status, so a type can follow a template as installed.
+- Website: the "Task workflows" panel on the Task types page (installed workflows, which types follow them, templates to install).
+
+**Next:** F3, a builder page to change a workflow (stages, steps, a team per stage), saved as new versions.
 
 **Open questions:** on the new-task form, should a project's own team beat a routing rule? Today the rule wins.
 

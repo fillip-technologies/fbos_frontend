@@ -45,6 +45,7 @@ export default function TaskTable({ orgId, tasks, loading, refreshing, names, sh
                 <td><StatusBadge status={t.priority} label={TASK_PRIORITY_LABELS[t.priority]} /></td>
                 <td>
                   <StatusBadge status={t.status} label={TASK_STATUS_LABELS[t.status]} />
+                  {t.governing_workflow && <div className="muted small">{t.governing_workflow.stage.name}</div>}
                   {(t.sla || t.response_sla) && <div style={{ marginTop: 4 }}><SlaBadge task={t} compact /></div>}
                 </td>
                 <td className={isOverdue(t) ? 'small' : 'muted small'} style={isOverdue(t) ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>
