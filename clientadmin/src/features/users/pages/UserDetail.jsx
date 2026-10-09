@@ -233,6 +233,7 @@ export default function UserDetail() {
             orgId={orgId}
             user={user}
             grants={access.permissions}
+            assignments={presets}
             catalog={catalog}
             roles={roles}
             units={units}
@@ -463,8 +464,8 @@ function DeactivateForm({ orgId, user, candidates, onCancel, onDone }) {
   )
 }
 
-function AccessForm({ orgId, user, grants, catalog, roles, units, onCancel, onSaved }) {
-  const [value, setValue] = useState(() => accessFromGrants(grants))
+function AccessForm({ orgId, user, grants, assignments, catalog, roles, units, onCancel, onSaved }) {
+  const [value, setValue] = useState(() => accessFromGrants(grants, assignments))
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)

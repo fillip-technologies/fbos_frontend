@@ -115,10 +115,13 @@ const sameLevel = (perm, level) => (perm.scope_unit_id || null) === level.scope_
 // The one level at which every permission of a role applied in the editor is still held,
 // or undefined once its permissions were moved to different levels or removed.
 function uniformLevel(preset, role, permissions) {
-  const levels = permissions
+  const heldAt = (level) => role.permissions.every((code) => permissions.some((p) => p.code === code && sameLevel(p, level)))
+  const own = { scope_unit_id: preset.scope_unit_id || null, self_only: preset.self_only }
+  if (heldAt(own)) return own
+  return permissions
     .filter((p) => p.preset_key === preset.key)
     .map((p) => ({ scope_unit_id: p.scope_unit_id || null, self_only: p.self_only }))
-  return levels.find((level) => role.permissions.every((code) => permissions.some((p) => p.code === code && sameLevel(p, level))))
+    .find(heldAt)
 }
 
 // Request body pieces for POST /users and PUT /users/{id}/permissions. Every permission
