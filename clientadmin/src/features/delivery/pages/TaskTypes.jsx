@@ -55,7 +55,9 @@ export default function TaskTypes() {
     ({ signal }) => workflowsApi.definitions(orgId, { subject_type: 'task.task' }, { signal }),
     { enabled: Boolean(orgId) && canManage && hasAccess(me, ACCESS.workflows) }
   )
-  const taskWorkflows = (workflowDefinitions ?? []).filter((d) => d.status === 'active' && d.current_version_no)
+  const ownTaskWorkflows = (workflowDefinitions ?? []).filter((d) => d.status === 'active')
+  // Types follow only published ones.
+  const taskWorkflows = ownTaskWorkflows.filter((d) => d.current_version_no)
   const visible = types.filter((t) => showArchived || !t.archived)
   const disciplines = [...new Set([...DISCIPLINE_ORDER, ...visible.map((t) => t.discipline)])].filter((d) => visible.some((t) => t.discipline === d))
 
@@ -78,7 +80,7 @@ export default function TaskTypes() {
       {canManage && <RoutingRules orgId={orgId} names={names} taskTypes={active} />}
       {canManage && <AssignmentPolicies orgId={orgId} names={names} />}
       {canManage && hasAccess(me, ACCESS.workflows) && (
-        <TaskWorkflows orgId={orgId} types={types} installed={taskWorkflows} canDesign={hasAccess(me, ACCESS.designWorkflows)} />
+        <TaskWorkflows orgId={orgId} types={types} installed={ownTaskWorkflows} canDesign={hasAccess(me, ACCESS.designWorkflows)} />
       )}
 
       {editing && (

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { workflowsApi } from '@/features/delivery/api.js'
 import { disciplineLabel } from '@/features/delivery/taskFields.js'
 import { TASK_STATUS_LABELS } from '@/features/delivery/utils.js'
@@ -14,9 +15,29 @@ export default function TaskWorkflows({ orgId, types, installed, canDesign }) {
     ({ signal }) => workflowsApi.templates(orgId, { signal }),
     { enabled: Boolean(orgId) }
   )
-  const [busy, setBusy] = useState(null) // a template code
+  const navigate = useNavigate()
+  const [busy, setBusy] = useState(null) // a template code, or 'new'
   const [error, setError] = useState(null)
+  const [newName, setNewName] = useState('')
   const installedCodes = new Set(installed.map((w) => w.code))
+
+  // A workflow of the company's own, from scratch: the builder starts it with three stages.
+  async function create(e) {
+    e.preventDefault()
+    const name = newName.trim()
+    const code = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'workflow'
+    setBusy('new')
+    setError(null)
+    try {
+      await workflowsApi.createDefinition(orgId, { code, name, subject_type: 'task.task' })
+      invalidate(['workflow-definitions', orgId])
+      navigate(`/task-workflows/${code}`)
+    } catch (err) {
+      setError(err)
+    } finally {
+      setBusy(null)
+    }
+  }
 
   async function install(code) {
     setBusy(code)
@@ -43,17 +64,36 @@ export default function TaskWorkflows({ orgId, types, installed, canDesign }) {
 
       {installed.length > 0 && (
         <div style={{ marginBottom: 14 }}>
-          <div className="detail-label">Installed</div>
+          <div className="detail-label">Yours</div>
           {installed.map((w) => {
             const followers = types.filter((t) => t.workflow?.code === w.code)
             return (
               <div key={w.code} className="small" style={{ padding: '2px 0' }}>
                 <strong>{w.name}</strong> <span className="mono muted">{w.code}</span>
-                <span className="muted"> · {followers.length ? `followed by ${followers.map((t) => t.name).join(', ')}` : 'no type follows it yet'}</span>
+                <span className="muted">
+                  {' · '}
+                  {!w.current_version_no
+                    ? 'not published yet'
+                    : followers.length ? `followed by ${followers.map((t) => t.name).join(', ')}` : 'no type follows it yet'}
+                </span>
+                {canDesign && <> · <Link to={`/task-workflows/${w.code}`}>Change it</Link></>}
               </div>
             )
           })}
         </div>
+      )}
+
+      {canDesign && (
+        <form className="toolbar" onSubmit={create}>
+          <input
+            aria-label="New workflow's name"
+            placeholder="Or start your own: its name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            required
+          />
+          <button className="btn secondary" type="submit" disabled={busy === 'new'} aria-busy={busy === 'new'}>Start a workflow</button>
+        </form>
       )}
 
       <div className="type-cards">

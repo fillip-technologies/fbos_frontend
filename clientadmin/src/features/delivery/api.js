@@ -145,6 +145,12 @@ export const workflowsApi = {
   // Makes one the company's own task workflow, published: { code?, name? } -> the definition.
   installTemplate: (orgId, code, body = {}) =>
     api.post(`${DELIVERY}/workflow/templates/${code}/install`, body, { headers: inOrg(orgId) }),
+  // A workflow's versions, newest first: [{ version_no, status, published_at, current }].
+  versions: (orgId, code, { signal } = {}) =>
+    api.get(`${DELIVERY}/workflow/definitions/${code}/versions`, { headers: inOrg(orgId), signal }),
+  // One version with its content: { version_no, status, content: { stages, transitions, automation_rules } }.
+  version: (orgId, code, versionNo, { signal } = {}) =>
+    api.get(`${DELIVERY}/workflow/definitions/${code}/versions/${versionNo}`, { headers: inOrg(orgId), signal }),
   // Filters: subject_type, vertical_id.
   definitions: (orgId, opts = {}, { signal } = {}) => listAll(`${DELIVERY}/workflow/definitions`, orgId, opts, { signal }),
   createDefinition: (orgId, body) => api.post(`${DELIVERY}/workflow/definitions`, body, { headers: inOrg(orgId) }),
