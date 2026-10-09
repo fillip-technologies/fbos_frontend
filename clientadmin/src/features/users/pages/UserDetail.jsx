@@ -6,7 +6,7 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { ACCESS, hasAccess, isClientAdmin } from '@/features/auth/access.js'
 import UserSessions from '@/features/sessions/components/UserSessions.jsx'
-import AccessEditor, { accessFromGrants } from '@/features/access/components/AccessEditor.jsx'
+import AccessEditor, { loadAccess } from '@/features/access/components/AccessEditor.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
 import useAccessCatalog from '@/features/access/useAccessCatalog.js'
 import {
@@ -46,7 +46,7 @@ export default function UserDetail() {
   const accessQuery = useQuery(['user-permissions', orgId, id], ({ signal }) =>
     usersApi.permissions(orgId, id, { signal }).catch(() => null), { enabled: enabled && hasAccess(me, ACCESS.viewUserAccess) }
   )
-  const presetsQuery = useQuery(['user-roles', orgId, id], () => usersApi.roleAssignments(orgId, id).catch(() => []), {
+  const presetsQuery = useQuery(['user-roles', orgId, id], () => usersApi.roleAssignments(orgId, id).catch(() => null), {
     enabled: enabled && hasAccess(me, ACCESS.viewRolePresets),
   })
   // Same permission as reading the person (identity.user.read), so no extra gate.
@@ -61,6 +61,8 @@ export default function UserDetail() {
   const user = userQuery.data
   const access = accessQuery.data ?? null // GET /users/{id}/permissions
   const presets = presetsQuery.data ?? []
+  // Without the user's presets loaded, saving access must leave their presets alone.
+  const presetsKnown = Array.isArray(presetsQuery.data)
   const userVerticals = verticalsQuery.data ?? null
   const managers = useMemo(() => (activesQuery.data?.data ?? []).filter((m) => m.id !== id), [activesQuery.data, id])
   const loading = userQuery.loading
@@ -234,6 +236,7 @@ export default function UserDetail() {
             user={user}
             grants={access.permissions}
             assignments={presets}
+            presetsKnown={presetsKnown}
             catalog={catalog}
             roles={roles}
             units={units}
@@ -464,18 +467,23 @@ function DeactivateForm({ orgId, user, candidates, onCancel, onDone }) {
   )
 }
 
-function AccessForm({ orgId, user, grants, assignments, catalog, roles, units, onCancel, onSaved }) {
-  const [value, setValue] = useState(() => accessFromGrants(grants, assignments))
+function AccessForm({ orgId, user, grants, assignments, presetsKnown, catalog, roles, units, onCancel, onSaved }) {
+  const [initial] = useState(() => loadAccess(grants, presetsKnown ? assignments : [], roles))
+  const [value, setValue] = useState(initial.value)
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const rolesById = useMemo(() => Object.fromEntries(roles.map((r) => [r.id, r])), [roles])
 
   async function submit(e) {
     e.preventDefault()
     setError(null)
     setSaving(true)
     try {
-      await usersApi.replacePermissions(orgId, user.id, { ...toRequestAccess(value, roles), reason: reason.trim() })
+      await usersApi.replacePermissions(orgId, user.id, {
+        ...toRequestAccess(value, { includePresets: presetsKnown }),
+        reason: reason.trim(),
+      })
       onSaved()
     } catch (err) {
       setError(err)
@@ -487,7 +495,25 @@ function AccessForm({ orgId, user, grants, assignments, catalog, roles, units, o
   return (
     <form onSubmit={submit}>
       {error && <ErrorBanner error={error} />}
-      <AccessEditor catalog={catalog} roles={roles} units={units} value={value} onChange={setValue} fieldErrors={getFieldErrors(error)} />
+      {initial.changes.length > 0 && (
+        <div className="alert info">
+          {initial.changes.map(({ preset, codes }) => (
+            <div key={preset.key}>
+              {rolesById[preset.role_id]?.name || 'A role'} gained {codes.length} permission{codes.length === 1 ? '' : 's'} since it
+              was applied; saving gives them to {user.name}: <span className="mono">{codes.join(', ')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <AccessEditor
+        catalog={catalog}
+        roles={roles}
+        units={units}
+        value={value}
+        onChange={setValue}
+        fieldErrors={getFieldErrors(error)}
+        presetsEditable={presetsKnown}
+      />
       <div className="field" style={{ maxWidth: 520 }}>
         <label htmlFor="a-reason">Reason for the change *</label>
         <input id="a-reason" value={reason} onChange={(e) => setReason(e.target.value)} required maxLength={500} placeholder="Promoted to team lead" />
