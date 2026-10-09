@@ -8,7 +8,7 @@ export default function SlaBadge({ task, compact = false }) {
   const running = ['running', 'at_risk', 'breached'].includes(clock.state)
   const what = clock.kind === 'response' ? 'Response' : 'SLA'
   const when = running ? relativeTime(clock.due_at) : null
-  const title = `${what} target ${formatTarget(clock.target_minutes)} · ${Math.round(clock.consumed_pct)}% used${clock.paused_minutes ? ` · paused ${clock.paused_minutes}m` : ''}`
+  const title = `${what} target ${formatTarget(clock.target_minutes)}${clock.working_hours ? ' of working time' : ''} · ${Math.round(clock.consumed_pct)}% used${clock.paused_minutes ? ` · paused ${clock.paused_minutes}m` : ''}`
   return (
     <span className={`badge ${SLA_STATE_BADGE[clock.state]}`} title={title}>
       {compact ? '' : `${what}: `}
