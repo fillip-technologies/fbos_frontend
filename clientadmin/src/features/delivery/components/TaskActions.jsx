@@ -5,6 +5,7 @@ import { ReasonForm, ReviewForm, SubmitForm } from '@/features/delivery/componen
 import useAssignablePeople from '@/features/delivery/useAssignablePeople.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 
 const FINISHED = ['done', 'cancelled']
@@ -12,7 +13,9 @@ const FINISHED = ['done', 'cancelled']
 // The steps open to the signed-in user from the task's status. The backend decides in the
 // end; this only offers what it would allow (the assignee starts and submits, anyone may take
 // an unassigned task from the queue, the reviewer or a reviewer by permission reviews, task
-// managers assign and cancel). `taskType` and `fields` come from the task's type.
+// managers assign and cancel). `taskType` and `fields` come from the task's type. A task whose
+// type follows a workflow (`governing_workflow`) moves by that workflow's steps instead of
+// start, submit and review.
 export default function TaskActions({ orgId, task, setTask, names, taskType, fields }) {
   const { user: me } = useAuth()
   const [form, setForm] = useState(null) // 'assign' | 'block' | 'cancel' | 'review' | 'submit'
@@ -25,6 +28,7 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
   const mayReview = task.reviewer?.id === me?.id || hasAccess(me, ACCESS.reviewTasks)
   const open = !FINISHED.includes(task.status)
   const hasSla = Boolean(task.sla)
+  const governed = task.governing_workflow
 
   const openForm = (name) => {
     setError(null)
@@ -49,17 +53,17 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
     !task.assignee && ['draft', 'open'].includes(task.status) && (
       <button key="claim" className="btn" disabled={busy} onClick={() => run(() => tasksApi.claim(orgId, task))}>Take it</button>
     ),
-    isAssignee && ['assigned', 'rework'].includes(task.status) && (
+    !governed && isAssignee && ['assigned', 'rework'].includes(task.status) && (
       <button key="start" className="btn" disabled={busy} onClick={() => run(() => tasksApi.start(orgId, task))}>Start work</button>
     ),
-    isAssignee && ['in_progress', 'rework'].includes(task.status) && (
+    !governed && isAssignee && ['in_progress', 'rework'].includes(task.status) && (
       <button key="submit" className="btn" onClick={() => openForm('submit')}>
         {task.status === 'rework'
           ? 'Resubmit'
           : taskType?.requires_review ? 'Submit for review' : taskType?.outcomes?.length ? 'Log outcome' : 'Complete'}
       </button>
     ),
-    mayReview && ['submitted', 'in_review'].includes(task.status) && (
+    !governed && mayReview && ['submitted', 'in_review'].includes(task.status) && (
       <button key="review" className="btn" onClick={() => openForm('review')}>Review</button>
     ),
     worksOn && task.status === 'blocked' && (
@@ -76,11 +80,20 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
     ),
   ].filter(Boolean)
 
-  if (buttons.length === 0 && !error) return null
+  if (buttons.length === 0 && !error && !governed) return null
   const close = () => setForm(null)
   return (
     <div className="panel">
       {!form && <ErrorBanner error={error} />}
+      {governed && (
+        <WorkflowSteps
+          orgId={orgId}
+          task={task}
+          busy={busy}
+          // The steps are read per task version, so they reload once the step is taken.
+          onStep={(code, note) => run(() => tasksApi.takeStep(orgId, task, code, note))}
+        />
+      )}
       <div className="row-actions" style={{ flexWrap: 'wrap' }}>{buttons}</div>
       {form === 'assign' && (
         <AssignForm orgId={orgId} task={task} names={names} busy={busy} error={error} onCancel={close} onSubmit={(body) => run(() => tasksApi.assign(orgId, task, body))} />
@@ -129,6 +142,57 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
           // The review answers with the review, not the task: fetch the task again.
           onSubmit={(body) => run(() => tasksApi.review(orgId, task.id, body), { refetch: true })}
         />
+      )}
+    </div>
+  )
+}
+
+// Where the task is in its workflow, and the steps on from there: the ones you may take as
+// buttons, the others with why not (the backend checks again when one is taken).
+function WorkflowSteps({ orgId, task, busy, onStep }) {
+  const governed = task.governing_workflow
+  const [note, setNote] = useState('')
+  const inReview = governed.stage.status_category === 'in_review'
+  const { data: steps, error } = useQuery(
+    ['task', orgId, task.id, 'steps', task.version],
+    ({ signal }) => tasksApi.steps(orgId, task.id, { signal }),
+    { enabled: Boolean(orgId) }
+  )
+  const allowed = (steps ?? []).filter((s) => s.allowed)
+  const blocked = (steps ?? []).filter((s) => !s.allowed)
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div className="small">
+        Workflow step: <strong>{governed.stage.name}</strong>
+        {governed.waiting_approval && <span className="muted"> · waiting for a step’s approval</span>}
+      </div>
+      <ErrorBanner error={error} />
+      {inReview && allowed.length > 0 && (
+        <div className="field" style={{ margin: '8px 0 0' }}>
+          <label htmlFor="step_note">Note</label>
+          <input
+            id="step_note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="What needs changing, when you send it back (the assignee gets it)"
+          />
+        </div>
+      )}
+      {allowed.length > 0 && (
+        <div className="row-actions" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+          {allowed.map((s) => (
+            <button key={s.code} className="btn" disabled={busy} aria-busy={busy} onClick={() => onStep(s.code, note.trim())}>
+              {s.name}{s.requires_approval ? ' (needs approval)' : ''}
+            </button>
+          ))}
+        </div>
+      )}
+      {blocked.length > 0 && (
+        <ul className="muted small" style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+          {blocked.map((s) => (
+            <li key={s.code}>{s.name}: {s.blocked_reasons.join('; ')}</li>
+          ))}
+        </ul>
       )}
     </div>
   )
