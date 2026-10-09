@@ -63,7 +63,8 @@ export default function QuotationItemsEditor({ rows, setRows, offerings }) {
                   </select>
                   {offering && (
                     <div className="muted small">
-                      {formatMoney(offering.list_price)} / {offering.unit} · GST {offering.gst_rate}%
+                      {formatMoney(offering.list_price)} / {offering.unit}
+                      {offering.gst_rate != null && ` · GST ${offering.gst_rate}%`}
                     </div>
                   )}
                 </td>

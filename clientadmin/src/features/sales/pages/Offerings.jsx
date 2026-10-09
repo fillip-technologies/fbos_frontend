@@ -10,6 +10,8 @@ import { useLookup } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
+import TaxCategorySelect from '@/features/tax/components/TaxCategorySelect.jsx'
+import { useTaxCategories } from '@/features/tax/useTaxConfig.js'
 import useVerticals from '@/features/sales/useVerticals.js'
 import { BILLING_MODELS, OFFERING_UNITS } from '@/features/sales/utils.js'
 
@@ -18,7 +20,7 @@ const EMPTY = (currency) => ({
   name: '',
   vertical_id: '',
   sac_code: '',
-  gst_rate: '18',
+  tax_category_code: '',
   unit: 'project',
   billing_model: 'one_time',
   price: '',
@@ -27,6 +29,7 @@ const EMPTY = (currency) => ({
 
 function OfferingForm({ orgId, verticals, defaultCurrency, onCreated, onCancel }) {
   const [form, setForm] = useState(() => EMPTY(defaultCurrency))
+  const { categories } = useTaxCategories(orgId)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const fieldErrors = getFieldErrors(error)
@@ -43,7 +46,7 @@ function OfferingForm({ orgId, verticals, defaultCurrency, onCreated, onCancel }
         name: form.name.trim(),
         vertical_id: form.vertical_id,
         sac_code: form.sac_code.trim(),
-        gst_rate: Number(form.gst_rate),
+        tax_category_code: form.tax_category_code,
         unit: form.unit,
         billing_model: form.billing_model,
         list_price: { amount: Number(form.price), currency: form.currency.trim().toUpperCase() },
@@ -123,7 +126,12 @@ function OfferingForm({ orgId, verticals, defaultCurrency, onCreated, onCancel }
       </div>
       <div className="grid-2">
         {field('sac_code', 'SAC code *', { required: true, maxLength: 20, className: 'mono-input' }, 'GST services code, e.g. 998313.')}
-        {field('gst_rate', 'GST rate % *', { required: true, type: 'number', min: 0, max: 100, step: 'any' })}
+        <div className="field">
+          <label htmlFor="off-category">Tax category *</label>
+          <TaxCategorySelect id="off-category" required categories={categories} value={form.tax_category_code} onChange={(v) => set('tax_category_code', v)} />
+          <div className="hint">Decides its GST rate, by date: a change of rate is made once in Tax setup.</div>
+          {fieldErrors.tax_category_code && <div className="field-error">{fieldErrors.tax_category_code}</div>}
+        </div>
       </div>
       <div className="row-actions">
         <button className="btn" type="submit" disabled={saving}>{saving ? 'Adding…' : 'Add offering'}</button>
@@ -203,7 +211,9 @@ export default function Offerings() {
                     {formatMoney(o.list_price)} <span className="muted small">/ {OFFERING_UNITS[o.unit] || o.unit}</span>
                   </td>
                   <td>
-                    {o.gst_rate}% <span className="muted small mono">SAC {o.sac_code}</span>
+                    {o.gst_rate != null ? `${o.gst_rate}%` : '—'}
+                    {o.tax_category_code && <span className="muted small"> · {o.tax_category_code}</span>}
+                    <div className="muted small mono">SAC {o.sac_code}</div>
                   </td>
                   <td>{BILLING_MODELS[o.billing_model] || o.billing_model}</td>
                   <td><StatusBadge status={o.status} /></td>

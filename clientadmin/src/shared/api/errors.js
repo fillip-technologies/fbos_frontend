@@ -92,6 +92,62 @@ const FRIENDLY = {
   DOCUMENT_NOT_LINKED: 'That file isn\'t attached to this contract. Upload it here first.',
   DOCUMENTS_SERVICE_UNAVAILABLE: 'Documents couldn\'t be reached right now. Please try again shortly.',
 
+  // ---- Tax and billing (revenue) ----
+  SUPPLIER_REGISTRATION_REQUIRED: 'Add your company\'s GSTIN under Tax setup → Registrations before billing.',
+  TAX_REGISTRATION_CHOICE_REQUIRED: 'The company has several GST registrations and none is the default. Choose one, or make one the default under Tax setup.',
+  TAX_REGISTRATION_NOT_FOUND: 'That tax registration no longer exists.',
+  TAX_REGISTRATION_INACTIVE: 'That tax registration isn\'t active on this date.',
+  TAX_REGISTRATION_EXISTS: 'That registration is already set up.',
+  REGISTRATION_NUMBER_INVALID: 'That registration number isn\'t valid. Check it for typos.',
+  REGISTRATION_JURISDICTION_MISMATCH: 'The registration number belongs to a different state than the one chosen.',
+  TAX_RULE_NOT_FOUND: 'No tax rule covers this line. Add one under Tax setup → Rates & rules, or choose another tax category.',
+  TAX_RULE_AMBIGUOUS: 'Two tax rules apply to this line equally. Change one rule\'s priority under Tax setup.',
+  TAX_CONFIG_NOT_EFFECTIVE: 'A tax setting this needs isn\'t in effect on that date (a category or rate may have been retired). Check Tax setup.',
+  TAX_CATEGORY_REQUIRED: 'Choose a tax category for every line.',
+  TAX_CATEGORY_FOR_RATE_NOT_FOUND: 'No tax category charges that GST rate on that date. Choose a tax category instead.',
+  TAX_CATEGORY_RATE_MISSING: 'That tax category has no rate set.',
+  TAX_CATEGORY_WRONG_REGIME: 'That tax category belongs to another tax system.',
+  PLACE_OF_SUPPLY_UNKNOWN: 'The place of supply couldn\'t be worked out. Give the customer a billing state or a tax profile.',
+  JURISDICTION_UNKNOWN: 'That state isn\'t known to the tax system.',
+  SUPPLIER_JURISDICTION_UNKNOWN: 'Your tax registration has no state set.',
+  WITHHOLDING_SECTION_NOT_EFFECTIVE: 'That TDS section isn\'t in effect. Choose another one.',
+  TAX_PROVIDER_UNAVAILABLE: 'The tax system is set to use an outside tax provider that isn\'t connected.',
+  TAX_INCLUSIVE_COMPOUND_UNSUPPORTED: 'Tax-inclusive prices can\'t be used with compound taxes.',
+  TAX_CONFIG_INVALID: 'Some details of that entry are invalid. See the list below.',
+  TAX_CONFIG_INVALID_PERIOD: 'Check the dates: an entry must end after it starts.',
+  TAX_CONFIG_OVERLAP: 'Two entries with the same code would be in effect on the same day. Replace the existing one from a date instead.',
+  TAX_CONFIG_BROKEN_REFERENCE: 'This would leave other tax settings pointing at something that isn\'t in effect. See the list below.',
+  TAX_CONFIG_ENTRY_IN_EFFECT: 'This entry is already in effect, so documents may rely on it. Close it, or replace it from a date.',
+  TAX_CONFIG_ENTRY_EXISTS: 'An entry with this code already starts on that date.',
+  TAX_CONFIG_ENTRY_NOT_FOUND: 'That tax setting no longer exists.',
+  TAX_CONFIG_SUPERSEDE_MISMATCH: 'An entry can only replace one of the same kind and code.',
+  TAX_CONFIG_KIND_UNKNOWN: 'That kind of tax setting doesn\'t exist.',
+  TAX_PACK_NOT_FOUND: 'That pack version doesn\'t exist.',
+  REGISTRATION_TYPE_UNKNOWN: 'That customer type isn\'t known to the tax system.',
+  DEDUCTEE_TYPE_UNKNOWN: 'That TDS deductee type isn\'t known to the tax system.',
+  SERIES_TEMPLATE_MISSING: 'No number format is set for this kind of document. Add one under Tax setup → Rates & rules → Number formats.',
+  DOCUMENT_NUMBER_TOO_LONG: 'The number format makes numbers longer than GST allows (16 characters). Shorten it under Tax setup.',
+  DOCUMENT_NUMBER_INVALID: 'The number format uses characters GST doesn\'t allow in invoice numbers.',
+  CREDIT_NOTE_DEADLINE_PASSED: (err) => {
+    const meta = err.details?.detail?.meta
+    const when = meta?.due_on ? ` (${meta.due_on})` : ''
+    return meta?.override_allowed
+      ? `The legal deadline for a credit note on this invoice has passed${when}. Give a reason to raise it anyway.`
+      : `The legal deadline for a credit note on this invoice has passed${when}.`
+  },
+  CREDIT_EXCEEDS_INVOICE: 'Credit notes can\'t add up to more than the invoice they correct.',
+  INVOICE_PARTLY_CREDITED: 'This invoice already has a credit note. Credit the rest line by line.',
+  WRITE_OFF_EXCEEDS_BALANCE: 'Only what the invoice still owes can be written off.',
+  INVOICE_REQUIRES_SCHEDULE_LINE: 'This contract is billed from its billing schedule. Bill one of its lines instead.',
+  SCHEDULE_LINE_NOT_BILLABLE: 'That schedule line has already been billed or was cancelled.',
+  BILLING_SCHEDULE_NOT_FOUND: 'That billing schedule no longer exists.',
+  BILLING_SCHEDULE_LINE_NOT_FOUND: 'That schedule line no longer exists.',
+  SCHEDULE_NEEDS_END_DATE: 'Monthly billing needs the contract to have an end date.',
+  SCHEDULE_TRIGGER_UNKNOWN: 'A payment term uses a kind of billing the system doesn\'t know.',
+  PAYMENT_TERM_AMOUNT_MISSING: 'A payment term has neither an amount nor a percentage.',
+  TDS_RECEIVABLE_NOT_FOUND: 'That TDS entry no longer exists.',
+  PERIOD_INVALID: 'Choose a month.',
+
   // ---- Documents ----
   FILE_TOO_LARGE: 'That file is larger than this category allows.',
   MIME_TYPE_NOT_ALLOWED: 'This category doesn\'t accept that type of file.',
@@ -176,7 +232,9 @@ const FRIENDLY = {
 // backend/exception message, else a generic fallback.
 export function friendlyMessage(err) {
   if (err instanceof ApiError) {
-    if (err.code && FRIENDLY[err.code]) return FRIENDLY[err.code]
+    const friendly = err.code ? FRIENDLY[err.code] : undefined
+    // An entry may be a function of the error, to use the facts the backend sent with it.
+    if (friendly) return typeof friendly === 'function' ? friendly(err) : friendly
     if (err.message && err.message !== 'Unable to reach the server.') return err.message
     return `Something went wrong${err.status ? ` (${err.status})` : ''}.`
   }

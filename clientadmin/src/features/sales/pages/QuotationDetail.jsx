@@ -13,6 +13,8 @@ import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import QuotationItemsEditor, { itemToRow, rowsToItems } from '@/features/sales/components/QuotationItemsEditor.jsx'
 import { QUOTATION_CLOSED_TO_FILES, QUOTATION_STATUS_LABELS, REVISABLE_STATUSES } from '@/features/sales/utils.js'
+import TaxTotals, { LineTaxes, TaxNotes } from '@/features/tax/components/TaxTotals.jsx'
+import { SUPPLY_TYPES } from '@/features/tax/utils.js'
 import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
 import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 
@@ -29,33 +31,6 @@ const NEXT_STEP = {
 
 // A draft's lines as editable rows; null rows once it is no longer a draft.
 const toRows = (q) => ({ rows: q.status === 'draft' ? q.items.map(itemToRow) : null })
-
-function Totals({ totals }) {
-  const rows = [
-    ['Subtotal', totals.subtotal],
-    ['Discount', totals.discount_total],
-    ['Taxable', totals.taxable_total],
-    ['CGST', totals.cgst],
-    ['SGST', totals.sgst],
-    ['IGST', totals.igst],
-  ].filter(([, m]) => Number(m.amount) !== 0)
-  return (
-    <table style={{ maxWidth: 360, marginLeft: 'auto' }}>
-      <tbody>
-        {rows.map(([label, m]) => (
-          <tr key={label} style={{ cursor: 'default' }}>
-            <td className="muted">{label}</td>
-            <td style={{ textAlign: 'right' }}>{formatMoney(m)}</td>
-          </tr>
-        ))}
-        <tr style={{ cursor: 'default' }}>
-          <td style={{ fontWeight: 700 }}>Total</td>
-          <td style={{ textAlign: 'right', fontWeight: 700 }}>{formatMoney(totals.grand_total)}</td>
-        </tr>
-      </tbody>
-    </table>
-  )
-}
 
 export default function QuotationDetail() {
   const { id } = useParams()
@@ -136,6 +111,7 @@ export default function QuotationDetail() {
               </>
             )}
             {` · valid until ${formatDate(quote.valid_until)} · place of supply ${quote.place_of_supply}`}
+            {quote.supply_type && ` (${(SUPPLY_TYPES[quote.supply_type] || quote.supply_type).toLowerCase()})`}
           </p>
         </div>
         {quote.opportunity_id ? (
@@ -163,7 +139,7 @@ export default function QuotationDetail() {
                   <th>Qty</th>
                   <th>Unit price</th>
                   <th>Disc.</th>
-                  <th>GST</th>
+                  <th>Tax</th>
                   <th style={{ textAlign: 'right' }}>Amount</th>
                 </tr>
               </thead>
@@ -179,7 +155,7 @@ export default function QuotationDetail() {
                     <td>{i.quantity} {i.unit}</td>
                     <td>{formatMoney(i.unit_price)}</td>
                     <td>{i.discount_pct ? `${i.discount_pct}%` : '—'}</td>
-                    <td>{i.gst_rate}%</td>
+                    <td className="small"><LineTaxes line={i} /></td>
                     <td style={{ textAlign: 'right' }}>{formatMoney(i.line_total)}</td>
                   </tr>
                 ))}
@@ -188,9 +164,13 @@ export default function QuotationDetail() {
           </div>
         )}
         <div style={{ marginTop: 12 }}>
-          <Totals totals={quote.totals} />
+          <TaxTotals totals={quote.totals} withholding={quote.withholding} netReceivable={quote.net_receivable} />
           {itemsChanged && <p className="muted small" style={{ textAlign: 'right' }}>Totals update when the lines are saved.</p>}
         </div>
+        <TaxNotes notes={quote.tax_notes} />
+        {['draft', 'pending_approval', 'approved'].includes(quote.status) && (
+          <p className="muted small">Taxes are worked out again at the rates in effect when it is sent, then kept as sent.</p>
+        )}
         {quote.terms && <p className="small"><strong>Terms:</strong> {quote.terms}</p>}
 
         {rejecting !== null && (

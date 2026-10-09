@@ -6,8 +6,8 @@ import { customersApi } from '@/features/customers/api.js'
 import { uuidv4 } from '@/shared/api/http.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { todayIso } from '@/shared/utils/dates.js'
-import AllocationEditor, { allocatedTotal, toAllocations } from '@/features/billing/components/AllocationEditor.jsx'
-import { PAYABLE_STATUSES, PAYMENT_METHODS, amountOf } from '@/features/billing/utils.js'
+import AllocationEditor, { allocatedTotal, cashExpected, rowsFit, toAllocations } from '@/features/billing/components/AllocationEditor.jsx'
+import { PAYMENT_METHODS, expectedTds, isPayable } from '@/features/billing/utils.js'
 import { invalidate } from '@/shared/api/useQuery.js'
 
 // Money received from a customer, optionally split across their open invoices right away.
@@ -24,11 +24,10 @@ export default function PaymentCreate() {
     client_id: params.get('customer') || '',
     received_on: todayIso(),
     amount: '',
-    tds: '',
     method: 'bank_transfer',
     bank_reference: '',
   })
-  const [amounts, setAmounts] = useState({})
+  const [rows, setRows] = useState({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
@@ -47,19 +46,19 @@ export default function PaymentCreate() {
     invoicesApi
       .listAll(orgId, { client_id: form.client_id })
       .then((all) => {
-        const open = all.filter(
-          (inv) => inv.doc_type === 'tax_invoice' && PAYABLE_STATUSES.includes(inv.status) && amountOf(inv.balance_due) > 0
-        )
+        const open = all.filter(isPayable)
         setOpenInvoices(open)
+        // Paying a chosen invoice: its expected cash, and the TDS the customer is expected to keep.
         const target = open.find((inv) => inv.id === preselected)
-        setAmounts(target ? { [target.id]: String(amountOf(target.balance_due)) } : {})
-        if (target) setForm((f) => (f.amount ? f : { ...f, amount: String(amountOf(target.balance_due)) }))
+        const tds = target ? expectedTds(target) : 0
+        setRows(target ? { [target.id]: { cash: String(cashExpected(target)), tds: tds > 0 ? String(tds) : '' } } : {})
+        if (target) setForm((f) => (f.amount ? f : { ...f, amount: String(cashExpected(target)) }))
       })
       .catch(setError)
   }, [orgId, form.client_id, preselected])
 
-  // TDS withheld by the customer counts towards settling invoices.
-  const available = Number(form.amount || 0) + Number(form.tds || 0)
+  // Cash only: TDS withheld is entered per invoice and never came through the bank.
+  const available = Number(form.amount || 0)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -73,8 +72,7 @@ export default function PaymentCreate() {
         method: form.method,
       }
       if (form.bank_reference.trim()) body.bank_reference = form.bank_reference.trim()
-      if (Number(form.tds) > 0) body.tds_amount = { amount: Number(form.tds), currency }
-      const allocations = toAllocations(amounts, currency)
+      const allocations = toAllocations(rows, currency)
       if (allocations.length) body.allocations = allocations
       const payment = await paymentsApi.record(orgId, body, idempotencyKey)
       invalidate(['payments', orgId])
@@ -128,7 +126,7 @@ export default function PaymentCreate() {
             </select>
           </div>
         </div>
-        <div className="grid-3">
+        <div className="grid-2">
           <div className="field">
             <label htmlFor="pay-amount">Amount received *</label>
             <input
@@ -142,11 +140,6 @@ export default function PaymentCreate() {
             />
           </div>
           <div className="field">
-            <label htmlFor="pay-tds">TDS withheld</label>
-            <input id="pay-tds" type="number" min="0" step="0.01" value={form.tds} onChange={(e) => set('tds', e.target.value)} />
-            <div className="hint">Tax the customer deducted at source; it also settles invoices.</div>
-          </div>
-          <div className="field">
             <label htmlFor="pay-ref">Bank / UTR reference</label>
             <input id="pay-ref" value={form.bank_reference} onChange={(e) => set('bank_reference', e.target.value)} />
           </div>
@@ -154,12 +147,12 @@ export default function PaymentCreate() {
 
         {form.client_id && (
           <div className="inline-panel" style={{ marginTop: 0, marginBottom: 14 }}>
-            <AllocationEditor invoices={openInvoices} amounts={amounts} setAmounts={setAmounts} available={available} />
+            <AllocationEditor invoices={openInvoices} rows={rows} setRows={setRows} available={available} />
           </div>
         )}
 
         <div className="row-actions">
-          <button className="btn" type="submit" disabled={saving || !orgId || allocatedTotal(amounts) > available + 0.001}>
+          <button className="btn" type="submit" disabled={saving || !orgId || allocatedTotal(rows) > available + 0.001 || !rowsFit(rows, openInvoices)}>
             {saving ? 'Recording…' : 'Record payment'}
           </button>
         </div>

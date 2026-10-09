@@ -1,37 +1,28 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { contractOptions, invoicesApi } from '@/features/billing/api.js'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { customersApi } from '@/features/customers/api.js'
 import { formatMoney } from '@/features/customers/utils.js'
+import TaxCategorySelect from '@/features/tax/components/TaxCategorySelect.jsx'
+import { useTaxCategories } from '@/features/tax/useTaxConfig.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
-import { round2 } from '@/features/billing/utils.js'
 import { invalidate } from '@/shared/api/useQuery.js'
 
-const newLine = (description = '') => ({
-  description,
-  sac_code: '998314',
-  quantity: '1',
-  unit_price: '',
-  gst_rate: '18',
-  discount: '',
-})
+const newLine = () => ({ description: '', sac_code: '', quantity: '1', unit_price: '', tax_category_code: '', discount: '' })
 
-const TRIGGER_LABELS = {
-  advance: 'Advance',
-  milestone: 'Milestone',
-  date: 'Scheduled',
-  monthly: 'Monthly',
-  on_completion: 'On completion',
-}
-
-// Draft invoice: customer, optional contract, lines. Taxes (CGST/SGST or IGST) are worked
-// out by the backend from the customer's state. A draft gets its number when issued.
+// Draft invoice: customer, optional contract, lines. Taxes are worked out by the backend from
+// each line's tax category, the company's registration and the customer's state, and again
+// at the issue date's rates when the draft is issued (that is when it gets its number).
 export default function InvoiceCreate() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  const { user: me } = useAuth()
   const { orgId, activeOrg } = useActiveOrg()
   const currency = activeOrg?.base_currency || 'INR'
+  const { categories } = useTaxCategories(orgId)
   const [customers, setCustomers] = useState([])
   const [contracts, setContracts] = useState([])
   const [form, setForm] = useState({
@@ -62,18 +53,6 @@ export default function InvoiceCreate() {
   const setLine = (index, k, v) => setLines(lines.map((l, i) => (i === index ? { ...l, [k]: v } : l)))
   const contract = contracts.find((c) => c.id === form.contract_id)
 
-  // A payment-schedule entry as a line: its share of the contract value, before GST.
-  function addTermLine(term) {
-    const gst = 18
-    const share = term.percent != null ? (Number(contract.total_value.amount) * term.percent) / 100 : Number(term.amount?.amount || 0)
-    const line = {
-      ...newLine(`${contract.contract_no} · ${TRIGGER_LABELS[term.trigger_type] || term.trigger_type}${term.milestone_code ? ` (${term.milestone_code})` : ''}${term.percent != null ? ` · ${term.percent}%` : ''}`),
-      unit_price: String(round2(share / (1 + gst / 100))),
-      gst_rate: String(gst),
-    }
-    setLines((current) => (current.length === 1 && !current[0].description && !current[0].unit_price ? [line] : [...current, line]))
-  }
-
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
@@ -86,8 +65,8 @@ export default function InvoiceCreate() {
             description: l.description.trim(),
             quantity: Number(l.quantity),
             unit_price: { amount: Number(l.unit_price), currency },
-            gst_rate: Number(l.gst_rate),
           }
+          if (l.tax_category_code) line.tax_category_code = l.tax_category_code
           if (l.sac_code.trim()) line.sac_code = l.sac_code.trim()
           if (l.discount !== '' && Number(l.discount) > 0) line.discount = { amount: Number(l.discount), currency }
           return line
@@ -148,26 +127,20 @@ export default function InvoiceCreate() {
           <div className="field">
             <label htmlFor="inv-due">Due date</label>
             <input id="inv-due" type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} />
-            <div className="hint">Blank: 15 days after issue.</div>
+            <div className="hint">Blank: the company’s payment terms after issue.</div>
           </div>
         </div>
 
         {contract && (
-          <div className="inline-panel" style={{ marginTop: 0, marginBottom: 14 }}>
-            <h3>Payment schedule of {contract.contract_no}</h3>
-            <p className="muted small" style={{ marginTop: 0 }}>
-              Add an entry as a line. Its share of the contract value is split back into price + 18% GST; adjust if needed.
-            </p>
-            {contract.payment_terms.map((t) => (
-              <div key={t.seq} className="row-actions" style={{ marginBottom: 6, alignItems: 'center' }}>
-                <span>
-                  {TRIGGER_LABELS[t.trigger_type] || t.trigger_type}
-                  {t.milestone_code && ` · ${t.milestone_code}`}
-                  {t.percent != null ? ` · ${t.percent}%` : ` · ${formatMoney(t.amount)}`}
-                </span>
-                <button type="button" className="btn secondary small-btn" onClick={() => addTermLine(t)}>Add as line</button>
-              </div>
-            ))}
+          <div className="alert info">
+            An active contract is billed from its billing schedule, one line at a time as each falls due, so nothing is billed twice.
+            {hasAccess(me, ACCESS.billingSchedules) && (
+              <>
+                {' '}
+                <Link to={`/billing-schedules?contract=${contract.id}`}>Open {contract.contract_no}’s billing schedule</Link>.
+              </>
+            )}
+            {' '}Use this form only for charges outside the schedule.
           </div>
         )}
 
@@ -179,7 +152,7 @@ export default function InvoiceCreate() {
                 <th style={{ width: 110 }}>SAC</th>
                 <th style={{ width: 80 }}>Qty</th>
                 <th style={{ width: 130 }}>Unit price</th>
-                <th style={{ width: 80 }}>GST %</th>
+                <th style={{ width: 200 }}>Tax category</th>
                 <th style={{ width: 110 }}>Discount</th>
                 <th />
               </tr>
@@ -191,7 +164,7 @@ export default function InvoiceCreate() {
                     <input aria-label="Description" required value={l.description} onChange={(e) => setLine(index, 'description', e.target.value)} />
                   </td>
                   <td>
-                    <input aria-label="SAC" className="mono-input" maxLength={20} value={l.sac_code} onChange={(e) => setLine(index, 'sac_code', e.target.value)} />
+                    <input aria-label="SAC" className="mono-input" maxLength={20} placeholder="From category" value={l.sac_code} onChange={(e) => setLine(index, 'sac_code', e.target.value)} />
                   </td>
                   <td>
                     <input aria-label="Quantity" type="number" required min="0.0001" step="any" value={l.quantity} onChange={(e) => setLine(index, 'quantity', e.target.value)} />
@@ -200,7 +173,7 @@ export default function InvoiceCreate() {
                     <input aria-label="Unit price" type="number" required min="0" step="0.01" value={l.unit_price} onChange={(e) => setLine(index, 'unit_price', e.target.value)} />
                   </td>
                   <td>
-                    <input aria-label="GST rate" type="number" required min="0" max="100" step="any" value={l.gst_rate} onChange={(e) => setLine(index, 'gst_rate', e.target.value)} />
+                    <TaxCategorySelect aria-label="Tax category" categories={categories} value={l.tax_category_code} onChange={(v) => setLine(index, 'tax_category_code', v)} />
                   </td>
                   <td>
                     <input aria-label="Discount amount" type="number" min="0" step="0.01" value={l.discount} onChange={(e) => setLine(index, 'discount', e.target.value)} />

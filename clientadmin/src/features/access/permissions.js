@@ -34,6 +34,9 @@ export const ENTITY_LABELS = {
   invoice: 'Invoices',
   payment: 'Payments',
   collection: 'Collections',
+  tax: 'Tax setup',
+  billing_schedule: 'Billing schedules',
+  tds_receivable: 'TDS withheld by customers',
   deal: 'Deals',
   // Delivery: the backend's "work units" are projects.
   work_unit: 'Projects',

@@ -13,6 +13,10 @@ export const customersApi = {
   create: (orgId, body) => api.post(`${REVENUE}/clients`, body, { headers: inOrg(orgId) }),
   update: (orgId, id, version, body) => api.patch(`${REVENUE}/clients/${id}`, body, { headers: ifMatch(orgId, version) }),
   addContact: (orgId, id, body) => api.post(`${REVENUE}/clients/${id}/contacts`, body, { headers: inOrg(orgId) }),
+  // How tax applies to the customer; version 0 (and `effective` from GSTIN and address) until saved.
+  taxProfile: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/clients/${id}/tax-profile`, { headers: inOrg(orgId), signal }),
+  saveTaxProfile: (orgId, id, version, body) =>
+    api.put(`${REVENUE}/clients/${id}/tax-profile`, body, { headers: ifMatch(orgId, version) }),
   // The company's active users, to pick a customer's owner. Needs identity.user.read.
   ownerOptions: (orgId, { signal } = {}) => listAll(`${IDENTITY}/users`, orgId, { status: 'active' }, { signal }),
 }

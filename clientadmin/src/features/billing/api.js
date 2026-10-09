@@ -6,6 +6,9 @@ const ifMatch = (orgId, version, extra = {}) => inOrg(orgId, { 'If-Match': `"${v
 // Money-moving and document-issuing calls need an Idempotency-Key. Callers pass one key per
 // user action so a retried request (e.g. after a token refresh) can't happen twice.
 const once = (key) => ({ 'Idempotency-Key': key || uuidv4() })
+// Filters for endpoints that aren't paginated: only the ones given.
+const filters = (params = {}) =>
+  new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')).toString()
 
 // ---------- Invoices and credit notes ----------
 export const invoicesApi = {
@@ -17,9 +20,32 @@ export const invoicesApi = {
   // Assigns the next invoice number. body: { issue_date? }
   issue: (orgId, invoice, body, key) =>
     api.post(`${REVENUE}/invoices/${invoice.id}/issue`, body, { headers: ifMatch(orgId, invoice.version, once(key)) }),
-  // body: { reason, note?, lines? } — without lines the whole invoice is reversed.
+  // body: { reason, note?, lines?, override_reason? } — without lines the whole invoice is
+  // reversed; override_reason passes a legal deadline when the billing settings allow it.
   creditNote: (orgId, invoice, body, key) =>
     api.post(`${REVENUE}/invoices/${invoice.id}/credit-notes`, body, { headers: inOrg(orgId, once(key)) }),
+  // body: { reason, note?, lines } — more owed on an issued invoice, taxed as the original was.
+  debitNote: (orgId, invoice, body, key) =>
+    api.post(`${REVENUE}/invoices/${invoice.id}/debit-notes`, body, { headers: inOrg(orgId, once(key)) }),
+  // body: { amount, reason, written_off_on? } — accounting only: no tax changes.
+  writeOff: (orgId, invoice, body, key) =>
+    api.post(`${REVENUE}/invoices/${invoice.id}/write-offs`, body, { headers: ifMatch(orgId, invoice.version, once(key)) }),
+}
+
+// ---------- Contract billing schedules: each payment term invoiced when it falls due ----------
+export const billingSchedulesApi = {
+  // Filter: contract_id.
+  list: (orgId, params, { signal } = {}) =>
+    api.get(`${REVENUE}/billing-schedules?${filters(params)}`, { headers: inOrg(orgId), signal }),
+  // Filters: billable (ready to invoice now), status, contract_id.
+  lines: (orgId, params, { signal } = {}) =>
+    api.get(`${REVENUE}/billing-schedule-lines?${filters(params)}`, { headers: inOrg(orgId), signal }),
+  // body: { status: 'ready' | 'cancelled' | 'planned' } — ready = the milestone was reached.
+  updateLine: (orgId, scheduleId, line, body) =>
+    api.patch(`${REVENUE}/billing-schedules/${scheduleId}/lines/${line.id}`, body, { headers: ifMatch(orgId, line.version) }),
+  // Drafts the line's invoice; issuing it works out the GST.
+  billLine: (orgId, scheduleId, lineId, key) =>
+    api.post(`${REVENUE}/billing-schedules/${scheduleId}/lines/${lineId}/invoices`, undefined, { headers: inOrg(orgId, once(key)) }),
 }
 
 // ---------- Payments received ----------
@@ -48,3 +74,5 @@ export const collectionsApi = {
 
 // A customer's contracts, to link an invoice to one.
 export const contractOptions = (orgId, customerId) => listAll(`${REVENUE}/contracts`, orgId, { client_id: customerId })
+// Every contract of the organization, to name schedules.
+export const allContracts = (orgId, { signal } = {}) => listAll(`${REVENUE}/contracts`, orgId, {}, { signal })

@@ -11,8 +11,8 @@ import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
-import AllocationEditor, { allocatedTotal, toAllocations } from '@/features/billing/components/AllocationEditor.jsx'
-import { PAYABLE_STATUSES, PAYMENT_METHODS, amountOf } from '@/features/billing/utils.js'
+import AllocationEditor, { allocatedTotal, rowsFit, toAllocations } from '@/features/billing/components/AllocationEditor.jsx'
+import { PAYMENT_METHODS, amountOf, isPayable } from '@/features/billing/utils.js'
 
 function Detail({ label, children }) {
   return (
@@ -43,19 +43,19 @@ export default function PaymentDetail() {
     invalidate(['payments', orgId])
   }
   const [openInvoices, setOpenInvoices] = useState([])
-  const [amounts, setAmounts] = useState({})
+  const [rows, setRows] = useState({})
   const [allocating, setAllocating] = useState(null) // idempotency key while the form is open
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
   function openAllocation() {
-    setAmounts({})
+    setRows({})
     setAllocating(uuidv4())
     invoicesApi
       .listAll(orgId, { client_id: payment.client.id })
       .then((all) =>
         setOpenInvoices(
-          all.filter((inv) => inv.doc_type === 'tax_invoice' && PAYABLE_STATUSES.includes(inv.status) && amountOf(inv.balance_due) > 0)
+          all.filter(isPayable)
         )
       )
       .catch(setError)
@@ -66,7 +66,8 @@ export default function PaymentDetail() {
     setError(null)
     setBusy(true)
     try {
-      setPayment(await paymentsApi.allocate(orgId, payment, toAllocations(amounts, payment.amount.currency), allocating))
+      setPayment(await paymentsApi.allocate(orgId, payment, toAllocations(rows, payment.amount.currency), allocating))
+      invalidate(['tds-receivables', orgId])
       invalidate(['invoices', orgId]) // the allocated invoices' balances changed
       invalidate(['invoice', orgId])
       setAllocating(null)
@@ -122,12 +123,12 @@ export default function PaymentDetail() {
 
       {allocating && (
         <form className="inline-panel" onSubmit={allocate} style={{ marginTop: 0, marginBottom: 16 }}>
-          <AllocationEditor invoices={openInvoices} amounts={amounts} setAmounts={setAmounts} available={unallocated} />
+          <AllocationEditor invoices={openInvoices} rows={rows} setRows={setRows} available={unallocated} />
           <div className="row-actions">
             <button
               className="btn"
               type="submit"
-              disabled={busy || allocatedTotal(amounts) <= 0 || allocatedTotal(amounts) > unallocated + 0.001}
+              disabled={busy || toAllocations(rows, payment.amount.currency).length === 0 || allocatedTotal(rows) > unallocated + 0.001 || !rowsFit(rows, openInvoices)}
             >
               {busy ? 'Allocating…' : 'Allocate'}
             </button>
@@ -146,7 +147,8 @@ export default function PaymentDetail() {
               <tr>
                 <th>Invoice</th>
                 <th>On</th>
-                <th style={{ textAlign: 'right' }}>Amount</th>
+                <th style={{ textAlign: 'right' }}>Cash</th>
+                <th style={{ textAlign: 'right' }}>TDS withheld</th>
               </tr>
             </thead>
             <tbody>
@@ -155,6 +157,10 @@ export default function PaymentDetail() {
                   <td className="mono">{a.invoice_no || 'Invoice'}</td>
                   <td>{formatDate(a.allocated_at.slice(0, 10))}</td>
                   <td style={{ textAlign: 'right' }}>{formatMoney(a.amount)}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    {amountOf(a.tds_amount) > 0 ? formatMoney(a.tds_amount) : <span className="muted">—</span>}
+                    {a.tds_section_code && <div className="muted small">{a.tds_section_code}</div>}
+                  </td>
                 </tr>
               ))}
             </tbody>
