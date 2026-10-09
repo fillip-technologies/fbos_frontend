@@ -14,6 +14,7 @@ import { formatDate } from '@/shared/utils/format.js'
 import CustomerContacts from '@/features/customers/components/CustomerContacts.jsx'
 import CustomerFields from '@/features/customers/components/CustomerFields.jsx'
 import CustomerServices from '@/features/customers/components/CustomerServices.jsx'
+import CustomerTaxProfile from '@/features/customers/components/CustomerTaxProfile.jsx'
 import { CUSTOMER_TYPES, addressFromForm, addressToForm, formatAddress } from '@/features/customers/utils.js'
 import useOwners from '@/features/customers/useOwners.js'
 
@@ -49,6 +50,7 @@ export default function CustomerDetail() {
     ['overview', 'Overview'],
     ['contacts', 'Contacts'],
     ...(canSeeServices ? [['services', 'Services']] : []),
+    ['tax', 'Tax'],
   ]
   const tab = tabs.some(([key]) => key === params.get('tab')) ? params.get('tab') : 'overview'
 
@@ -189,6 +191,8 @@ export default function CustomerDetail() {
       )}
 
       {tab === 'contacts' && <CustomerContacts orgId={orgId} customer={customer} canManage={canManage} onAdded={reload} />}
+
+      {tab === 'tax' && <CustomerTaxProfile orgId={orgId} customerId={customer.id} canManage={canManage} />}
 
       {tab === 'services' && (
         <CustomerServices

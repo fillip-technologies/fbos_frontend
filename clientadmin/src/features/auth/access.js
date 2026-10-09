@@ -100,6 +100,19 @@ export const ACCESS = {
   recordPayments: { permissions: ['revenue.payment.write'] },
   collections: { permissions: ['revenue.collection.read'] },
   manageCollections: { permissions: ['revenue.collection.write'] },
+  // Stop expecting part of an invoice (accounting only: the GST already due is unchanged).
+  writeOffInvoices: { permissions: ['revenue.invoice.write_off'] },
+  // Contract billing schedules: what is ready to bill, milestones reached, billing a line.
+  billingSchedules: { permissions: ['revenue.billing_schedule.read'] },
+  billScheduleLines: { permissions: ['revenue.billing_schedule.write'] },
+  // Tax setup: registrations, rates and rules, packs, numbering, billing settings.
+  taxSetup: { permissions: ['revenue.tax.read'] },
+  manageTax: { permissions: ['revenue.tax.manage'] },
+  // TDS customers withheld, until it shows in 26AS and is claimed.
+  tdsReceivables: { permissions: ['revenue.tds_receivable.read'] },
+  manageTdsReceivables: { permissions: ['revenue.tds_receivable.write'] },
+  // Tax reports: GST owed vs cash collected (tax setup), TDS withheld (TDS receivables).
+  taxReports: { anyPermissions: ['revenue.tax.read', 'revenue.tds_receivable.read'] },
   // Documents attached to records. Seeing / attaching to a record also needs that record's
   // own access (e.g. contracts / manageContracts); the documents service checks both.
   documents: { permissions: ['document.read'] },

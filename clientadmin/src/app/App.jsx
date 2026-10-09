@@ -50,6 +50,9 @@ const Payments = lazy(pages.Payments)
 const PaymentCreate = lazy(pages.PaymentCreate)
 const PaymentDetail = lazy(pages.PaymentDetail)
 const Collections = lazy(pages.Collections)
+const BillingSchedules = lazy(pages.BillingSchedules)
+const TaxSettings = lazy(pages.TaxSettings)
+const TaxReports = lazy(pages.TaxReports)
 const DocumentCategories = lazy(pages.DocumentCategories)
 const Projects = lazy(pages.Projects)
 const ProjectCreate = lazy(pages.ProjectCreate)
@@ -121,6 +124,9 @@ export default function App() {
           <Route path="/payments/new" element={<RequireAccess rule={ACCESS.recordPayments}><PaymentCreate /></RequireAccess>} />
           <Route path="/payments/:id" element={<RequireAccess rule={ACCESS.payments}><PaymentDetail /></RequireAccess>} />
           <Route path="/collections" element={<RequireAccess rule={ACCESS.collections}><Collections /></RequireAccess>} />
+          <Route path="/billing-schedules" element={<RequireAccess rule={ACCESS.billingSchedules}><BillingSchedules /></RequireAccess>} />
+          <Route path="/tax-setup" element={<RequireAccess rule={ACCESS.taxSetup}><TaxSettings /></RequireAccess>} />
+          <Route path="/tax-reports" element={<RequireAccess rule={ACCESS.taxReports}><TaxReports /></RequireAccess>} />
           <Route path="/projects" element={<RequireAccess rule={ACCESS.projects}><Projects /></RequireAccess>} />
           <Route path="/projects/new" element={<RequireAccess rule={ACCESS.manageProjects}><ProjectCreate /></RequireAccess>} />
           <Route path="/projects/:id" element={<RequireAccess rule={ACCESS.projects}><ProjectDetail /></RequireAccess>} />

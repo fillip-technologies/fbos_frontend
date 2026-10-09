@@ -59,7 +59,7 @@ export default function ContractDetail() {
   }
 
   async function activate() {
-    if (!window.confirm('Activate this contract? Delivery and billing start from it.')) return
+    if (!window.confirm('Activate this contract? Delivery and billing start from it: its billing schedule is made from the payment terms.')) return
     await save(() => contractsApi.activate(orgId, contract))
   }
 
@@ -193,10 +193,19 @@ export default function ContractDetail() {
             ))}
           </tbody>
         </table>
-        {hasAccess(me, ACCESS.manageInvoices) && ['active', 'pending_signature'].includes(contract.status) && (
-          <Link className="btn secondary small-btn" to={`/invoices/new?customer=${contract.client.id}&contract=${contract.id}`}>
-            Raise invoice
-          </Link>
+        {/* Billing, linked by route only: each term is invoiced from the schedule when it falls due. */}
+        <div className="row-actions" style={{ marginTop: 10 }}>
+          {hasAccess(me, ACCESS.billingSchedules) && contract.status === 'active' && (
+            <Link className="btn secondary small-btn" to={`/billing-schedules?contract=${contract.id}`}>Billing schedule</Link>
+          )}
+          {hasAccess(me, ACCESS.manageInvoices) && contract.status === 'active' && (
+            <Link className="btn secondary small-btn" to={`/invoices/new?customer=${contract.client.id}&contract=${contract.id}`}>
+              Invoice an extra charge
+            </Link>
+          )}
+        </div>
+        {contract.status === 'pending_signature' && (
+          <p className="muted small" style={{ margin: '10px 0 0' }}>Once activated, each term is billed from the contract’s billing schedule as it falls due.</p>
         )}
       </div>
 
