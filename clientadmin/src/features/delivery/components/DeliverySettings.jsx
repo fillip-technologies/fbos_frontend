@@ -97,6 +97,21 @@ export default function DeliverySettings({ orgId }) {
         with none runs around the clock. Due dates of open tasks given by a time limit stay as they are until the task
         changes priority. When off, time limits run around the clock.
       </p>
+      <label className="inline-check" style={{ marginTop: 14 }}>
+        <input
+          type="checkbox"
+          checked={settings.revenue_activities}
+          disabled={busy}
+          aria-busy={busy}
+          onChange={(e) => change({ revenue_activities: e.target.checked })}
+        />
+        Log finished sales tasks on the lead’s timeline
+      </label>
+      <p className="muted small" style={{ margin: '6px 0 0' }}>
+        When on, a call, email or meeting (or any other sales task) about a lead, opportunity or contract is added to
+        its activity timeline when the task is finished, with its outcome and note, so nobody logs the same call twice.
+        Stop logging those by hand once this is on. Tasks finished before it was switched on aren’t added.
+      </p>
     </div>
   )
 }
