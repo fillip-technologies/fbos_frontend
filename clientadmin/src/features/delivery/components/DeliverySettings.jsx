@@ -81,6 +81,22 @@ export default function DeliverySettings({ orgId }) {
         overdue. Team heads also hear about new requests and handovers for their team. Work that ran out of time long
         before this is switched on isn’t announced. When off, only the people a task names hear about it.
       </p>
+      <label className="inline-check" style={{ marginTop: 14 }}>
+        <input
+          type="checkbox"
+          checked={settings.working_hours}
+          disabled={busy}
+          aria-busy={busy}
+          onChange={(e) => change({ working_hours: e.target.checked })}
+        />
+        Count time limits in working hours
+      </label>
+      <p className="muted small" style={{ margin: '6px 0 0' }}>
+        When on, time limits count only working time from the task’s team calendar (else the nearest unit’s above it, else
+        the company’s), so nights, days off and holidays don’t use them up. Set calendars on the Calendars page; a team
+        with none runs around the clock. Due dates of open tasks given by a time limit stay as they are until the task
+        changes priority. When off, time limits run around the clock.
+      </p>
     </div>
   )
 }
