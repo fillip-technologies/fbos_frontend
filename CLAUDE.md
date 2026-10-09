@@ -191,7 +191,13 @@ A long-term plan for tasks across many teams and domains, built phase by phase. 
 - Every stage names its task status, so a type can follow a template as installed.
 - Website: the "Task workflows" panel on the Task types page (installed workflows, which types follow them, templates to install).
 
-**Next:** F3, a builder page to change a workflow (stages, steps, a team per stage), saved as new versions.
+**F3, the workflow builder (2026-10-09):**
+- Backend: `GET /workflow/definitions/{code}/versions` and `GET .../versions/{n}`, so a version can be read back.
+- Website: `/task-workflows/:code` (`WorkflowBuilder.jsx`, needs `delivery.workflow.manage`), reached from "Change it" or "Start a workflow" in the Task workflows panel.
+- It edits each stage's name, kind, task status and team, and each step's name, from-stage, to-stage and approval. Anything it doesn't show (conditions, stage tasks, permissions) is kept as it was.
+- Publishing creates and publishes the next version. Running tasks keep the version they started on.
+
+**Next:** Phase G (Revenue activity link, reports, domain packs).
 
 **Open questions:** on the new-task form, should a project's own team beat a routing rule? Today the rule wins.
 

@@ -49,6 +49,7 @@ export const pages = {
   TaskCreate: () => import('@/features/delivery/pages/TaskCreate.jsx'),
   TaskDetail: () => import('@/features/delivery/pages/TaskDetail.jsx'),
   TaskTypes: () => import('@/features/delivery/pages/TaskTypes.jsx'),
+  WorkflowBuilder: () => import('@/features/delivery/pages/WorkflowBuilder.jsx'),
   Requests: () => import('@/features/delivery/pages/Requests.jsx'),
   RequestCreate: () => import('@/features/delivery/pages/RequestCreate.jsx'),
 }
@@ -69,7 +70,7 @@ const NAV_PAGES = {
   '/projects': [pages.Projects, pages.ProjectDetail, pages.ProjectCreate],
   '/tasks': [pages.Tasks, pages.TaskDetail, pages.TaskCreate],
   '/requests': [pages.Requests, pages.RequestCreate, pages.TaskDetail],
-  '/task-types': [pages.TaskTypes],
+  '/task-types': [pages.TaskTypes, pages.WorkflowBuilder],
   '/invoices': [pages.Invoices, pages.InvoiceDetail, pages.InvoiceCreate],
   '/payments': [pages.Payments, pages.PaymentDetail, pages.PaymentCreate],
   '/collections': [pages.Collections],
