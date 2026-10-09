@@ -14,19 +14,32 @@ const key = () => `k${nextKey++}`
 
 export const EMPTY_ACCESS = { presets: [], permissions: [] }
 
-// Converts GET /users/{id}/permissions rows into editor state. Everything is loaded as an
-// individual permission (labelled with the preset it came from), so saving never
-// re-adds a permission that was removed from a preset after it was applied.
-export function accessFromGrants(grants) {
+// Converts GET /users/{id}/permissions rows (and the user's role presets) into editor
+// state. Everything is loaded as an individual permission (labelled with the preset it
+// came from), so saving never re-adds a permission that was removed from a preset after
+// it was applied. Presets are loaded too, so each can be removed again.
+export function accessFromGrants(grants, assignments = []) {
+  const presets = assignments.map((a) => ({
+    key: key(),
+    role_id: a.role.id,
+    role_code: a.role.code,
+    scope_unit_id: a.scope_unit?.id || null,
+    self_only: a.self_only,
+  }))
   return {
-    presets: [],
-    permissions: grants.map((g) => ({
-      key: key(),
-      code: g.code,
-      scope_unit_id: g.scope_unit?.id || null,
-      self_only: g.self_only,
-      source_role: g.source_role,
-    })),
+    presets,
+    permissions: grants.map((g) => {
+      const unit = g.scope_unit?.id || null
+      const preset = presets.find((p) => p.role_code === g.source_role && p.scope_unit_id === unit)
+      return {
+        key: key(),
+        code: g.code,
+        scope_unit_id: unit,
+        self_only: g.self_only,
+        source_role: g.source_role,
+        ...(preset ? { preset_key: preset.key } : {}),
+      }
+    }),
   }
 }
 
