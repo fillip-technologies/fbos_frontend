@@ -3,6 +3,7 @@ import { setupApi, workflowsApi } from '@/features/delivery/api.js'
 import AssignmentPolicies from '@/features/delivery/components/AssignmentPolicies.jsx'
 import DeliverySettings from '@/features/delivery/components/DeliverySettings.jsx'
 import RoutingRules from '@/features/delivery/components/RoutingRules.jsx'
+import TaskWorkflows from '@/features/delivery/components/TaskWorkflows.jsx'
 import {
   DISCIPLINES,
   DISCIPLINE_ORDER,
@@ -76,6 +77,9 @@ export default function TaskTypes() {
       {canManage && <DeliverySettings orgId={orgId} />}
       {canManage && <RoutingRules orgId={orgId} names={names} taskTypes={active} />}
       {canManage && <AssignmentPolicies orgId={orgId} names={names} />}
+      {canManage && hasAccess(me, ACCESS.workflows) && (
+        <TaskWorkflows orgId={orgId} types={types} installed={taskWorkflows} canDesign={hasAccess(me, ACCESS.designWorkflows)} />
+      )}
 
       {editing && (
         <TaskTypeEditor

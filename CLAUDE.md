@@ -184,7 +184,14 @@ A long-term plan for tasks across many teams and domains, built phase by phase. 
 - Work sent back from review tells the assignee, with the step's note.
 - Backend live (PRs #46, #47). The website part: steps on the task page (with a note when leaving review), the type picker (it warns that a built-in type affects every new task of it), the stage in task lists, and the workflow panel refreshing the task.
 
-**Next:** F2, ready-made task workflow templates a company installs (no workflow builder page exists yet), then F3, the builder.
+**F2, ready-made task workflows (2026-10-09):**
+- `services/workflow_templates.py` holds six templates: bug fix, feature, creative deliverable, service ticket, field work order, and do-and-review.
+- `GET /workflow/templates` lists them (`workflow.read`).
+- `POST /workflow/templates/{code}/install` makes one the company's own task workflow, published as version 1 (`workflow.manage`).
+- Every stage names its task status, so a type can follow a template as installed.
+- Website: the "Task workflows" panel on the Task types page (installed workflows, which types follow them, templates to install).
+
+**Next:** F3, a builder page to change a workflow (stages, steps, a team per stage), saved as new versions.
 
 **Open questions:** on the new-task form, should a project's own team beat a routing rule? Today the rule wins.
 

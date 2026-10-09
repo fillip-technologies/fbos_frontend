@@ -140,6 +140,11 @@ export const handoversApi = {
 const instance = (id) => `${DELIVERY}/workflow/instances/${id}`
 
 export const workflowsApi = {
+  // Ready-made task workflows: [{ code, name, discipline, summary, stages: [{ code, name, status_category }], steps }].
+  templates: (orgId, { signal } = {}) => api.get(`${DELIVERY}/workflow/templates`, { headers: inOrg(orgId), signal }),
+  // Makes one the company's own task workflow, published: { code?, name? } -> the definition.
+  installTemplate: (orgId, code, body = {}) =>
+    api.post(`${DELIVERY}/workflow/templates/${code}/install`, body, { headers: inOrg(orgId) }),
   // Filters: subject_type, vertical_id.
   definitions: (orgId, opts = {}, { signal } = {}) => listAll(`${DELIVERY}/workflow/definitions`, orgId, opts, { signal }),
   createDefinition: (orgId, body) => api.post(`${DELIVERY}/workflow/definitions`, body, { headers: inOrg(orgId) }),
