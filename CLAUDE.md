@@ -197,7 +197,14 @@ A long-term plan for tasks across many teams and domains, built phase by phase. 
 - It edits each stage's name, kind, task status and team, and each step's name, from-stage, to-stage and approval. Anything it doesn't show (conditions, stage tasks, permissions) is kept as it was.
 - Publishing creates and publishes the next version. Running tasks keep the version they started on.
 
-**Next:** Phase G (Revenue activity link, reports, domain packs).
+**G1, finished sales tasks on Revenue's timelines (2026-10-09):**
+- Delivery has a `revenue_activities` switch, the fifth one, off by default.
+- With it on, a finished call, email or meeting about a lead, opportunity or contract goes on that record's activity timeline. Any other sales-discipline type goes on as a note. The task may finish by submit, by review, or by its workflow.
+- It travels through the outbox to Revenue's `POST /internal/activities` (`REVENUE_SERVICE_URL`). An activity is never dropped as stale and is tried for longer; a 404 without an error code is retried.
+- Revenue stores Delivery's `revenue.*` names as the timeline's `commercial.*`, records each task once (`source_type`/`source_id`), and keeps times in UTC.
+- The timeline shows a "From a task" link. Revenue migration `a7d3c9e1f5b2`; Delivery migration `f1b6d4a8c2e7`.
+
+**Next:** the rest of Phase G (reports, domain packs), or a team lead view.
 
 **Open questions:** on the new-task form, should a project's own team beat a routing rule? Today the rule wins.
 
