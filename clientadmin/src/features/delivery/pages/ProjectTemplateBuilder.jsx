@@ -4,17 +4,19 @@ import { setupApi } from '@/features/delivery/api.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import { formatDateTime, toUpperCode } from '@/features/delivery/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
+import { getFieldErrors } from '@/shared/api/errors.js'
 import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
+import { formatDate } from '@/shared/utils/format.js'
 
 let rowSeq = 0
 const rowId = () => `row-${(rowSeq += 1)}`
 
 // A project template's phases and milestones, changed and published as its next version. New
 // projects copy the latest published version; projects already made keep what they copied. What
-// this page doesn't show (work packages, fixed dates, weights, the template's workflow) is kept.
+// this page doesn't show (work packages, phase dates, weights, the template's workflow) is kept.
 export default function ProjectTemplateBuilder() {
   const { code } = useParams()
   const { orgId } = useActiveOrg()
@@ -45,7 +47,9 @@ export default function ProjectTemplateBuilder() {
     <div>
       <div className="page-head">
         <div>
-          <h1>{template.name}</h1>
+          <h1>
+            {template.name} {template.status === 'retired' && <StatusBadge status="retired" label="Retired" />}
+          </h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
             Project template <span className="mono">{template.code}</span> · for {typeName.toLowerCase()} projects
             {template.vertical && ` · ${names.verticalName(template.vertical)}`}
@@ -57,6 +61,7 @@ export default function ProjectTemplateBuilder() {
       {notice && <div className="alert success">{notice}</div>}
       <ErrorBanner error={versions.error} onRetry={versions.reload} />
 
+      <TemplateSettings key={`${template.name}|${template.vertical?.id ?? ''}`} orgId={orgId} template={template} names={names} />
       <Editor
         key={`${code}-${start?.version_no || 0}`}
         orgId={orgId}
@@ -64,7 +69,11 @@ export default function ProjectTemplateBuilder() {
         start={start}
         onEdit={() => setNotice('')}
         onPublished={(versionNo) =>
-          setNotice(`Version ${versionNo} published. New projects made from “${template.name}” start with it; projects already made keep theirs.`)
+          setNotice(
+            template.status === 'retired'
+              ? `Version ${versionNo} published. The template is retired: no new project uses it until it’s made active again.`
+              : `Version ${versionNo} published. New projects made from “${template.name}” start with it; projects already made keep theirs.`
+          )
         }
       />
       <VersionHistory versions={all} inUse={template.published_version_no} />
@@ -92,6 +101,9 @@ function fromStructure(structure) {
     code: item.code ?? '',
     codeEdited: true,
     phase: phaseRow(item.phase_seq),
+    offset: Number.isInteger(item.offset_days) && item.offset_days >= 0 ? String(item.offset_days) : '',
+    // A fixed date (only the API sets one) wins over the days; typing days replaces it.
+    fixed: typeof item.planned_date === 'string' ? item.planned_date : null,
     is_billing_milestone: Boolean(item.is_billing_milestone),
     requires_client_acceptance: Boolean(item.requires_client_acceptance),
     item,
@@ -115,7 +127,9 @@ function toStructure(original, phases, milestones, phaseRowBySeq) {
     milestones: milestones.map((m, i) =>
       inPhase(
         {
-          ...m.item,
+          ...withoutDates(m.item),
+          ...(m.fixed ? { planned_date: m.fixed } : {}),
+          ...(m.offset !== '' ? { offset_days: Number(m.offset) } : {}),
           seq: i + 1,
           code: m.code.trim(),
           name: m.name.trim(),
@@ -132,6 +146,13 @@ function toStructure(original, phases, milestones, phaseRowBySeq) {
   return structure
 }
 
+function withoutDates(item) {
+  const out = { ...item }
+  delete out.planned_date
+  delete out.offset_days
+  return out
+}
+
 // What would make a template that projects can't use, said before publishing.
 function problems(phases, milestones) {
   const found = []
@@ -141,6 +162,9 @@ function problems(phases, milestones) {
   const codes = milestones.map((m) => m.code.trim())
   if (codes.some((c) => !c)) found.push('Every milestone needs a code.')
   if (new Set(codes).size !== codes.length) found.push('Two milestones have the same code.')
+  if (milestones.some((m) => m.offset !== '' && !/^\d{1,4}$/.test(m.offset))) {
+    found.push('Days after the start are whole numbers: 0 for the day it starts, up to 9999.')
+  }
   return found
 }
 
@@ -203,7 +227,7 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
     touch()
     setMilestones((all) => [
       ...all,
-      { id: rowId(), name: '', code: '', codeEdited: false, phase: '', is_billing_milestone: false, requires_client_acceptance: false, item: {} },
+      { id: rowId(), name: '', code: '', codeEdited: false, phase: '', offset: '', fixed: null, is_billing_milestone: false, requires_client_acceptance: false, item: {} },
     ])
   }
 
@@ -288,8 +312,8 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
       <div className="panel">
         <h2 style={{ marginTop: 0, fontSize: 17 }}>Milestones</h2>
         <p className="muted small" style={{ marginTop: 0 }}>
-          What each project made from this template must deliver, in order. Each starts planned for the project’s due date;
-          set its forecast on the project’s Milestones tab.
+          What each project made from this template must deliver, in order. Each is planned that many days after the project
+          starts (never after it is due), or for its due date when left empty.
         </p>
         {milestones.length > 0 && (
           <div style={{ overflowX: 'auto' }}>
@@ -300,6 +324,7 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
                   <th>Milestone</th>
                   <th>Code</th>
                   <th>Phase</th>
+                  <th>Days after start</th>
                   <th>Invoiced on completion</th>
                   <th>Customer signs off</th>
                   <th />
@@ -326,6 +351,20 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
                         <option value="">— None —</option>
                         {phases.map((p, n) => <option key={p.id} value={p.id}>{p.name.trim() || `Phase ${n + 1}`}</option>)}
                       </select>
+                    </td>
+                    <td>
+                      <input
+                        aria-label="Days after the project starts"
+                        type="number"
+                        min={0}
+                        max={9999}
+                        step={1}
+                        placeholder="Due date"
+                        style={{ width: 100 }}
+                        value={m.offset}
+                        onChange={(e) => setMilestone(m.id, { offset: e.target.value, ...(e.target.value !== '' ? { fixed: null } : {}) })}
+                      />
+                      {m.fixed && <div className="hint">Fixed to {formatDate(m.fixed)}; typing days replaces it.</div>}
                     </td>
                     <td>
                       <input
@@ -389,6 +428,75 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
         {!dirty && start && !reuseDraft && <span className="muted small">Change something to publish a new version.</span>}
       </div>
     </>
+  )
+}
+
+// The template itself: its name, its vertical, and whether new projects may start from it.
+function TemplateSettings({ orgId, template, names }) {
+  const [form, setForm] = useState({ name: template.name, vertical_id: template.vertical?.id ?? '' })
+  const [busy, setBusy] = useState('')
+  const [error, setError] = useState(null)
+  const fieldErrors = getFieldErrors(error)
+  const retired = template.status === 'retired'
+  const changed = form.name.trim() !== template.name || form.vertical_id !== (template.vertical?.id ?? '')
+
+  async function update(body, which) {
+    setBusy(which)
+    setError(null)
+    try {
+      await setupApi.updateTemplate(orgId, template.code, body)
+      invalidate(['project-templates', orgId])
+    } catch (err) {
+      setError(err)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  function save(e) {
+    e.preventDefault()
+    update({ name: form.name.trim(), vertical_id: form.vertical_id || null }, 'save')
+  }
+
+  return (
+    <form className="panel" onSubmit={save}>
+      {retired && (
+        <div className="alert warn">
+          Retired: the New project form doesn’t offer it. Projects already made from it keep their phases and milestones.
+        </div>
+      )}
+      {error && Object.keys(fieldErrors).length === 0 && <ErrorBanner error={error} />}
+      <div className="grid-2">
+        <div className="field">
+          <label htmlFor="tpl_name">Name *</label>
+          <input id="tpl_name" required maxLength={255} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          {fieldErrors.name && <div className="field-error">{fieldErrors.name}</div>}
+        </div>
+        <div className="field">
+          <label htmlFor="tpl_vertical">Vertical</label>
+          <select id="tpl_vertical" value={form.vertical_id} onChange={(e) => setForm((f) => ({ ...f, vertical_id: e.target.value }))}>
+            <option value="">— Any —</option>
+            {template.vertical && !(names.verticals || []).some((v) => v.id === template.vertical.id) && (
+              <option value={template.vertical.id}>{names.verticalName(template.vertical)}</option>
+            )}
+            {(names.verticals || []).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="row-actions">
+        <button className="btn" type="submit" disabled={!changed || !form.name.trim() || Boolean(busy)} aria-busy={busy === 'save'}>Save</button>
+        <button
+          type="button"
+          className={retired ? 'btn secondary' : 'btn danger-outline'}
+          disabled={Boolean(busy)}
+          aria-busy={busy === 'status'}
+          onClick={() => update({ status: retired ? 'active' : 'retired' }, 'status')}
+        >
+          {retired ? 'Make active again' : 'Retire'}
+        </button>
+        {!retired && <span className="muted small">Retiring stops new projects from using it; nothing else changes.</span>}
+      </div>
+    </form>
   )
 }
 

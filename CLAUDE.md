@@ -204,6 +204,12 @@ A long-term plan for tasks across many teams and domains, built phase by phase. 
 - Revenue stores Delivery's `revenue.*` names as the timeline's `commercial.*`, records each task once (`source_type`/`source_id`), and keeps times in UTC.
 - The timeline shows a "From a task" link. Revenue migration `a7d3c9e1f5b2`; Delivery migration `f1b6d4a8c2e7`.
 
+**Project templates (2026-10-12):**
+- `/project-templates` (list + new) and `/project-templates/:code` (`ProjectTemplateBuilder.jsx`), both behind `ACCESS.projectTemplates` (`delivery.template.manage` + `delivery.work_unit.read`). A template (`work_templates`) belongs to one company and makes one kind of project; its content is versioned (`work_template_versions.structure`: `{ phases, milestones, packages }`). Nothing creates templates except this screen (or the API).
+- The builder edits phases and milestones and publishes them as the next version; the New project form offers active templates with a published version, and a project copies that version once (`_copy_template_structure`). Packages, phase dates, weights and the version's `workflow_definition_code` aren't shown and are carried over.
+- A milestone's planned date: its fixed `planned_date`, else `offset_days` after the project starts (never after it is due), else the due date.
+- `PATCH /templates/{code}` renames a template, changes its vertical or retires it (`TEMPLATE_RETIRED` on create); publishing doesn't bring a retired one back.
+
 **Next:** the rest of Phase G (reports, domain packs), or a team lead view.
 
 **Open questions:** on the new-task form, should a project's own team beat a routing rule? Today the rule wins.
