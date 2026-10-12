@@ -54,6 +54,7 @@ export default function Projects() {
         </div>
         <div className="row-actions">
           <OrgSwitcher onChange={resetPaging} />
+          {hasAccess(me, ACCESS.projectTemplates) && <Link className="btn secondary" to="/project-templates">Templates</Link>}
           {hasAccess(me, ACCESS.manageProjects) && <Link className="btn" to="/projects/new">+ New project</Link>}
         </div>
       </div>

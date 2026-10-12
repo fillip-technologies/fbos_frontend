@@ -105,6 +105,10 @@ export function parseDuration(text) {
   return Math.round(Number(match[1] ?? 0) * 60) + Number(match[2] ?? 0)
 }
 
+// A name -> a code the backend accepts (letters, digits, - and _): "Beta live" -> "BETA-LIVE".
+export const toUpperCode = (text) =>
+  text.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 100)
+
 // ISO date-time -> local date, or "—".
 export function formatDateTime(iso) {
   if (!iso) return '—'

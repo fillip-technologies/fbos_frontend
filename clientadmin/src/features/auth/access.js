@@ -133,6 +133,8 @@ export const ACCESS = {
   handovers: { permissions: ['delivery.handover.read'] },
   manageHandovers: { permissions: ['delivery.handover.write'] },
   deliverySetup: { permissions: ['delivery.template.manage'] },
+  // Project templates: the phases and milestones a new project starts with (reading them is a project read).
+  projectTemplates: { permissions: ['delivery.template.manage', 'delivery.work_unit.read'] },
   workflows: { permissions: ['delivery.workflow.read'] },
   designWorkflows: { permissions: ['delivery.workflow.manage'] },
   operateWorkflows: { permissions: ['delivery.workflow.operate'] },
