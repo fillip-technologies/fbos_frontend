@@ -11,8 +11,8 @@ export function CustomizeFormLink({ formCode }) {
   return <Link className="small" to={`/custom-fields/${formCode}`}>Customize this form</Link>
 }
 
-// A record form's custom fields (from useFormFields) under one heading. Shows nothing when the
-// form has none and the user can't add any.
+// A record form's custom fields (from useFormFields) under one heading. Shows nothing when none
+// apply and the user can't add any.
 export default function CustomFieldsSection({ formCode, fields, values, onChange, errors = {}, idPrefix = 'cf' }) {
   const { user } = useAuth()
   if (!fields.length && !hasAccess(user, ACCESS.editFormFields)) return null
@@ -25,7 +25,8 @@ export default function CustomFieldsSection({ formCode, fields, values, onChange
       {fields.length > 0 ? (
         <CustomFieldInputs fields={fields} values={values} onChange={onChange} errors={errors} idPrefix={idPrefix} />
       ) : (
-        <p className="muted small" style={{ marginTop: 0 }}>This form has no custom fields yet.</p>
+        // A form's fields may be kept for some verticals only, so none may apply to this record yet.
+        <p className="muted small" style={{ marginTop: 0 }}>No custom fields apply here yet.</p>
       )}
     </div>
   )
