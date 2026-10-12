@@ -16,6 +16,7 @@ import { toIsoDate } from '@/shared/utils/dates.js'
 import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
 import ContractForm from '@/features/sales/components/ContractForm.jsx'
+import QuotationEmailForm from '@/features/sales/components/QuotationEmailForm.jsx'
 import QuotationItemsEditor, { newItem, rowsToItems } from '@/features/sales/components/QuotationItemsEditor.jsx'
 import { LOST_REASONS, OPEN_STAGES, QUOTATION_CLOSED_TO_FILES, SUBJECTS, humanize } from '@/features/sales/utils.js'
 import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
@@ -135,8 +136,11 @@ export default function OpportunityDetail() {
   const { form, setForm, base, rebase } = useRecordForm(opp, toForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  // null | 'quotation' | 'lost' | 'contract'
+  // null | 'quotation' | 'lost' | 'contract' | 'email'
   const [panel, setPanel] = useState(null)
+  const [emailed, setEmailed] = useState(null)
+  // Remounts the timeline so the logged email shows.
+  const [timelineKey, setTimelineKey] = useState(0)
   const [lost, setLost] = useState({ reason: 'price', competitor: '', note: '' })
   const fieldErrors = getFieldErrors(error)
 
@@ -199,6 +203,7 @@ export default function OpportunityDetail() {
   // Revisions come newest first; the latest one holds the current files (they carry over on revise).
   const currentQuote = quotations[0]
   const canCreateContract = accepted && contracts.length === 0 && hasAccess(me, ACCESS.manageContracts)
+  const canEmailQuote = canManage && currentQuote && ['draft', 'approved', 'sent', 'accepted'].includes(currentQuote.status)
 
   return (
     <div>
@@ -326,7 +331,45 @@ export default function OpportunityDetail() {
           {canManage && open && panel !== 'quotation' && !quotations.some((q) => q.status !== 'superseded' && q.status !== 'rejected') && (
             <button className="btn small-btn" onClick={() => setPanel('quotation')}>+ New quotation</button>
           )}
+          {canEmailQuote && panel !== 'email' && (
+            <button
+              className="btn small-btn"
+              onClick={() => {
+                setEmailed(null)
+                setPanel('email')
+              }}
+            >
+              Email to customer
+            </button>
+          )}
         </div>
+        {emailed && (
+          <div className="alert success" role="status">
+            Sent from {emailed.from_name} &lt;{emailed.from_address}&gt; to {emailed.to.join(', ')}
+            {emailed.cc.length > 0 && <> · Cc {emailed.cc.join(', ')}</>}
+            {emailed.bcc.length > 0 && <> · Bcc {emailed.bcc.join(', ')}</>}
+            {' · '}
+            {emailed.attachments.length
+              ? `${emailed.attachments.length} file${emailed.attachments.length > 1 ? 's' : ''}: ${emailed.attachments.map((f) => f.file_name).join(', ')}`
+              : 'no files'}
+          </div>
+        )}
+        {panel === 'email' && currentQuote && (
+          <QuotationEmailForm
+            orgId={orgId}
+            quote={currentQuote}
+            canSeeFiles={hasAccess(me, ACCESS.documents)}
+            onSent={(sent) => {
+              setEmailed(sent)
+              setPanel(null)
+              invalidate(['quotations', orgId])
+              invalidate(['quotation', orgId, sent.quotation.id])
+              quotationsQuery.reload()
+              setTimelineKey((k) => k + 1)
+            }}
+            onCancel={() => setPanel(null)}
+          />
+        )}
         {panel === 'quotation' && (
           <NewQuotation
             orgId={orgId}
@@ -411,7 +454,7 @@ export default function OpportunityDetail() {
       )}
 
       {hasAccess(me, ACCESS.activities) && (
-        <ActivityTimeline orgId={orgId} subjectType={SUBJECTS.opportunity} subjectId={opp.id} />
+        <ActivityTimeline key={timelineKey} orgId={orgId} subjectType={SUBJECTS.opportunity} subjectId={opp.id} />
       )}
     </div>
   )

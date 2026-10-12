@@ -573,3 +573,19 @@ td.skeleton-wait { border-bottom: 0; }
 .badge.planned { background: #f1f5f9; color: #475569; }
 .badge.ready { background: #dbeafe; color: #1e40af; }
 .badge.invoiced { background: #dcfce7; color: #166534; }
+
+/* ---------- Email form: recipients as chips, contacts with To / Cc / Bcc, files to attach ---------- */
+.recipient-box { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.recipient-box:focus-within { outline: 2px solid #bfdbfe; border-color: var(--primary); }
+.field .recipient-box input { flex: 1; min-width: 180px; width: auto; border: 0; padding: 4px; outline: none; }
+.recipient-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 9px; border-radius: 999px; background: #eff6ff; color: #1e40af; font-size: 13px; }
+.recipient-chip button { border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; border-radius: 999px; }
+.recipient-chip button:hover { background: #dbeafe; }
+.contact-picker td { padding: 6px 8px; vertical-align: middle; }
+.file-choice { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0; font-weight: 400; cursor: pointer; }
+.field .file-choice { display: flex; font-weight: 400; font-size: 14px; color: var(--text); margin: 0; }
+.field .file-choice input { width: auto; }
+@media (max-width: 640px) {
+  .contact-picker, .contact-picker tbody, .contact-picker tr, .contact-picker td { display: block; width: 100%; }
+  .contact-picker td[style] { text-align: left !important; }
+}

@@ -48,6 +48,13 @@ export const quotationsApi = {
   reject: quotationAction('reject'),
   // A new draft revision; the current one becomes superseded.
   revise: (orgId, quote) => api.post(`${REVENUE}/quotations/${quote.id}/revise`, undefined, { headers: inOrg(orgId) }),
+  // { sender, contacts, to, subject, message, marks_sent, emailable }: what the email form starts from.
+  emailDraft: (orgId, id, { signal } = {}) =>
+    api.get(`${REVENUE}/quotations/${id}/email-draft`, { headers: inOrg(orgId), signal }),
+  // { to, cc, bcc, subject, message, document_ids } → { from_address, to, cc, bcc, attachments, quotation }.
+  // A draft or approved quotation is marked sent too, hence If-Match.
+  email: (orgId, quote, body) =>
+    api.post(`${REVENUE}/quotations/${quote.id}/emails`, body, { headers: ifMatch(orgId, quote.version) }),
 }
 
 // ---------- Contracts ----------
