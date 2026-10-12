@@ -40,7 +40,7 @@ export function cleanWeek(hours) {
   )
 }
 
-const rangesText = (ranges) => ranges.map(([s, e]) => `${s}–${e}`).join(', ')
+export const rangesText = (ranges) => ranges.map(([s, e]) => `${s}–${e}`).join(', ')
 
 // "Mon–Fri 09:00–18:00 · Sat 10:00–14:00": consecutive days with the same hours are grouped.
 export function summarizeWeek(hours) {
@@ -58,6 +58,20 @@ export function summarizeWeek(hours) {
   if (!groups.length) return 'No working days'
   const short = (k) => DAYS.find((d) => d.key === k).short
   return groups.map((g) => `${g.from === g.to ? short(g.from) : `${short(g.from)}–${short(g.to)}`} ${g.text}`).join(' · ')
+}
+
+// The weekday of a "YYYY-MM-DD" date, as one of DAYS.
+export function dayOf(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return DAYS[(new Date(y, m - 1, d).getDay() + 6) % 7]
+}
+
+// Hours to start an extra working day from: that weekday's own, else the first working day's.
+export function usualHours(hours, iso) {
+  const own = iso ? hours?.[dayOf(iso).key] : null
+  if (own?.length) return own.map((r) => [...r])
+  const first = DAYS.find((d) => hours?.[d.key]?.length)
+  return first ? hours[first.key].map((r) => [...r]) : [['09:00', '18:00']]
 }
 
 // IANA zones from the browser, with a short fallback for browsers that lack the API.
