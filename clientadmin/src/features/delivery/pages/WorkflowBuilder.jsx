@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { workflowsApi } from '@/features/delivery/api.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
-import { TASK_STATUS_LABELS } from '@/features/delivery/utils.js'
+import { SUBJECT_TYPES, TASK_STATUS_LABELS } from '@/features/delivery/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -10,29 +10,67 @@ import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 
 const CATEGORIES = ['open', 'in_progress', 'in_review', 'done', 'cancelled']
 const KINDS = { start: 'First stage', normal: 'Stage', end: 'Last stage' }
-// A workflow with no version yet starts from this.
-const SKELETON = {
-  stages: [
-    { code: 'to_do', name: 'To do', seq: 1, stage_type: 'start', status_category: 'open' },
-    { code: 'doing', name: 'Doing', seq: 2, stage_type: 'normal', status_category: 'in_progress' },
-    { code: 'done', name: 'Done', seq: 3, stage_type: 'end', status_category: 'done' },
-  ],
-  transitions: [
-    { code: 'start', name: 'Start', from: 'to_do', to: 'doing', trigger_type: 'manual' },
-    { code: 'finish', name: 'Finish', from: 'doing', to: 'done', trigger_type: 'manual' },
-  ],
+
+// What differs between a workflow tasks follow and one a project runs through. A task's stages
+// set its status; a project's don't (its status changes on its own), so they have no category.
+const SUBJECTS = {
+  task: {
+    type: SUBJECT_TYPES.task,
+    label: 'Task workflow',
+    record: 'task',
+    back: { to: '/task-types', label: 'Back to task types' },
+    // A workflow with no version yet starts from this.
+    skeleton: {
+      stages: [
+        { code: 'to_do', name: 'To do', seq: 1, stage_type: 'start', status_category: 'open' },
+        { code: 'doing', name: 'Doing', seq: 2, stage_type: 'normal', status_category: 'in_progress' },
+        { code: 'done', name: 'Done', seq: 3, stage_type: 'end', status_category: 'done' },
+      ],
+      transitions: [
+        { code: 'start', name: 'Start', from: 'to_do', to: 'doing', trigger_type: 'manual' },
+        { code: 'finish', name: 'Finish', from: 'doing', to: 'done', trigger_type: 'manual' },
+      ],
+    },
+    stagesHelp: 'Each stage sets the task’s status while it is there. A stage with a team moves the task to that team’s queue when it gets there.',
+    ownTeam: '— The task’s own team —',
+    stepsHelp: 'The buttons on a task: each moves it from one stage to another. A step that needs approval waits for someone allowed to approve workflow steps.',
+    published: 'Tasks already following the workflow keep their version; new tasks follow this one.',
+  },
+  project: {
+    type: SUBJECT_TYPES.project,
+    label: 'Project workflow',
+    record: 'project',
+    back: { to: '/project-templates', label: 'Back to project templates' },
+    skeleton: {
+      stages: [
+        { code: 'planning', name: 'Planning', seq: 1, stage_type: 'start' },
+        { code: 'delivery', name: 'Delivery', seq: 2, stage_type: 'normal' },
+        { code: 'closed', name: 'Closed', seq: 3, stage_type: 'end' },
+      ],
+      transitions: [
+        { code: 'start_delivery', name: 'Start delivery', from: 'planning', to: 'delivery', trigger_type: 'manual' },
+        { code: 'close', name: 'Close', from: 'delivery', to: 'closed', trigger_type: 'manual' },
+      ],
+    },
+    stagesHelp: 'The stages a project goes through, from the first to a last one. Tasks a stage creates go to its team, else to the project’s team.',
+    ownTeam: '— The project’s team —',
+    stepsHelp: 'The buttons on the project’s Workflow panel: each moves it from one stage to another. A step that needs approval waits for someone allowed to approve workflow steps.',
+    published: 'Projects already running the workflow keep their version; projects that start it from now on run this one.',
+  },
 }
 
-// A task workflow's stages and steps, changed and published as its next version. Tasks already
-// following it keep the version they started on; new tasks follow the new one. What this page
-// doesn't show (a step's conditions, a stage's tasks) is kept as it was.
-export default function WorkflowBuilder() {
+// A workflow's stages and steps, changed and published as its next version: a task workflow
+// (/task-workflows/:code) or a project workflow (/project-workflows/:code). What is already
+// running keeps the version it started on. What this page doesn't show (a step's conditions,
+// a stage's tasks) is kept as it was.
+export default function WorkflowBuilder({ subject = 'task' }) {
   const { code } = useParams()
   const { orgId } = useActiveOrg()
   const enabled = Boolean(orgId)
+  const kind = SUBJECTS[subject]
   const definitions = useQuery(
-    ['workflow-definitions', orgId, 'task.task'],
-    ({ signal }) => workflowsApi.definitions(orgId, { subject_type: 'task.task' }, { signal }),
+    ['workflow-definitions', orgId, kind.type],
+    ({ signal }) => workflowsApi.definitions(orgId, { subject_type: kind.type }, { signal }),
     { enabled }
   )
   const definition = (definitions.data ?? []).find((d) => d.code === code)
@@ -45,14 +83,15 @@ export default function WorkflowBuilder() {
 
   if (definitions.loading || (versionNo && current.loading)) return <PanelSkeleton />
   if (!definition) {
-    return <ErrorBanner error={definitions.error || current.error || { message: 'This task workflow doesn’t exist in this company.' }} />
+    return <ErrorBanner error={definitions.error || current.error || { message: `This ${kind.label.toLowerCase()} doesn’t exist in this company.` }} />
   }
   return (
     <Editor
       key={`${code}-${versionNo || 0}`}
       orgId={orgId}
+      kind={kind}
       definition={definition}
-      initial={current.data?.content ?? SKELETON}
+      initial={current.data?.content ?? kind.skeleton}
     />
   )
 }
@@ -64,15 +103,15 @@ function slug(text, taken) {
   return candidate
 }
 
-// What publishing would refuse, said before trying.
-function problems(stages, transitions) {
+// What publishing would refuse, said before trying (and, for tasks, what a task type needs).
+function problems(stages, transitions, forTasks) {
   const found = []
   const starts = stages.filter((s) => s.stage_type === 'start')
   if (starts.length !== 1) found.push('Mark exactly one stage as the first stage.')
   if (!stages.some((s) => s.stage_type === 'end')) found.push('Mark at least one stage as a last stage.')
   for (const s of stages) {
     if (!s.name.trim()) found.push('Every stage needs a name.')
-    if (s.stage_type === 'end' && !['done', 'cancelled'].includes(s.status_category)) {
+    if (forTasks && s.stage_type === 'end' && !['done', 'cancelled'].includes(s.status_category)) {
       found.push(`“${s.name || 'A last stage'}” must stand for Done or Cancelled.`)
     }
   }
@@ -98,15 +137,18 @@ function problems(stages, transitions) {
   return [...new Set(found)]
 }
 
-function Editor({ orgId, definition, initial }) {
+function Editor({ orgId, kind, definition, initial }) {
   const names = useDeliveryNames(orgId)
-  const [stages, setStages] = useState(() => initial.stages.map((s) => ({ ...s, status_category: s.status_category || 'open' })))
+  const forTasks = kind.type === SUBJECT_TYPES.task
+  const [stages, setStages] = useState(() =>
+    initial.stages.map((s) => (forTasks ? { ...s, status_category: s.status_category || 'open' } : { ...s }))
+  )
   const [transitions, setTransitions] = useState(() => initial.transitions.map((t) => ({ ...t })))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState('')
   const units = (names.units || []).filter((u) => u.status !== 'inactive')
-  const found = problems(stages, transitions)
+  const found = problems(stages, transitions, forTasks)
   const stageName = (stageCode) => stages.find((s) => s.code === stageCode)?.name || '—'
 
   const setStage = (index, changes) => setStages((all) => all.map((s, i) => (i === index ? { ...s, ...changes } : s)))
@@ -114,7 +156,10 @@ function Editor({ orgId, definition, initial }) {
 
   function addStage() {
     const taken = new Set(stages.map((s) => s.code))
-    setStages((all) => [...all, { code: slug('stage', taken), name: '', seq: all.length + 1, stage_type: 'normal', status_category: 'in_progress' }])
+    setStages((all) => [
+      ...all,
+      { code: slug('stage', taken), name: '', seq: all.length + 1, stage_type: 'normal', ...(forTasks ? { status_category: 'in_progress' } : {}) },
+    ])
   }
 
   function removeStage(index) {
@@ -142,7 +187,7 @@ function Editor({ orgId, definition, initial }) {
       await workflowsApi.publishVersion(orgId, definition.code, draft.version_no)
       invalidate(['workflow-definitions', orgId])
       invalidate(['workflow-version', orgId, definition.code])
-      setNotice(`Version ${draft.version_no} published. Tasks already following the workflow keep their version; new tasks follow this one.`)
+      setNotice(`Version ${draft.version_no} published. ${kind.published}`)
     } catch (err) {
       setError(err)
     } finally {
@@ -156,28 +201,25 @@ function Editor({ orgId, definition, initial }) {
         <div>
           <h1>{definition.name}</h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
-            Task workflow <span className="mono">{definition.code}</span>
+            {kind.label} <span className="mono">{definition.code}</span>
             {definition.current_version_no ? ` · version ${definition.current_version_no} is in use` : ' · not published yet'}
           </p>
         </div>
-        <Link className="btn secondary" to="/task-types">Back to task types</Link>
+        <Link className="btn secondary" to={kind.back.to}>{kind.back.label}</Link>
       </div>
       {notice && <div className="alert success">{notice}</div>}
       <ErrorBanner error={error} />
 
       <div className="panel">
         <h2 style={{ marginTop: 0, fontSize: 17 }}>Stages</h2>
-        <p className="muted small" style={{ marginTop: 0 }}>
-          Each stage sets the task’s status while it is there. A stage with a team moves the task to that team’s queue
-          when it gets there.
-        </p>
+        <p className="muted small" style={{ marginTop: 0 }}>{kind.stagesHelp}</p>
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
               <tr>
                 <th>Stage</th>
                 <th>Kind</th>
-                <th>Task status</th>
+                {forTasks && <th>Task status</th>}
                 <th>Team</th>
                 <th />
               </tr>
@@ -192,18 +234,20 @@ function Editor({ orgId, definition, initial }) {
                       {!KINDS[s.stage_type] && <option value={s.stage_type}>{s.stage_type}</option>}
                     </select>
                   </td>
-                  <td>
-                    <select aria-label="Task status" value={s.status_category} onChange={(e) => setStage(i, { status_category: e.target.value })}>
-                      {CATEGORIES.map((c) => <option key={c} value={c}>{TASK_STATUS_LABELS[c] || c}</option>)}
-                    </select>
-                  </td>
+                  {forTasks && (
+                    <td>
+                      <select aria-label="Task status" value={s.status_category} onChange={(e) => setStage(i, { status_category: e.target.value })}>
+                        {CATEGORIES.map((c) => <option key={c} value={c}>{TASK_STATUS_LABELS[c] || c}</option>)}
+                      </select>
+                    </td>
+                  )}
                   <td>
                     <select
                       aria-label="Team"
                       value={s.owner_unit_selector?.unit_id || ''}
                       onChange={(e) => setStage(i, { owner_unit_selector: e.target.value ? { unit_id: e.target.value } : {} })}
                     >
-                      <option value="">— The task’s own team —</option>
+                      <option value="">{kind.ownTeam}</option>
                       {s.owner_unit_selector?.unit_id && !units.some((u) => u.id === s.owner_unit_selector.unit_id) && (
                         <option value={s.owner_unit_selector.unit_id}>{names.unitName(s.owner_unit_selector.unit_id)}</option>
                       )}
@@ -223,10 +267,7 @@ function Editor({ orgId, definition, initial }) {
 
       <div className="panel">
         <h2 style={{ marginTop: 0, fontSize: 17 }}>Steps</h2>
-        <p className="muted small" style={{ marginTop: 0 }}>
-          The buttons on a task: each moves it from one stage to another. A step that needs approval waits for someone
-          allowed to approve workflow steps.
-        </p>
+        <p className="muted small" style={{ marginTop: 0 }}>{kind.stepsHelp}</p>
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
@@ -267,7 +308,7 @@ function Editor({ orgId, definition, initial }) {
           </table>
         </div>
         <button type="button" className="btn secondary" style={{ marginTop: 10 }} onClick={addStep} disabled={stages.length < 2}>+ Add a step</button>
-        {transitions.length === 0 && <p className="muted small">No steps yet: a task could never leave its first stage.</p>}
+        {transitions.length === 0 && <p className="muted small">No steps yet: a {kind.record} could never leave its first stage.</p>}
       </div>
 
       {found.length > 0 && (

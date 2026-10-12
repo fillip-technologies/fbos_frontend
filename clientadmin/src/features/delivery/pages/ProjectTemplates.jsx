@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { setupApi } from '@/features/delivery/api.js'
+import ProjectWorkflows from '@/features/delivery/components/ProjectWorkflows.jsx'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import { toUpperCode } from '@/features/delivery/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
@@ -90,6 +91,7 @@ export default function ProjectTemplates() {
           </tbody>
         </table>
       </div>
+      <ProjectWorkflows orgId={orgId} templates={templates} />
     </div>
   )
 }

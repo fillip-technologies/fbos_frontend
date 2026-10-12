@@ -29,6 +29,8 @@ export const projectsApi = {
     api.put(`${DELIVERY}/work-units/${project.id}/members`, { members }, { headers: ifMatch(orgId, project.version) }),
   milestones: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/work-units/${id}/milestones`, orgId, {}, { signal }),
   addMilestone: (orgId, id, body) => api.post(`${DELIVERY}/work-units/${id}/milestones`, body, { headers: inOrg(orgId) }),
+  // Copied from its template, phase by phase: [{ id, phase_id, name, owner_unit, estimated_hours, status }].
+  workPackages: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/work-units/${id}/work-packages`, { headers: inOrg(orgId), signal }),
   risks: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/work-units/${id}/risks`, orgId, {}, { signal }),
   addRisk: (orgId, id, body) => api.post(`${DELIVERY}/work-units/${id}/risks`, body, { headers: inOrg(orgId) }),
   changeRequests: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/work-units/${id}/change-requests`, orgId, {}, { signal }),
