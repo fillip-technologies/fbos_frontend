@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { requestsApi } from '@/features/delivery/api.js'
-import TaskFieldInputs from '@/features/delivery/components/TaskFieldInputs.jsx'
-import { DISCIPLINE_ORDER, attributeErrors, checkFields, disciplineLabel, toAttributes } from '@/features/delivery/taskFields.js'
+import CustomFieldInputs from '@/shared/components/CustomFieldInputs.jsx'
+import { DISCIPLINE_ORDER, attributeErrors, disciplineLabel } from '@/features/delivery/taskFields.js'
+import { checkFields, toAttributes } from '@/shared/utils/customFields.js'
 import useAssignmentPolicies from '@/features/delivery/useAssignmentPolicies.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import useTaskTypes, { useTaskFields } from '@/features/delivery/useTaskTypes.js'
@@ -50,7 +51,7 @@ export default function RequestCreate() {
   const taskType = byCode.get(form.task_type_code)
   const givenOut = useAssignmentPolicies(orgId).givenOut(offer?.unit?.id)
   // The fields a task of that team carries: its type's, and the company's custom fields for the team.
-  const fields = useTaskFields(orgId, taskType, offer?.unit?.id ?? null, null)
+  const fields = useTaskFields(orgId, taskType, offer?.unit?.id ?? null, null, form)
   const createFields = fields.filter((f) => !f.required_on_submit)
   const serverProblems = attributeErrors(error)
   const fieldErrors = { ...getFieldErrors(error), ...serverProblems, ...problems }
@@ -165,7 +166,7 @@ export default function RequestCreate() {
           {createFields.length > 0 && (
             <div className="subpanel">
               <div className="subpanel-title">{taskType?.name} details</div>
-              <TaskFieldInputs fields={createFields} values={values} onChange={setValues} errors={fieldErrors} />
+              <CustomFieldInputs fields={createFields} values={values} onChange={setValues} errors={fieldErrors} />
             </div>
           )}
 

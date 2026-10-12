@@ -247,18 +247,4 @@ export const lookupsApi = {
   customers: (orgId, { signal } = {}) => customersApi.listAll(orgId, { signal }),
   // Leads to attach a task to (a sales touch is about a lead): one page, newest first.
   leads: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/leads?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
-  // The company's published custom fields for tasks (installed by vertical packs), for a team or vertical when given:
-  taskCustomFields: (orgId, unitId, verticalId, { signal } = {}) =>
-    listAll(
-      `${IDENTITY}/field-definitions`,
-      orgId,
-      {
-        object_type: 'task.task',
-        status: 'published',
-        scoped: true,
-        ...(unitId ? { org_unit_id: unitId } : {}),
-        ...(verticalId ? { vertical_id: verticalId } : {}),
-      },
-      { signal }
-    ),
 }

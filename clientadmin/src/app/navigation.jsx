@@ -40,9 +40,9 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 9h6M7 13h10M7 17h4" /><path d="M17 7v4M15 9h4" /></>),
   },
   {
-    to: '/vertical-packs',
-    label: 'Vertical packs',
-    access: ACCESS.verticalPacks,
+    to: '/verticals',
+    label: 'Verticals',
+    access: ACCESS.verticals,
     icon: icon(<><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" /><path d="M4 7.5l8 4.5 8-4.5M12 12v9" /></>),
   },
   {

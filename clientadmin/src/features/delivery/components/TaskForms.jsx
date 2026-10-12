@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { tasksApi } from '@/features/delivery/api.js'
-import TaskFieldInputs from '@/features/delivery/components/TaskFieldInputs.jsx'
-import { OUTCOME_KINDS, attributeErrors, checkFields, toAttributes, toFormValues } from '@/features/delivery/taskFields.js'
+import CustomFieldInputs from '@/shared/components/CustomFieldInputs.jsx'
+import { OUTCOME_KINDS, attributeErrors } from '@/features/delivery/taskFields.js'
+import { checkFields, toAttributes, toFormValues } from '@/shared/utils/customFields.js'
 import { formatDateTime } from '@/features/delivery/utils.js'
 import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -97,7 +98,7 @@ export function SubmitForm({ task, taskType, fields, busy, error, onCancel, onSu
           {fieldErrors.outcome && <div className="field-error">{fieldErrors.outcome}</div>}
         </div>
       )}
-      <TaskFieldInputs fields={submitFields} values={values} onChange={setValues} errors={fieldErrors} stage="submit" idPrefix="submit" />
+      <CustomFieldInputs fields={submitFields} values={values} onChange={setValues} errors={fieldErrors} stage="submit" idPrefix="submit" />
       <div className="field">
         <label htmlFor="submit_note">Note</label>
         <input id="submit_note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was done, anything to know" />
