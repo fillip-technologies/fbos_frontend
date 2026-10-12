@@ -110,33 +110,110 @@ export function effectiveAccess({ permissions }) {
   return [...merged.values()].sort((a, b) => a.code.localeCompare(b.code))
 }
 
-const sameLevel = (perm, level) => (perm.scope_unit_id || null) === level.scope_unit_id && perm.self_only === level.self_only
+// ---- Role presets in the editor ----
+// A preset is { key, role_id, scope_unit_id, self_only }. While a preset is applied the user
+// holds every permission of its role in its scope (the server expands presets the same way),
+// so each permission it added is tagged with its `preset_key`.
 
-// The one level at which every permission of a role applied in the editor is still held,
-// or undefined once its permissions were moved to different levels or removed.
-function uniformLevel(preset, role, permissions) {
-  const heldAt = (level) => role.permissions.every((code) => permissions.some((p) => p.code === code && sameLevel(p, level)))
-  const own = { scope_unit_id: preset.scope_unit_id || null, self_only: preset.self_only }
-  if (heldAt(own)) return own
-  return permissions
-    .filter((p) => p.preset_key === preset.key)
-    .map((p) => ({ scope_unit_id: p.scope_unit_id || null, self_only: p.self_only }))
-    .find(heldAt)
+const sameScope = (a, b) => (a.scope_unit_id || null) === (b.scope_unit_id || null)
+const grants = (rolesById, preset, code) => Boolean(rolesById[preset.role_id]?.permissions.includes(code))
+
+// Whether `perm` gives what `preset` needs for `perm.code`: same scope, at least as broad.
+const satisfies = (perm, preset) => sameScope(perm, preset) && (preset.self_only || !perm.self_only)
+
+export const samePresetScope = (a, b) => a.role_id === b.role_id && sameScope(a, b)
+
+// Adds `preset` and every permission of its role the user doesn't already hold there.
+// A permission already held more narrowly is widened, as the server would.
+export function applyPreset(value, preset, rolesById, newKey) {
+  const role = rolesById[preset.role_id]
+  if (!role) return value
+  const permissions = value.permissions.map((p) =>
+    grants(rolesById, preset, p.code) && sameScope(p, preset) && p.self_only && !preset.self_only ? { ...p, self_only: false } : p
+  )
+  const added = role.permissions
+    .filter((code) => !permissions.some((p) => p.code === code && sameScope(p, preset)))
+    .map((code) => ({
+      key: newKey(),
+      code,
+      scope_unit_id: preset.scope_unit_id || null,
+      self_only: preset.self_only,
+      source_role: role.code,
+      preset_key: preset.key,
+    }))
+  return { presets: [...value.presets, preset], permissions: [...permissions, ...added] }
+}
+
+// Takes a preset off. What it added goes too, except permissions another remaining preset
+// also grants in that scope: those stay, credited to that role, at its level.
+export function removePresets(value, keys, rolesById) {
+  const gone = new Set(keys)
+  const rest = value.presets.filter((p) => !gone.has(p.key))
+  const permissions = value.permissions.flatMap((perm) => {
+    if (!gone.has(perm.preset_key)) return [perm]
+    const other = rest.find((p) => sameScope(p, perm) && grants(rolesById, p, perm.code))
+    if (!other) return []
+    return [{ ...perm, self_only: other.self_only, preset_key: other.key, source_role: rolesById[other.role_id].code }]
+  })
+  return { presets: rest, permissions }
+}
+
+// Moves a preset to another scope or level: its permissions move with it.
+export function updatePreset(value, key, patch, rolesById, newKey) {
+  const preset = value.presets.find((p) => p.key === key)
+  if (!preset) return value
+  return applyPreset(removePresets(value, [key], rolesById), { ...preset, ...patch }, rolesById, newKey)
+}
+
+// Adds the permissions a preset's role gained after it was applied. Returns the new value
+// and, per preset, the codes added, so the editor can say so before it's saved.
+export function syncPresets(value, rolesById, newKey) {
+  let next = { ...value, presets: [] }
+  const changes = []
+  for (const preset of value.presets) {
+    const before = next.permissions.length
+    next = applyPreset(next, preset, rolesById, newKey)
+    const codes = next.permissions.slice(before).map((p) => p.code)
+    if (codes.length) changes.push({ preset, codes })
+  }
+  // A preset whose role is unknown here is kept untouched.
+  next.presets = value.presets
+  return { value: next, changes }
+}
+
+// After a permission is edited on its own: a preset that is no longer fully held is taken
+// off (its permissions stay as they are), otherwise saving would put the permission back.
+// Returns the new value and the presets taken off.
+export function pruneUnheldPresets(value, rolesById) {
+  const dropped = value.presets.filter((preset) => {
+    const role = rolesById[preset.role_id]
+    return role && !role.permissions.every((code) => value.permissions.some((p) => p.code === code && satisfies(p, preset)))
+  })
+  if (!dropped.length) return { value, dropped }
+  const gone = new Set(dropped.map((p) => p.key))
+  return {
+    value: {
+      presets: value.presets.filter((p) => !gone.has(p.key)),
+      permissions: value.permissions.map((p) => (gone.has(p.preset_key) ? { ...p, preset_key: undefined } : p)),
+    },
+    dropped,
+  }
 }
 
 // Request body pieces for POST /users and PUT /users/{id}/permissions. Every permission
-// names the role it came from; a role applied here is also recorded as a preset (shown on
-// the user, and used to find users by role) while it still applies at one level.
-export function toRequestAccess({ presets, permissions }, roles) {
-  const rolesById = Object.fromEntries(roles.map((r) => [r.id, r]))
-  const roleAssignments = []
-  for (const preset of presets) {
-    const role = rolesById[preset.role_id]
-    const level = role && uniformLevel(preset, role, permissions)
-    if (level) roleAssignments.push({ role_id: role.id, ...level })
-  }
+// names the role it came from. `role_assignments` is the user's complete set of presets;
+// with `includePresets: false` it is left out, so the server keeps the presets it has.
+export function toRequestAccess({ presets, permissions }, { includePresets = true } = {}) {
   return {
-    role_assignments: roleAssignments,
+    ...(includePresets
+      ? {
+          role_assignments: presets.map((p) => ({
+            role_id: p.role_id,
+            scope_unit_id: p.scope_unit_id || null,
+            self_only: p.self_only,
+          })),
+        }
+      : {}),
     permissions: permissions.map((p) => ({
       code: p.code,
       scope_unit_id: p.scope_unit_id || null,
