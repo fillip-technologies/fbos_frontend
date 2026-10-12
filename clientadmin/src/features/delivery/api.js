@@ -184,6 +184,8 @@ export const setupApi = {
   updateProjectType: (orgId, id, body) => api.patch(`${DELIVERY}/work-unit-types/${id}`, body, { headers: inOrg(orgId) }),
   templates: (orgId, { signal } = {}) => listAll(`${DELIVERY}/templates`, orgId, {}, { signal }),
   createTemplate: (orgId, body) => api.post(`${DELIVERY}/templates`, body, { headers: inOrg(orgId) }),
+  // { name?, vertical_id? (null: any), status?: 'active' | 'retired' }; a retired template starts no new project.
+  updateTemplate: (orgId, code, body) => api.patch(`${DELIVERY}/templates/${code}`, body, { headers: inOrg(orgId) }),
   templateVersions: (orgId, code, { signal } = {}) => listAll(`${DELIVERY}/templates/${code}/versions`, orgId, {}, { signal }),
   createTemplateVersion: (orgId, code, body) => api.post(`${DELIVERY}/templates/${code}/versions`, body, { headers: inOrg(orgId) }),
   publishTemplateVersion: (orgId, code, versionNo) =>
