@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { tasksApi } from '@/features/delivery/api.js'
-import TaskFieldInputs from '@/features/delivery/components/TaskFieldInputs.jsx'
-import { attributeErrors, checkFields, formatFieldValue, isEmpty, toAttributes, toFormValues } from '@/features/delivery/taskFields.js'
+import CustomFieldInputs from '@/shared/components/CustomFieldInputs.jsx'
+import { attributeErrors } from '@/features/delivery/taskFields.js'
+import { checkFields, formatFieldValue, isEmpty, toAttributes, toFormValues } from '@/shared/utils/customFields.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -68,7 +69,7 @@ export default function TaskAttributes({ orgId, task, setTask, taskType, fields 
       {editing ? (
         <form onSubmit={save} style={{ marginTop: 12 }}>
           {error && Object.keys(serverProblems).length === 0 && <ErrorBanner error={error} />}
-          <TaskFieldInputs fields={fields} values={values} onChange={setValues} errors={{ ...serverProblems, ...problems }} idPrefix="edit" />
+          <CustomFieldInputs fields={fields} values={values} onChange={setValues} errors={{ ...serverProblems, ...problems }} idPrefix="edit" />
           <div className="row-actions">
             <button className="btn" type="submit" disabled={busy} aria-busy={busy}>Save</button>
             <button className="btn secondary" type="button" onClick={() => setEditing(false)}>Cancel</button>

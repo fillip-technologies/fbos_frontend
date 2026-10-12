@@ -24,8 +24,8 @@ const OrgUnitCreate = lazy(pages.OrgUnitCreate)
 const OrgUnitDetail = lazy(pages.OrgUnitDetail)
 const Calendars = lazy(pages.Calendars)
 const CustomFields = lazy(pages.CustomFields)
-const VerticalPacks = lazy(pages.VerticalPacks)
-const PackDesigner = lazy(pages.PackDesigner)
+const FormFields = lazy(pages.FormFields)
+const Verticals = lazy(pages.Verticals)
 const AuditLog = lazy(pages.AuditLog)
 const Profile = lazy(pages.Profile)
 const Notifications = lazy(pages.Notifications)
@@ -108,8 +108,10 @@ export default function App() {
           <Route path="/org-units/:id" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnitDetail /></RequireAccess>} />
           <Route path="/calendars" element={<RequireAccess rule={ACCESS.calendars}><Calendars /></RequireAccess>} />
           <Route path="/custom-fields" element={<RequireAccess rule={ACCESS.customFields}><CustomFields /></RequireAccess>} />
-          <Route path="/vertical-packs" element={<RequireAccess rule={ACCESS.verticalPacks}><VerticalPacks /></RequireAccess>} />
-          <Route path="/vertical-packs/:id" element={<RequireAccess rule={ACCESS.verticalPacks}><PackDesigner /></RequireAccess>} />
+          <Route path="/custom-fields/:form" element={<RequireAccess rule={ACCESS.customFields}><FormFields /></RequireAccess>} />
+          <Route path="/verticals" element={<RequireAccess rule={ACCESS.verticals}><Verticals /></RequireAccess>} />
+          {/* Vertical packs were replaced by per-form custom fields and the Verticals page. */}
+          <Route path="/vertical-packs/*" element={<Navigate to="/verticals" replace />} />
           <Route path="/leads" element={<RequireAccess rule={ACCESS.leads}><Leads /></RequireAccess>} />
           <Route path="/leads/new" element={<RequireAccess rule={ACCESS.manageLeads}><LeadCreate /></RequireAccess>} />
           <Route path="/leads/:id" element={<RequireAccess rule={ACCESS.leads}><LeadDetail /></RequireAccess>} />

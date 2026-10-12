@@ -4,16 +4,14 @@ import { projectsApi, setupApi } from '@/features/delivery/api.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import { PROJECT_PRIORITY_LABELS } from '@/features/delivery/utils.js'
 import { orgUnitsApi } from '@/features/org-units/api.js'
-import { customFieldsApi } from '@/features/verticals/api.js'
+import CustomFieldsSection from '@/features/verticals/components/CustomFieldsSection.jsx'
+import useFormFields from '@/features/verticals/useFormFields.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { invalidate, useLookup } from '@/shared/api/useQuery.js'
-import DynamicCustomFields, {
-  cleanCustomFieldValues,
-  parseDefinitionsFields,
-} from '@/shared/components/DynamicCustomFields.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { checkFields, toAttributes } from '@/shared/utils/customFields.js'
 import { todayIso } from '@/shared/utils/dates.js'
 
 export default function ProjectCreate() {
@@ -43,27 +41,18 @@ export default function ProjectCreate() {
     billable: true,
   })
   const [customAttributes, setCustomAttributes] = useState({})
+  const [problems, setProblems] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const fieldErrors = getFieldErrors(error)
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }))
 
-  // Fetch applicable custom field schemas for work.work_unit based on vertical and owning unit
-  const { data: customFieldDefs = [] } = useLookup(
-    ['project-custom-fields', orgId, form.vertical_id || 'all', form.owning_unit_id || 'none'],
-    ({ signal }) =>
-      customFieldsApi.list(
-        orgId,
-        {
-          object_type: 'work.work_unit',
-          status: 'published',
-          ...(form.vertical_id ? { vertical_id: form.vertical_id } : {}),
-          ...(form.owning_unit_id ? { org_unit_id: form.owning_unit_id } : {}),
-        },
-        { signal }
-      ).catch(() => []),
-    { enabled }
-  )
+  // Custom fields for the project's vertical, else its team's verticals; rules see the form's values.
+  const customFields = useFormFields(orgId, 'work.work_unit', {
+    verticalId: form.vertical_id,
+    unitId: form.owning_unit_id,
+    values: form,
+  })
 
   const projectType = types.find((t) => t.code === form.work_unit_type_code)
   const typeTemplates = templates.filter(
@@ -101,6 +90,9 @@ export default function ProjectCreate() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    const found = checkFields(customFields, customAttributes)
+    setProblems(found)
+    if (Object.keys(found).length > 0) return
     setError(null)
     setSubmitting(true)
     try {
@@ -119,11 +111,8 @@ export default function ProjectCreate() {
       if (contractId) body.contract_id = contractId
       if (form.vertical_id) body.vertical_id = form.vertical_id
 
-      const fields = parseDefinitionsFields(customFieldDefs)
-      const cleaned = cleanCustomFieldValues(fields, customAttributes)
-      if (Object.keys(cleaned).length > 0) {
-        body.attributes = cleaned
-      }
+      const attributes = toAttributes(customFields, customAttributes)
+      if (Object.keys(attributes).length > 0) body.attributes = attributes
 
       const created = await projectsApi.create(orgId, body)
       invalidate(['projects', orgId])
@@ -257,17 +246,15 @@ export default function ProjectCreate() {
           Billable to the customer
         </label>
 
-        {customFieldDefs.length > 0 && (
-          <div className="subpanel" style={{ marginTop: 16 }}>
-            <div className="subpanel-title">Custom Fields</div>
-            <DynamicCustomFields
-              definitions={customFieldDefs}
-              values={customAttributes}
-              onChange={setCustomAttributes}
-              errors={fieldErrors}
-            />
-          </div>
-        )}
+        <div style={{ marginTop: 16 }}>
+          <CustomFieldsSection
+            formCode="work.work_unit"
+            fields={customFields}
+            values={customAttributes}
+            onChange={setCustomAttributes}
+            errors={{ ...fieldErrors, ...problems }}
+          />
+        </div>
 
         <div className="row-actions" style={{ marginTop: 16 }}>
           <button className="btn" type="submit" disabled={submitting} aria-busy={submitting}>Create project</button>

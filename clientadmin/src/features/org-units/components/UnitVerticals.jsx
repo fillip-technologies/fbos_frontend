@@ -76,7 +76,7 @@ function VerticalsSummary({ resolved, settable, hasOptions }) {
       ) : (
         <p className="muted small" style={{ margin: 0 }}>
           None yet, so only custom fields that aren't tied to a vertical apply here.
-          {!hasOptions && <> Add verticals on <Link to="/vertical-packs">Vertical packs</Link> first.</>}
+          {!hasOptions && <> Add verticals on <Link to="/verticals">Verticals</Link> first.</>}
         </p>
       )}
       {from && (
@@ -131,7 +131,7 @@ function VerticalsForm({ orgId, unit, resolved, options, onCancel, onSaved }) {
       <ErrorBanner error={error && Object.keys(fieldErrors).length === 0 ? error : null} />
       {Object.values(fieldErrors).map((issue) => <div key={issue} className="field-error">{issue}</div>)}
       {choices.length === 0 ? (
-        <p className="muted small">No verticals yet. Add them on <Link to="/vertical-packs">Vertical packs</Link>.</p>
+        <p className="muted small">No verticals yet. Add them on <Link to="/verticals">Verticals</Link>.</p>
       ) : (
         <div className="vertical-choices">
           {choices.map((v) => (

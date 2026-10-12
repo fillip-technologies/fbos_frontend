@@ -9,39 +9,32 @@ export const verticalsApi = {
     api.post(`${IDENTITY}/verticals`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
   // { name } and/or { status: 'active' | 'archived' }
   update: (orgId, id, body) => api.patch(`${IDENTITY}/verticals/${id}`, body, { headers: inOrg(orgId) }),
-  objectTypes: (orgId, { signal } = {}) => listAll(`${IDENTITY}/object-types`, orgId, {}, { signal }),
 }
 
-// ---------- Custom fields: per-organization JSON Schemas for a business object type ----------
-// A definition is created as a draft (version 1); publishing makes it live and bumps the version.
-// Definitions installed by a vertical pack carry source_pack_id; replaced ones become 'retired'.
+// ---------- Custom fields: each form's extra fields, kept by Identity ----------
+// Stored as field definitions (JSON Schema lists); `customFieldsApi.list` reads them raw.
 export const customFieldsApi = {
   list: (orgId, params, { signal } = {}) => listAll(`${IDENTITY}/field-definitions`, orgId, params, { signal }),
-  create: (orgId, body) =>
-    api.post(`${IDENTITY}/field-definitions`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
-  publish: (orgId, id, version) =>
-    api.post(`${IDENTITY}/field-definitions/${id}/publish`, undefined, { headers: inOrg(orgId, { 'If-Match': `"${version}"` }) }),
 }
 
-// ---------- Vertical packs: designed once per client in versions, installed per company ----------
-// Each call returns the whole pack: { ..., versions: [{ version_no, status, revision, content }],
-// latest_published_version, draft_version, installation } (installation = this company's).
-const pack = (id) => `${IDENTITY}/vertical-packs/${id}`
+const formPath = (code) => `${IDENTITY}/field-definitions/forms/${encodeURIComponent(code)}`
 
-export const verticalPacksApi = {
-  list: (orgId, { signal } = {}) => listAll(`${IDENTITY}/vertical-packs`, orgId, {}, { signal }),
-  get: (orgId, id, { signal } = {}) => api.get(pack(id), { headers: inOrg(orgId), signal }),
-  create: (orgId, body) =>
-    api.post(`${IDENTITY}/vertical-packs`, body, { headers: inOrg(orgId, { 'Idempotency-Key': uuidv4() }) }),
-  update: (orgId, id, body) => api.patch(pack(id), body, { headers: inOrg(orgId) }),
-  // Starts the next draft as a copy of the latest version.
-  newVersion: (orgId, id) => api.post(`${pack(id)}/versions`, undefined, { headers: inOrg(orgId) }),
-  saveDraft: (orgId, id, versionNo, revision, content) =>
-    api.put(`${pack(id)}/versions/${versionNo}`, { content }, { headers: inOrg(orgId, { 'If-Match': `"${revision}"` }) }),
-  publish: (orgId, id, versionNo, revision) =>
-    api.post(`${pack(id)}/versions/${versionNo}/publish`, undefined, { headers: inOrg(orgId, { 'If-Match': `"${revision}"` }) }),
-  // What installing this version would change in the company: { installed_version_no, items }.
-  preview: (orgId, id, versionNo) => api.get(`${pack(id)}/versions/${versionNo}/preview`, { headers: inOrg(orgId) }),
-  // Idempotent: installing the installed version again changes nothing.
-  install: (orgId, id, versionNo) => api.put(`${pack(id)}/installation`, { version_no: versionNo }, { headers: inOrg(orgId) }),
+export const formFieldsApi = {
+  // { object_type, revision, fields: [{ key, label, type, required, options, help, vertical_ids, show_when }], notes }
+  get: (orgId, code, { signal } = {}) => api.get(formPath(code), { headers: inOrg(orgId), signal }),
+  // Replaces the form's whole list, live at once. `revision` is the one the edit started from:
+  // if someone saved in between, the save is refused (PRECONDITION_FAILED).
+  save: (orgId, code, revision, fields) =>
+    api.put(formPath(code), { fields }, { headers: inOrg(orgId, { 'If-Match': `"${revision}"` }) }),
+  // The live lists that apply to one record: its vertical's, else its team's verticals'. With
+  // neither, only the fields kept for every vertical.
+  forRecord: (orgId, code, { verticalId, unitId } = {}, { signal } = {}) => {
+    const scope = verticalId ? { vertical_id: verticalId } : unitId ? { org_unit_id: unitId } : {}
+    return listAll(
+      `${IDENTITY}/field-definitions`,
+      orgId,
+      { object_type: code, status: 'published', scoped: 'true', ...scope },
+      { signal }
+    )
+  },
 }

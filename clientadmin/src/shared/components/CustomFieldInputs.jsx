@@ -1,8 +1,8 @@
-// The inputs for a task's fields, whatever its kind of work: a pull request link for a story,
-// a phone number for a call, an asset link for a deliverable, a site for a work order.
-// `values` is form state keyed by field key; `stage` marks which fields are required
-// ('create': needed to create, 'submit': needed to submit as well).
-export default function TaskFieldInputs({ fields, values, onChange, errors = {}, stage = 'create', idPrefix = 'attr' }) {
+// The inputs for a record's extra fields: a task type's own fields or a form's custom fields
+// (shared/utils/customFields.js has the types). `values` is form state keyed by field key;
+// `stage` marks which fields are required ('create': needed to save, 'submit': also needed
+// before a task is submitted).
+export default function CustomFieldInputs({ fields, values, onChange, errors = {}, stage = 'create', idPrefix = 'attr' }) {
   if (!fields.length) return null
   const set = (key, value) => onChange({ ...values, [key]: value })
   return (

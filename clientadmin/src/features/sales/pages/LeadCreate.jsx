@@ -9,6 +9,9 @@ import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import useVerticals from '@/features/sales/useVerticals.js'
 import { CONSENT_CHANNELS, DEFAULT_CONSENT_TEXT, LEAD_SOURCES } from '@/features/sales/utils.js'
 import { invalidate } from '@/shared/api/useQuery.js'
+import CustomFieldsSection from '@/features/verticals/components/CustomFieldsSection.jsx'
+import useFormFields from '@/features/verticals/useFormFields.js'
+import { checkFields, toAttributes } from '@/shared/utils/customFields.js'
 
 export default function LeadCreate() {
   const navigate = useNavigate()
@@ -29,14 +32,21 @@ export default function LeadCreate() {
     consent_text: DEFAULT_CONSENT_TEXT,
     consent_channel: 'website_form',
   })
+  const [customValues, setCustomValues] = useState({})
+  const [problems, setProblems] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const fieldErrors = getFieldErrors(error)
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
   const ownerChoices = owners || [me].filter(Boolean)
+  // The company's custom fields for leads of this vertical; rules see the form's values (source).
+  const customFields = useFormFields(orgId, 'revenue.lead', { verticalId: form.vertical_id, values: form })
 
   async function handleSubmit(e) {
     e.preventDefault()
+    const found = checkFields(customFields, customValues)
+    setProblems(found)
+    if (Object.keys(found).length > 0) return
     setError(null)
     setSubmitting(true)
     try {
@@ -50,6 +60,8 @@ export default function LeadCreate() {
         if (form[k].trim()) body[k] = form[k].trim()
       }
       if (form.owner_user_id) body.owner_user_id = form.owner_user_id
+      const attributes = toAttributes(customFields, customValues)
+      if (Object.keys(attributes).length > 0) body.attributes = attributes
       const created = await leadsApi.create(orgId, body)
       invalidate(['leads', orgId])
       navigate(`/leads/${created.id}`, { replace: true })
@@ -113,7 +125,7 @@ export default function LeadCreate() {
                 <option key={v.id} value={v.id}>{v.name}</option>
               ))}
             </select>
-            {verticals.length === 0 && <div className="hint">No verticals yet. Add them on the Vertical packs page.</div>}
+            {verticals.length === 0 && <div className="hint">No verticals yet. Add them on the Verticals page.</div>}
           </div>
           <div className="field">
             <label htmlFor="source">Source</label>
@@ -139,6 +151,14 @@ export default function LeadCreate() {
             <input id="campaign_ref" value={form.campaign_ref} onChange={(e) => set('campaign_ref', e.target.value)} />
           </div>
         )}
+
+        <CustomFieldsSection
+          formCode="revenue.lead"
+          fields={customFields}
+          values={customValues}
+          onChange={setCustomValues}
+          errors={{ ...fieldErrors, ...problems }}
+        />
 
         <h3 style={{ margin: '8px 0 6px', fontSize: 15 }}>Consent</h3>
         <p className="muted small" style={{ marginTop: 0 }}>
