@@ -76,7 +76,7 @@ const NAV_PAGES = {
   '/tasks': [pages.Tasks, pages.TaskDetail, pages.TaskCreate],
   '/requests': [pages.Requests, pages.RequestCreate, pages.TaskDetail],
   '/task-types': [pages.TaskTypes, pages.WorkflowBuilder],
-  '/project-templates': [pages.ProjectTemplates, pages.ProjectTemplateBuilder],
+  '/project-templates': [pages.ProjectTemplates, pages.ProjectTemplateBuilder, pages.WorkflowBuilder],
   '/invoices': [pages.Invoices, pages.InvoiceDetail, pages.InvoiceCreate],
   '/payments': [pages.Payments, pages.PaymentDetail, pages.PaymentCreate],
   '/collections': [pages.Collections],

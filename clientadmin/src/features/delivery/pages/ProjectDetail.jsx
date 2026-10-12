@@ -6,6 +6,7 @@ import ProjectOverview from '@/features/delivery/components/ProjectOverview.jsx'
 import ProjectRisks from '@/features/delivery/components/ProjectRisks.jsx'
 import ProjectTasks from '@/features/delivery/components/ProjectTasks.jsx'
 import ProjectTeam from '@/features/delivery/components/ProjectTeam.jsx'
+import ProjectWorkPackages from '@/features/delivery/components/ProjectWorkPackages.jsx'
 import WorkflowPanel from '@/features/delivery/components/WorkflowPanel.jsx'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import { HEALTH_LABELS, PROJECT_STATUS_LABELS, SUBJECT_TYPES } from '@/features/delivery/utils.js'
@@ -92,7 +93,12 @@ export default function ProjectDetail() {
         </>
       )}
       {tab === 'tasks' && <ProjectTasks {...tabProps} />}
-      {tab === 'milestones' && <ProjectMilestones {...tabProps} />}
+      {tab === 'milestones' && (
+        <>
+          <ProjectMilestones {...tabProps} />
+          <ProjectWorkPackages {...tabProps} />
+        </>
+      )}
       {tab === 'team' && <ProjectTeam {...tabProps} />}
       {tab === 'risks' && <ProjectRisks {...tabProps} />}
       {tab === 'changes' && <ProjectChangeRequests {...tabProps} />}
