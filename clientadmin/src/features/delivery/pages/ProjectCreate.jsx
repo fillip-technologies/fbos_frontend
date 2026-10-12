@@ -165,7 +165,7 @@ export default function ProjectCreate() {
                 <option key={t.code} value={t.code}>{t.name}</option>
               ))}
             </select>
-            <div className="hint">A template adds its phases and milestones.</div>
+            <div className="hint">A template adds its phases and milestones; each milestone starts on the project’s due date.</div>
           </div>
         </div>
 

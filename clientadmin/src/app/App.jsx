@@ -57,6 +57,8 @@ const DocumentCategories = lazy(pages.DocumentCategories)
 const Projects = lazy(pages.Projects)
 const ProjectCreate = lazy(pages.ProjectCreate)
 const ProjectDetail = lazy(pages.ProjectDetail)
+const ProjectTemplates = lazy(pages.ProjectTemplates)
+const ProjectTemplateBuilder = lazy(pages.ProjectTemplateBuilder)
 const Tasks = lazy(pages.Tasks)
 const TaskCreate = lazy(pages.TaskCreate)
 const TaskDetail = lazy(pages.TaskDetail)
@@ -130,6 +132,8 @@ export default function App() {
           <Route path="/projects" element={<RequireAccess rule={ACCESS.projects}><Projects /></RequireAccess>} />
           <Route path="/projects/new" element={<RequireAccess rule={ACCESS.manageProjects}><ProjectCreate /></RequireAccess>} />
           <Route path="/projects/:id" element={<RequireAccess rule={ACCESS.projects}><ProjectDetail /></RequireAccess>} />
+          <Route path="/project-templates" element={<RequireAccess rule={ACCESS.projectTemplates}><ProjectTemplates /></RequireAccess>} />
+          <Route path="/project-templates/:code" element={<RequireAccess rule={ACCESS.projectTemplates}><ProjectTemplateBuilder /></RequireAccess>} />
           <Route path="/tasks" element={<RequireAccess rule={ACCESS.tasks}><Tasks /></RequireAccess>} />
           <Route path="/tasks/new" element={<RequireAccess rule={ACCESS.manageTasks}><TaskCreate /></RequireAccess>} />
           <Route path="/tasks/:id" element={<RequireAccess rule={ACCESS.tasks}><TaskDetail /></RequireAccess>} />

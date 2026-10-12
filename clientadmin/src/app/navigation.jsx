@@ -94,6 +94,12 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 17.5h7M17.5 14v7" /></>),
   },
   {
+    to: '/project-templates',
+    label: 'Project templates',
+    access: ACCESS.projectTemplates,
+    icon: icon(<><rect x="4" y="3" width="16" height="18" rx="2" strokeDasharray="3 2" /><path d="M8 8h8M8 12h8M8 16h5" /></>),
+  },
+  {
     to: '/invoices',
     label: 'Invoices',
     access: ACCESS.invoices,

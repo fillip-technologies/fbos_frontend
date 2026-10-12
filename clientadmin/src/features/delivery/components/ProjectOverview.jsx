@@ -109,6 +109,7 @@ function ProjectCounts({ summary }) {
   return (
     <div className="panel">
       <div className="details-grid">
+        {summary.phases.length > 0 && <Detail label="Phases">{summary.phases.map((p) => p.name).join(' → ')}</Detail>}
         <Detail label="Milestones">{milestones.length ? `${finished} of ${milestones.length} done` : 'None yet'}</Detail>
         <Detail label="Open risks">{String(summary.risks_open)}</Detail>
         <Detail label="Changes waiting for a decision">{String(summary.pending_approvals)}</Detail>
