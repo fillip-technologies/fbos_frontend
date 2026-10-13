@@ -29,6 +29,7 @@ export const opportunitiesApi = {
     api.post(`${REVENUE}/opportunities/${id}/lost`, body, { headers: ifMatch(orgId, version) }),
   // Every revision, newest first.
   quotations: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/opportunities/${id}/quotations`, { headers: inOrg(orgId), signal }),
+  // A new option; { copy_from, name, valid_until? } copies another quotation of the opportunity (files too).
   createQuotation: (orgId, id, body) =>
     api.post(`${REVENUE}/opportunities/${id}/quotations`, body, { headers: inOrg(orgId) }),
 }
@@ -39,6 +40,9 @@ const quotationAction = (action) => (orgId, quote, body) =>
 
 export const quotationsApi = {
   get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/quotations/${id}`, { headers: inOrg(orgId), signal }),
+  // { name } renames the option; { is_main: true } makes it the opportunity's main quotation.
+  update: (orgId, quote, body) =>
+    api.patch(`${REVENUE}/quotations/${quote.id}`, body, { headers: ifMatch(orgId, quote.version) }),
   replaceItems: (orgId, quote, items) =>
     api.put(`${REVENUE}/quotations/${quote.id}/items`, { items }, { headers: ifMatch(orgId, quote.version) }),
   submit: quotationAction('submit'),

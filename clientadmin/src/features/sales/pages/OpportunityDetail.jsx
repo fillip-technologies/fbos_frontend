@@ -24,7 +24,15 @@ import {
   quotationActions,
 } from '@/features/sales/components/QuotationActions.jsx'
 import QuotationItemsEditor, { newItem, rowsToItems } from '@/features/sales/components/QuotationItemsEditor.jsx'
-import { LOST_REASONS, OPEN_STAGES, QUOTATION_CLOSED_TO_FILES, QUOTATION_STATUS_LABELS, SUBJECTS, humanize } from '@/features/sales/utils.js'
+import {
+  LOST_REASONS,
+  OPEN_QUOTATION_STATUSES,
+  OPEN_STAGES,
+  QUOTATION_CLOSED_TO_FILES,
+  QUOTATION_STATUS_LABELS,
+  SUBJECTS,
+  humanize,
+} from '@/features/sales/utils.js'
 import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
 import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 
@@ -55,6 +63,7 @@ function NewQuotation({ orgId, opportunityId, onCreated, onCancel }) {
     offeringsApi.listAll(orgId, { signal })
   )
   const [rows, setRows] = useState([newItem()])
+  const [name, setName] = useState('')
   const [validUntil, setValidUntil] = useState(inDays(30))
   const [terms, setTerms] = useState('')
   const [saving, setSaving] = useState(false)
@@ -66,6 +75,7 @@ function NewQuotation({ orgId, opportunityId, onCreated, onCancel }) {
     setSaving(true)
     try {
       const body = { valid_until: validUntil, items: rowsToItems(rows, offerings) }
+      if (name.trim()) body.name = name.trim()
       if (terms.trim()) body.terms = terms.trim()
       onCreated(await opportunitiesApi.createQuotation(orgId, opportunityId, body))
     } catch (err) {
@@ -77,11 +87,24 @@ function NewQuotation({ orgId, opportunityId, onCreated, onCancel }) {
   return (
     <form className="inline-panel" onSubmit={handleSubmit}>
       <h3>New quotation</h3>
+      <p className="muted small" style={{ marginTop: 0 }}>
+        Several options can be open at once; the main one sets the expected value. Accepting one closes the others.
+      </p>
       <ErrorBanner error={error || offeringsError} />
       {offerings === null ? (
         !offeringsError && <div className="center-note">Loading offerings…</div>
       ) : (
         <>
+          <div className="field" style={{ maxWidth: 360 }}>
+            <label htmlFor="q-name">Option name</label>
+            <input
+              id="q-name"
+              maxLength={120}
+              placeholder="e.g. Option A – Basic"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
           <QuotationItemsEditor rows={rows} setRows={setRows} offerings={offerings} />
           <div className="grid-2" style={{ marginTop: 10 }}>
             <div className="field">
@@ -161,7 +184,8 @@ export default function OpportunityDetail() {
     setPanel(null)
     setActing(null)
     invalidate(['quotations', orgId])
-    invalidate(['quotation', orgId, quote.id])
+    // Making one main, or accepting one, changes the others too.
+    invalidate(['quotation', orgId])
     invalidate(['quotation-events', orgId])
     invalidate(['opportunities', orgId])
     quotationsQuery.reload()
@@ -245,12 +269,11 @@ export default function OpportunityDetail() {
 
   const open = OPEN_STAGES.includes(opp.stage)
   const accepted = quotations.find((q) => q.status === 'accepted')
-  // Revisions come newest first; the latest one holds the current files (they carry over on revise).
-  const currentQuote = quotations[0]
+  // The main option's files (they carry over on revise); else the newest quotation's.
+  const currentQuote =
+    quotations.find((q) => q.is_main && OPEN_QUOTATION_STATUSES.includes(q.status)) || accepted || quotations[0]
   const canCreateContract = accepted && contracts.length === 0 && hasAccess(me, ACCESS.manageContracts)
-  // One quotation open at a time for now; several options side by side come with named options.
-  const CLOSED = ['superseded', 'rejected', 'withdrawn', 'not_chosen']
-  const canAddQuotation = canManage && open && !quotations.some((q) => !CLOSED.includes(q.status))
+  const canAddQuotation = canManage && open
 
   return (
     <div>
@@ -430,7 +453,8 @@ export default function OpportunityDetail() {
           <table>
             <thead>
               <tr>
-                <th>Quotation</th>
+                <th>Option</th>
+                <th aria-label="Main" />
                 <th>Status</th>
                 <th>Total</th>
                 <th>Valid until</th>
@@ -441,7 +465,21 @@ export default function OpportunityDetail() {
             <tbody>
               {quotations.map((q) => (
                 <tr key={q.id} onClick={() => navigate(`/quotations/${q.id}`)}>
-                  <td className="mono">{q.quote_no} · rev {q.revision_no}</td>
+                  <td>
+                    {q.name ? (
+                      <>
+                        <div>{q.name}</div>
+                        <div className="muted small mono">{q.quote_no} · rev {q.revision_no}</div>
+                      </>
+                    ) : (
+                      <span className="mono">{q.quote_no} · rev {q.revision_no}</span>
+                    )}
+                  </td>
+                  <td>
+                    {q.is_main && (
+                      <span className="main-star" title="Main quotation: sets the expected value" aria-label="Main quotation">★</span>
+                    )}
+                  </td>
                   <td>
                     <StatusBadge status={q.status} label={QUOTATION_STATUS_LABELS[q.status]} />
                     {q.is_expired && <> <StatusBadge status="expired" label="Expired" /></>}
@@ -451,7 +489,7 @@ export default function OpportunityDetail() {
                   <td>{q.last_sent_at ? formatDate(q.last_sent_at.slice(0, 10)) : '—'}</td>
                   <td style={{ textAlign: 'right' }}>
                     <QuotationActionMenu
-                      actions={quotationActions(q, { canManage, canApprove, canCreateContract })}
+                      actions={quotationActions(q, { canManage, canApprove, canCreateContract, opportunityOpen: open })}
                       disabled={saving}
                       onPick={(action) => pickQuotationAction(q, action)}
                     />

@@ -608,3 +608,4 @@ td.skeleton-wait { border-bottom: 0; }
 .quotation-history { list-style: none; margin: 0; padding: 0; }
 .quotation-history li { padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px; }
 .quotation-history li:first-child { border-top: 0; }
+.main-star { color: #d97706; font-size: 15px; }

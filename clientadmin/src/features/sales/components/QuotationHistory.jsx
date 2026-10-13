@@ -34,9 +34,19 @@ function Details({ event }) {
     case 'revised':
       return data.revision_id ? <Link to={`/quotations/${data.revision_id}`}>Rev {data.revision_no}</Link> : null
     case 'created':
+      if (data.copied_from)
+        return (
+          <>Copied from <Link to={`/quotations/${data.copied_from}`}>{data.quote_no} rev {data.revision_no}</Link></>
+        )
       return data.revision_id ? (
         <>From <Link to={`/quotations/${data.revision_id}`}>rev {data.revision_no}</Link></>
       ) : null
+    case 'not_chosen':
+      return data.accepted_id ? (
+        <>The customer accepted <Link to={`/quotations/${data.accepted_id}`}>{data.quote_no} rev {data.revision_no}</Link></>
+      ) : null
+    case 'renamed':
+      return `${data.from || 'No name'} → ${data.to || 'no name'}`
     default:
       return null
   }

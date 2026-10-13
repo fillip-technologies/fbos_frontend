@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { quotationsApi } from '@/features/sales/api.js'
-import { WITHDRAWAL_REASONS } from '@/features/sales/utils.js'
+import { opportunitiesApi, quotationsApi } from '@/features/sales/api.js'
+import { OPEN_QUOTATION_STATUSES, WITHDRAWAL_REASONS, quotationTitle } from '@/features/sales/utils.js'
+import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { toIsoDate, todayIso } from '@/shared/utils/dates.js'
 import { formatDate } from '@/shared/utils/format.js'
@@ -24,33 +25,44 @@ const ACTIONS = {
   validity: { label: 'Extend validity…', kind: 'form' },
   withdraw: { label: 'Withdraw…', kind: 'form', danger: true },
   contract: { label: 'Create contract', kind: 'page' },
+  makeMain: { label: 'Make main quotation', kind: 'run' },
+  rename: { label: 'Rename…', kind: 'form' },
+  duplicate: { label: 'Duplicate as new option…', kind: 'form' },
 }
 
 const BY_STATUS = {
-  draft: ['open', 'submit', 'email', 'withdraw'],
-  pending_approval: ['approve', 'withdraw'],
-  approved: ['email', 'send', 'withdraw'],
-  sent: ['emailAgain', 'accept', 'changes', 'reject', 'revise', 'validity', 'withdraw'],
-  changes_requested: ['revise', 'emailAgain', 'reject', 'validity', 'withdraw'],
-  accepted: ['contract', 'emailAgain'],
+  draft: ['open', 'submit', 'email', 'makeMain', 'rename', 'duplicate', 'withdraw'],
+  pending_approval: ['approve', 'makeMain', 'rename', 'withdraw'],
+  approved: ['email', 'send', 'makeMain', 'rename', 'duplicate', 'withdraw'],
+  sent: ['emailAgain', 'accept', 'changes', 'reject', 'revise', 'validity', 'makeMain', 'rename', 'duplicate', 'withdraw'],
+  changes_requested: ['revise', 'emailAgain', 'reject', 'validity', 'makeMain', 'rename', 'withdraw'],
+  accepted: ['contract', 'emailAgain', 'rename', 'duplicate'],
+  rejected: ['duplicate'],
+  withdrawn: ['duplicate'],
+  not_chosen: ['duplicate'],
+  superseded: ['duplicate'],
 }
 
 /**
  * The actions this person may take on the quotation now: [{ key, label, kind, danger }].
  * `canManage`: revenue.opportunity.write; `canApprove`: revenue.quotation.approve;
- * `canCreateContract`: may create one and none exists yet.
+ * `canCreateContract`: may create one and none exists yet; `opportunityOpen`: new options may
+ * be added (duplicates).
  */
-export function quotationActions(quote, { canManage, canApprove, canCreateContract = false }) {
+export function quotationActions(quote, { canManage, canApprove, canCreateContract = false, opportunityOpen = false }) {
   return (BY_STATUS[quote.status] || [])
     .filter((key) => {
       if (key === 'approve') return canApprove
       if (key === 'contract') return canCreateContract
+      if (key === 'makeMain') return canManage && !quote.is_main && Boolean(quote.opportunity_id)
+      if (key === 'duplicate') return canManage && opportunityOpen && Boolean(quote.opportunity_id)
       return canManage
     })
     .map((key) => ({ key, ...ACTIONS[key] }))
 }
 
 // The 'run' actions. Revise answers with the new revision, the others with this quotation.
+// (Making one main changes the others too: reload the opportunity's list after it.)
 export function performQuotationAction(orgId, quote, key) {
   switch (key) {
     case 'submit':
@@ -61,6 +73,8 @@ export function performQuotationAction(orgId, quote, key) {
       return quotationsApi.send(orgId, quote)
     case 'revise':
       return quotationsApi.revise(orgId, quote)
+    case 'makeMain':
+      return quotationsApi.update(orgId, quote, { is_main: true })
     default:
       throw new Error(`Not an immediate quotation action: ${key}`)
   }
@@ -127,17 +141,37 @@ function inDays(days) {
   return toIsoDate(d)
 }
 
+const SUBMIT_LABELS = {
+  accept: 'Mark accepted',
+  withdraw: 'Withdraw',
+  reject: 'Record rejection',
+  duplicate: 'Create draft',
+}
+
 const FORM_TITLES = {
   accept: 'Customer accepted',
   changes: 'Customer asked for changes',
   reject: 'Customer rejected',
   validity: 'Extend validity',
   withdraw: 'Withdraw quotation',
+  rename: 'Rename',
+  duplicate: 'Duplicate as new option',
 }
 
-/** The small form a '…' action opens: a confirmation, a note, a reason or a date. */
+/**
+ * The small form a '…' action opens: a confirmation, a note, a reason, a name or a date.
+ * `onDone` gets the saved quotation, which for a duplicate is the new one.
+ */
 export function QuotationActionForm({ orgId, quote, action, onDone, onCancel }) {
   const today = todayIso()
+  // Accepting closes the opportunity's other open options: list them (shared with the opportunity page).
+  const { data: siblings } = useQuery(
+    ['quotations', orgId, { opportunity: quote.opportunity_id }],
+    ({ signal }) => opportunitiesApi.quotations(orgId, quote.opportunity_id, { signal }),
+    { enabled: action === 'accept' && Boolean(quote.opportunity_id) }
+  )
+  const closing = (siblings?.data ?? []).filter((q) => q.id !== quote.id && OPEN_QUOTATION_STATUSES.includes(q.status))
+  const [name, setName] = useState(action === 'duplicate' ? `${quotationTitle(quote)} (copy)` : quote.name || '')
   const [note, setNote] = useState('')
   const [reason, setReason] = useState('mistake')
   const [validUntil, setValidUntil] = useState(quote.valid_until && quote.valid_until >= today ? quote.valid_until : inDays(30))
@@ -156,6 +190,14 @@ export function QuotationActionForm({ orgId, quote, action, onDone, onCancel }) 
         return quotationsApi.setValidity(orgId, quote, validUntil)
       case 'withdraw':
         return quotationsApi.withdraw(orgId, quote, note.trim() ? { reason, note: note.trim() } : { reason })
+      case 'rename':
+        return quotationsApi.update(orgId, quote, { name: name.trim() })
+      case 'duplicate':
+        return opportunitiesApi.createQuotation(orgId, quote.opportunity_id, {
+          copy_from: quote.id,
+          name: name.trim() || undefined,
+          valid_until: validUntil,
+        })
       default:
         throw new Error(`Not a quotation form: ${action}`)
     }
@@ -186,6 +228,12 @@ export function QuotationActionForm({ orgId, quote, action, onDone, onCancel }) 
           <p className="small" style={{ marginTop: 0 }}>
             The opportunity will be marked won, and the customer becomes active if it is still a prospect.
           </p>
+          {closing.length > 0 && (
+            <div className="alert warning small">
+              {closing.length === 1 ? 'This other option' : 'These other options'} will be closed as not chosen:{' '}
+              {closing.map((q) => quotationTitle(q)).join(', ')}.
+            </div>
+          )}
           {quote.is_expired && (
             <div className="alert warning small">
               This quotation was valid until {formatDate(quote.valid_until)}. Make sure the customer accepted it as quoted.
@@ -207,6 +255,32 @@ export function QuotationActionForm({ orgId, quote, action, onDone, onCancel }) 
           <label htmlFor="qa-reason">Why did the customer reject it? *</label>
           <input id="qa-reason" required maxLength={512} value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
+      )}
+
+      {(action === 'rename' || action === 'duplicate') && (
+        <div className="grid-2">
+          <div className="field">
+            <label htmlFor="qa-name">Option name</label>
+            <input
+              id="qa-name"
+              maxLength={120}
+              placeholder="e.g. Option B – Premium"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          {action === 'duplicate' && (
+            <div className="field">
+              <label htmlFor="qa-copy-valid">Valid until *</label>
+              <input id="qa-copy-valid" type="date" required min={today} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+            </div>
+          )}
+        </div>
+      )}
+      {action === 'duplicate' && (
+        <p className="muted small" style={{ marginTop: 0 }}>
+          A new draft with the same lines (taxed again as of today), terms and files.
+        </p>
       )}
 
       {action === 'validity' && (
@@ -236,7 +310,7 @@ export function QuotationActionForm({ orgId, quote, action, onDone, onCancel }) 
 
       <div className="row-actions">
         <button className={danger ? 'btn danger' : 'btn'} type="submit" disabled={busy} aria-busy={busy}>
-          {action === 'accept' ? 'Mark accepted' : action === 'withdraw' ? 'Withdraw' : action === 'reject' ? 'Record rejection' : 'Save'}
+          {SUBMIT_LABELS[action] || 'Save'}
         </button>
         <button type="button" className="btn secondary" onClick={onCancel} disabled={busy}>Cancel</button>
       </div>

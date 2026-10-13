@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { offeringsApi, quotationsApi } from '@/features/sales/api.js'
+import { offeringsApi, opportunitiesApi, quotationsApi } from '@/features/sales/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
@@ -12,7 +12,7 @@ import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import QuotationItemsEditor, { itemToRow, rowsToItems } from '@/features/sales/components/QuotationItemsEditor.jsx'
-import { QUOTATION_CLOSED_TO_FILES, QUOTATION_STATUS_LABELS, WITHDRAWAL_REASONS } from '@/features/sales/utils.js'
+import { OPEN_STAGES, QUOTATION_CLOSED_TO_FILES, QUOTATION_STATUS_LABELS, WITHDRAWAL_REASONS } from '@/features/sales/utils.js'
 import {
   QuotationActionForm,
   performQuotationAction,
@@ -59,6 +59,13 @@ export default function QuotationDetail() {
     reload,
     setData,
   } = useQuery(['quotation', orgId, id], ({ signal }) => quotationsApi.get(orgId, id, { signal }), { enabled: Boolean(orgId) })
+  // Whether new options may still be added (duplicates): only while the opportunity is open.
+  const opportunityId = quote?.opportunity_id
+  const { data: opportunity } = useQuery(
+    ['opportunity', orgId, opportunityId],
+    ({ signal }) => opportunitiesApi.get(orgId, opportunityId, { signal }),
+    { enabled: Boolean(orgId && opportunityId) }
+  )
   const { data: offerings = [] } = useLookup(['offerings', orgId, 'all'], ({ signal }) => offeringsApi.listAll(orgId, { signal }), {
     enabled: Boolean(orgId) && canManage,
   })
@@ -78,6 +85,8 @@ export default function QuotationDetail() {
     setPanel(null)
     invalidate(['quotation-events', orgId])
     invalidate(['quotations', orgId])
+    // Making this one main changes the opportunity's others.
+    if (q.is_main) invalidate(['quotation', orgId])
     invalidate(['opportunity', orgId])
     invalidate(['opportunities', orgId])
   }
@@ -110,7 +119,12 @@ export default function QuotationDetail() {
   const itemsChanged = editing && JSON.stringify(rows) !== JSON.stringify(base.items.map(itemToRow))
   const offeringName = (offeringId) => offerings.find((o) => o.id === offeringId)?.name
   // Creating the contract happens on the opportunity, next to the contract panel.
-  const actions = quotationActions(quote, { canManage, canApprove, canCreateContract: Boolean(quote.opportunity_id) && hasAccess(me, ACCESS.manageContracts) })
+  const actions = quotationActions(quote, {
+    canManage,
+    canApprove,
+    canCreateContract: Boolean(quote.opportunity_id) && hasAccess(me, ACCESS.manageContracts),
+    opportunityOpen: OPEN_STAGES.includes(opportunity?.stage),
+  })
 
   function pick(action) {
     setEmailed(null)
@@ -125,7 +139,12 @@ export default function QuotationDetail() {
       <div className="page-head">
         <div>
           <h1>
-            <span className="mono">{quote.quote_no}</span> · rev {quote.revision_no} <StatusBadge status={quote.status} />
+            {quote.name && <>{quote.name} · </>}
+            <span className="mono">{quote.quote_no}</span> · rev {quote.revision_no}{' '}
+            <StatusBadge status={quote.status} label={QUOTATION_STATUS_LABELS[quote.status]} />
+            {quote.is_main && (
+              <span className="main-star" title="Main quotation: sets the expected value" aria-label="Main quotation"> ★</span>
+            )}
           </h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
             <Link to={`/customers/${quote.client.id}`}>{quote.client.name}</Link>
@@ -227,7 +246,17 @@ export default function QuotationDetail() {
           />
         )}
         {panel && panel !== 'email' && (
-          <QuotationActionForm orgId={orgId} quote={quote} action={panel} onDone={show} onCancel={() => setPanel(null)} />
+          <QuotationActionForm
+            orgId={orgId}
+            quote={quote}
+            action={panel}
+            onDone={(result) => {
+              if (result.id === quote.id) return show(result)
+              invalidate(['quotations', orgId])
+              navigate(`/quotations/${result.id}`) // a duplicate
+            }}
+            onCancel={() => setPanel(null)}
+          />
         )}
 
         {!panel && (editing || actions.length > 0) && (

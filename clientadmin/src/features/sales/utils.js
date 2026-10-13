@@ -72,7 +72,13 @@ export const QUOTATION_EVENT_LABELS = {
   withdrawn: 'Withdrawn',
   not_chosen: 'Not chosen',
   validity_extended: 'Validity changed',
+  renamed: 'Renamed',
+  made_main: 'Made the main quotation',
 }
+// Still open on the opportunity: not yet answered for good.
+export const OPEN_QUOTATION_STATUSES = ['draft', 'pending_approval', 'approved', 'sent', 'changes_requested']
+// "Option A - Basic", else its number and revision.
+export const quotationTitle = (q) => q.name || `${q.quote_no} rev ${q.revision_no}`
 
 export const CONTRACT_TYPES = {
   project: 'Project',
