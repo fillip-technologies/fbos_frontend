@@ -17,8 +17,14 @@ import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
 import ContractForm from '@/features/sales/components/ContractForm.jsx'
 import QuotationEmailForm from '@/features/sales/components/QuotationEmailForm.jsx'
+import {
+  QuotationActionForm,
+  QuotationActionMenu,
+  performQuotationAction,
+  quotationActions,
+} from '@/features/sales/components/QuotationActions.jsx'
 import QuotationItemsEditor, { newItem, rowsToItems } from '@/features/sales/components/QuotationItemsEditor.jsx'
-import { LOST_REASONS, OPEN_STAGES, QUOTATION_CLOSED_TO_FILES, SUBJECTS, humanize } from '@/features/sales/utils.js'
+import { LOST_REASONS, OPEN_STAGES, QUOTATION_CLOSED_TO_FILES, QUOTATION_STATUS_LABELS, SUBJECTS, humanize } from '@/features/sales/utils.js'
 import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
 import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 
@@ -107,6 +113,7 @@ export default function OpportunityDetail() {
   const { ownerName } = useOwners(orgId)
   const canManage = hasAccess(me, ACCESS.manageOpportunities)
   const canSeeContracts = hasAccess(me, ACCESS.contracts)
+  const canApprove = hasAccess(me, ACCESS.approveQuotations)
 
   const oppQuery = useQuery(['opportunity', orgId, id], ({ signal }) => opportunitiesApi.get(orgId, id, { signal }), {
     enabled: Boolean(orgId),
@@ -136,8 +143,10 @@ export default function OpportunityDetail() {
   const { form, setForm, base, rebase } = useRecordForm(opp, toForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  // null | 'quotation' | 'lost' | 'contract' | 'email'
+  // null | 'quotation' | 'lost' | 'contract' | 'email' | 'quotation-action'
   const [panel, setPanel] = useState(null)
+  // The quotation an email or a quotation action is about, and which action.
+  const [acting, setActing] = useState(null) // { quote, action }
   const [emailed, setEmailed] = useState(null)
   // Remounts the timeline so the logged email shows.
   const [timelineKey, setTimelineKey] = useState(0)
@@ -146,6 +155,42 @@ export default function OpportunityDetail() {
 
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+
+  // A quotation changed: its status may have moved the stage, and it may be on the timeline.
+  function quotationChanged(quote) {
+    setPanel(null)
+    setActing(null)
+    invalidate(['quotations', orgId])
+    invalidate(['quotation', orgId, quote.id])
+    invalidate(['quotation-events', orgId])
+    invalidate(['opportunities', orgId])
+    quotationsQuery.reload()
+    oppQuery.reload()
+    setTimelineKey((k) => k + 1)
+  }
+
+  async function pickQuotationAction(quote, action) {
+    setError(null)
+    setEmailed(null)
+    if (action.key === 'open') return navigate(`/quotations/${quote.id}`)
+    if (action.key === 'contract') return setPanel('contract')
+    if (action.key === 'email' || action.key === 'emailAgain') {
+      setActing({ quote, action: 'email' })
+      return setPanel('email')
+    }
+    if (action.kind === 'form') {
+      setActing({ quote, action: action.key })
+      return setPanel('quotation-action')
+    }
+    setSaving(true)
+    try {
+      quotationChanged(await performQuotationAction(orgId, quote, action.key))
+    } catch (err) {
+      setError(err)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function handleSave(e) {
     e.preventDefault()
@@ -203,7 +248,9 @@ export default function OpportunityDetail() {
   // Revisions come newest first; the latest one holds the current files (they carry over on revise).
   const currentQuote = quotations[0]
   const canCreateContract = accepted && contracts.length === 0 && hasAccess(me, ACCESS.manageContracts)
-  const canEmailQuote = canManage && currentQuote && ['draft', 'approved', 'sent', 'accepted'].includes(currentQuote.status)
+  // One quotation open at a time for now; several options side by side come with named options.
+  const CLOSED = ['superseded', 'rejected', 'withdrawn', 'not_chosen']
+  const canAddQuotation = canManage && open && !quotations.some((q) => !CLOSED.includes(q.status))
 
   return (
     <div>
@@ -328,19 +375,8 @@ export default function OpportunityDetail() {
       <div className="panel">
         <div className="section-head">
           <h2 style={{ fontSize: 17 }}>Quotations</h2>
-          {canManage && open && panel !== 'quotation' && !quotations.some((q) => q.status !== 'superseded' && q.status !== 'rejected') && (
+          {canAddQuotation && panel !== 'quotation' && (
             <button className="btn small-btn" onClick={() => setPanel('quotation')}>+ New quotation</button>
-          )}
-          {canEmailQuote && panel !== 'email' && (
-            <button
-              className="btn small-btn"
-              onClick={() => {
-                setEmailed(null)
-                setPanel('email')
-              }}
-            >
-              Email to customer
-            </button>
           )}
         </div>
         {emailed && (
@@ -354,19 +390,26 @@ export default function OpportunityDetail() {
               : 'no files'}
           </div>
         )}
-        {panel === 'email' && currentQuote && (
+        {panel === 'email' && acting && (
           <QuotationEmailForm
+            key={acting.quote.id}
             orgId={orgId}
-            quote={currentQuote}
+            quote={acting.quote}
             canSeeFiles={hasAccess(me, ACCESS.documents)}
             onSent={(sent) => {
+              quotationChanged(sent.quotation)
               setEmailed(sent)
-              setPanel(null)
-              invalidate(['quotations', orgId])
-              invalidate(['quotation', orgId, sent.quotation.id])
-              quotationsQuery.reload()
-              setTimelineKey((k) => k + 1)
             }}
+            onCancel={() => setPanel(null)}
+          />
+        )}
+        {panel === 'quotation-action' && acting && (
+          <QuotationActionForm
+            key={`${acting.quote.id}-${acting.action}`}
+            orgId={orgId}
+            quote={acting.quote}
+            action={acting.action}
+            onDone={quotationChanged}
             onCancel={() => setPanel(null)}
           />
         )}
@@ -391,15 +434,28 @@ export default function OpportunityDetail() {
                 <th>Status</th>
                 <th>Total</th>
                 <th>Valid until</th>
+                <th>Last sent</th>
+                <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
               {quotations.map((q) => (
                 <tr key={q.id} onClick={() => navigate(`/quotations/${q.id}`)}>
                   <td className="mono">{q.quote_no} · rev {q.revision_no}</td>
-                  <td><StatusBadge status={q.status} /></td>
+                  <td>
+                    <StatusBadge status={q.status} label={QUOTATION_STATUS_LABELS[q.status]} />
+                    {q.is_expired && <> <StatusBadge status="expired" label="Expired" /></>}
+                  </td>
                   <td>{formatMoney(q.totals.grand_total)}</td>
                   <td>{formatDate(q.valid_until)}</td>
+                  <td>{q.last_sent_at ? formatDate(q.last_sent_at.slice(0, 10)) : '—'}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <QuotationActionMenu
+                      actions={quotationActions(q, { canManage, canApprove, canCreateContract })}
+                      disabled={saving}
+                      onPick={(action) => pickQuotationAction(q, action)}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>

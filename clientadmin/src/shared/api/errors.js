@@ -77,12 +77,17 @@ const FRIENDLY = {
   ATTACHMENTS_TOO_LARGE: 'The chosen files are too large for one email. Untick some and try again.',
   MAIL_SERVICE_UNAVAILABLE: 'Email can\'t be sent right now. Nothing was sent; please try again shortly.',
   MAIL_NOT_CONFIGURED: 'Email sending isn\'t set up on this server yet. Nothing was sent.',
-  MAIL_SEND_FAILED: 'The mail server didn\'t accept the email, so nothing was sent. Check the addresses and try again.',
+  MAIL_SEND_FAILED: (err) => {
+    const reason = err.details?.detail?.meta?.reason
+    return `The mail server didn't accept the email, so nothing was sent.${reason ? ` It said: ${reason}` : ' Check the addresses and try again.'}`
+  },
   CONTRACT_NOT_FOUND: 'This contract no longer exists.',
   OFFERING_NOT_FOUND: 'That offering no longer exists.',
   INVALID_STATE_TRANSITION: 'That step isn\'t possible from the current status. Reload the page to see the latest.',
   QUOTATION_FROZEN: 'Only a draft quotation\'s lines can be changed. Revise it to make changes.',
   QUOTATION_NOT_ACCEPTED: 'A contract can only be made from an accepted quotation.',
+  VALIDITY_IN_PAST: 'Valid until must be today or later.',
+  CHANGE_NOTE_REQUIRED: 'Write down what the customer asked to change.',
   INVOICE_NOT_FOUND: 'This invoice no longer exists.',
   PAYMENT_NOT_FOUND: 'This payment no longer exists.',
   COLLECTION_CASE_NOT_FOUND: 'This collection case no longer exists.',

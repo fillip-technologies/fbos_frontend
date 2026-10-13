@@ -12,7 +12,14 @@ import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import QuotationItemsEditor, { itemToRow, rowsToItems } from '@/features/sales/components/QuotationItemsEditor.jsx'
-import { QUOTATION_CLOSED_TO_FILES, QUOTATION_STATUS_LABELS, REVISABLE_STATUSES } from '@/features/sales/utils.js'
+import { QUOTATION_CLOSED_TO_FILES, QUOTATION_STATUS_LABELS, WITHDRAWAL_REASONS } from '@/features/sales/utils.js'
+import {
+  QuotationActionForm,
+  performQuotationAction,
+  quotationActions,
+} from '@/features/sales/components/QuotationActions.jsx'
+import QuotationEmailForm from '@/features/sales/components/QuotationEmailForm.jsx'
+import QuotationHistory from '@/features/sales/components/QuotationHistory.jsx'
 import TaxTotals, { LineTaxes, TaxNotes } from '@/features/tax/components/TaxTotals.jsx'
 import { SUPPLY_TYPES } from '@/features/tax/utils.js'
 import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
@@ -23,11 +30,16 @@ const NEXT_STEP = {
   draft: 'Check the lines, then submit. Discounts over 20% go for approval first.',
   pending_approval: 'Waiting for someone with approval rights to approve the discount.',
   approved: 'Approved. Send it to the customer.',
-  sent: 'Sent. Record the customer’s answer: accepted or rejected.',
+  sent: 'Sent. Record the customer’s answer: accepted, changes requested or rejected.',
+  changes_requested: 'The customer asked for changes. Revise it to answer them.',
   accepted: 'Accepted: the opportunity is won. Create the contract from the opportunity.',
   rejected: 'Rejected. Revise it to make a new offer.',
+  withdrawn: 'Withdrawn: we took it back.',
   superseded: 'Replaced by a newer revision.',
+  not_chosen: 'Another quotation on the opportunity was accepted.',
 }
+// Moving these on sends what is saved, so unsaved lines must be saved first.
+const NEEDS_SAVED_LINES = ['submit', 'email', 'send']
 
 // A draft's lines as editable rows; null rows once it is no longer a draft.
 const toRows = (q) => ({ rows: q.status === 'draft' ? q.items.map(itemToRow) : null })
@@ -54,14 +66,17 @@ export default function QuotationDetail() {
   const { form: lines, setForm: setLines, base, rebase } = useRecordForm(quote, toRows)
   const rows = lines?.rows ?? null
   const setRows = (next) => setLines((l) => ({ rows: typeof next === 'function' ? next(l.rows) : next }))
-  const [rejecting, setRejecting] = useState(null) // reason being typed
+  // null | 'email' | a QuotationActionForm action
+  const [panel, setPanel] = useState(null)
+  const [emailed, setEmailed] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
   const show = (q) => {
     setData(q)
     rebase(q)
-    setRejecting(null)
+    setPanel(null)
+    invalidate(['quotation-events', orgId])
     invalidate(['quotations', orgId])
     invalidate(['opportunity', orgId])
     invalidate(['opportunities', orgId])
@@ -94,6 +109,16 @@ export default function QuotationDetail() {
   const editing = canManage && quote.status === 'draft' && rows
   const itemsChanged = editing && JSON.stringify(rows) !== JSON.stringify(base.items.map(itemToRow))
   const offeringName = (offeringId) => offerings.find((o) => o.id === offeringId)?.name
+  // Creating the contract happens on the opportunity, next to the contract panel.
+  const actions = quotationActions(quote, { canManage, canApprove, canCreateContract: Boolean(quote.opportunity_id) && hasAccess(me, ACCESS.manageContracts) })
+
+  function pick(action) {
+    setEmailed(null)
+    if (action.kind === 'run') return run(() => performQuotationAction(orgId, quote, action.key))
+    if (action.key === 'email' || action.key === 'emailAgain') return setPanel('email')
+    if (action.key === 'contract') return navigate(`/opportunities/${quote.opportunity_id}`)
+    if (action.kind === 'form') return setPanel(action.key)
+  }
 
   return (
     <div>
@@ -110,7 +135,10 @@ export default function QuotationDetail() {
                 <Link to={`/opportunities/${quote.opportunity_id}`}>Opportunity</Link>
               </>
             )}
-            {` · valid until ${formatDate(quote.valid_until)} · place of supply ${quote.place_of_supply}`}
+            {` · valid until ${formatDate(quote.valid_until)}`}
+            {quote.is_expired && <> <StatusBadge status="expired" label="Expired" /></>}
+            {quote.last_sent_at && ` · last sent ${formatDate(quote.last_sent_at.slice(0, 10))}`}
+            {` · place of supply ${quote.place_of_supply}`}
             {quote.supply_type && ` (${(SUPPLY_TYPES[quote.supply_type] || quote.supply_type).toLowerCase()})`}
           </p>
         </div>
@@ -124,7 +152,20 @@ export default function QuotationDetail() {
       <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
       <div className="alert info">
         <strong>{QUOTATION_STATUS_LABELS[quote.status] || quote.status}.</strong> {NEXT_STEP[quote.status] || ''}
+        {quote.is_expired && ' Its validity has run out: extend it, or accept it anyway if the customer agreed.'}
+        {quote.status_note && ['changes_requested', 'rejected', 'withdrawn'].includes(quote.status) && (
+          <div style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>
+            {quote.status === 'withdrawn' && quote.status_reason && <strong>{WITHDRAWAL_REASONS[quote.status_reason]}: </strong>}
+            {quote.status_note}
+          </div>
+        )}
       </div>
+      {emailed && (
+        <div className="alert success" role="status">
+          Emailed to {emailed.to.join(', ')}
+          {emailed.attachments.length > 0 && ` with ${emailed.attachments.map((f) => f.file_name).join(', ')}`}.
+        </div>
+      )}
 
       <div className="panel">
         {editing ? (
@@ -173,71 +214,49 @@ export default function QuotationDetail() {
         )}
         {quote.terms && <p className="small"><strong>Terms:</strong> {quote.terms}</p>}
 
-        {rejecting !== null && (
-          <form
-            className="inline-panel"
-            onSubmit={(e) => {
-              e.preventDefault()
-              run(() => quotationsApi.reject(orgId, quote, { reason: rejecting.trim() }))
+        {panel === 'email' && (
+          <QuotationEmailForm
+            orgId={orgId}
+            quote={quote}
+            canSeeFiles={hasAccess(me, ACCESS.documents)}
+            onSent={(sent) => {
+              show(sent.quotation)
+              setEmailed(sent)
             }}
-          >
-            <div className="field">
-              <label htmlFor="reject-reason">Why did the customer reject it? *</label>
-              <input id="reject-reason" required maxLength={512} value={rejecting} onChange={(e) => setRejecting(e.target.value)} />
-            </div>
-            <div className="row-actions">
-              <button className="btn danger" type="submit" disabled={busy}>Record rejection</button>
-              <button type="button" className="btn secondary" onClick={() => setRejecting(null)} disabled={busy}>Cancel</button>
-            </div>
-          </form>
+            onCancel={() => setPanel(null)}
+          />
+        )}
+        {panel && panel !== 'email' && (
+          <QuotationActionForm orgId={orgId} quote={quote} action={panel} onDone={show} onCancel={() => setPanel(null)} />
         )}
 
-        {canManage && rejecting === null && (
-          <div className="row-actions" style={{ marginTop: 16 }}>
-            {quote.status === 'draft' && (
-              <>
-                <button
-                  className="btn secondary"
-                  disabled={busy || !itemsChanged}
-                  onClick={() => run(() => quotationsApi.replaceItems(orgId, base, rowsToItems(rows, offerings)))}
-                >
-                  Save lines
-                </button>
-                <button
-                  className="btn"
-                  disabled={busy || itemsChanged}
-                  title={itemsChanged ? 'Save the lines first' : undefined}
-                  onClick={() => run(() => quotationsApi.submit(orgId, quote))}
-                >
-                  Submit
-                </button>
-              </>
-            )}
-            {quote.status === 'pending_approval' && canApprove && (
-              <button className="btn" disabled={busy} onClick={() => run(() => quotationsApi.approve(orgId, quote))}>
-                Approve discount
+        {!panel && (editing || actions.length > 0) && (
+          <div className="row-actions" style={{ marginTop: 16, flexWrap: 'wrap' }}>
+            {editing && (
+              <button
+                className="btn secondary"
+                disabled={busy || !itemsChanged}
+                onClick={() => run(() => quotationsApi.replaceItems(orgId, base, rowsToItems(rows, offerings)))}
+              >
+                Save lines
               </button>
             )}
-            {quote.status === 'approved' && (
-              <button className="btn" disabled={busy} onClick={() => run(() => quotationsApi.send(orgId, quote))}>
-                Mark as sent
-              </button>
-            )}
-            {quote.status === 'sent' && (
-              <>
-                <button className="btn" disabled={busy} onClick={() => run(() => quotationsApi.accept(orgId, quote))}>
-                  Customer accepted
-                </button>
-                <button className="btn danger-outline" disabled={busy} onClick={() => setRejecting('')}>
-                  Customer rejected…
-                </button>
-              </>
-            )}
-            {REVISABLE_STATUSES.includes(quote.status) && (
-              <button className="btn secondary" disabled={busy} onClick={() => run(() => quotationsApi.revise(orgId, quote))}>
-                Revise
-              </button>
-            )}
+            {actions
+              .filter((a) => a.key !== 'open')
+              .map((a, i) => {
+                const blocked = itemsChanged && NEEDS_SAVED_LINES.includes(a.key)
+                return (
+                  <button
+                    key={a.key}
+                    className={a.danger ? 'btn danger-outline' : i === 0 ? 'btn' : 'btn secondary'}
+                    disabled={busy || blocked}
+                    title={blocked ? 'Save the lines first' : undefined}
+                    onClick={() => pick(a)}
+                  >
+                    {a.label}
+                  </button>
+                )
+              })}
           </div>
         )}
       </div>
@@ -251,6 +270,8 @@ export default function QuotationDetail() {
           defaultCategory="quotation"
         />
       )}
+
+      <QuotationHistory orgId={orgId} quotationId={quote.id} />
     </div>
   )
 }

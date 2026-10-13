@@ -33,7 +33,7 @@ export const opportunitiesApi = {
     api.post(`${REVENUE}/opportunities/${id}/quotations`, body, { headers: inOrg(orgId) }),
 }
 
-// ---------- Quotations: draft → submit → (approve) → send → accept / reject ----------
+// ---------- Quotations: draft → submit → (approve) → send → accept / changes requested / reject; withdraw ----------
 const quotationAction = (action) => (orgId, quote, body) =>
   api.post(`${REVENUE}/quotations/${quote.id}/${action}`, body, { headers: ifMatch(orgId, quote.version) })
 
@@ -46,6 +46,14 @@ export const quotationsApi = {
   send: quotationAction('send'),
   accept: quotationAction('accept'),
   reject: quotationAction('reject'),
+  // { note }: what the customer asked to change.
+  requestChanges: quotationAction('change-requests'),
+  // { reason, note? }: reason is one of WITHDRAWAL_REASONS.
+  withdraw: quotationAction('withdrawal'),
+  setValidity: (orgId, quote, validUntil) =>
+    api.patch(`${REVENUE}/quotations/${quote.id}/validity`, { valid_until: validUntil }, { headers: ifMatch(orgId, quote.version) }),
+  // Its history, oldest first: [{ event, occurred_at, actor_user_id, note, data }].
+  events: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/quotations/${id}/events`, { headers: inOrg(orgId), signal }),
   // A new draft revision; the current one becomes superseded.
   revise: (orgId, quote) => api.post(`${REVENUE}/quotations/${quote.id}/revise`, undefined, { headers: inOrg(orgId) }),
   // { sender, contacts, to, subject, message, marks_sent, emailable }: what the email form starts from.
