@@ -68,13 +68,11 @@ export const ACCESS = {
   createCalendar: { permissions: ['identity.calendar.create'] },
   updateCalendar: { permissions: ['identity.calendar.update'] },
   customFields: { permissions: ['identity.field_definition.read'] },
-  createCustomFields: { permissions: ['identity.field_definition.create'] },
-  publishCustomFields: { permissions: ['identity.field_definition.publish'] },
+  // Saving a form's custom fields makes them live on the form at once.
+  editFormFields: { permissions: ['identity.field_definition.read', 'identity.field_definition.publish'] },
   manageVerticals: { permissions: ['identity.vertical.manage'] },
-  // Packs are designed once for the whole client and installed per company.
-  verticalPacks: { anyPermissions: ['identity.vertical_pack.manage', 'identity.vertical_pack.install'] },
-  designPacks: { permissions: ['identity.vertical_pack.manage'] },
-  installPacks: { permissions: ['identity.vertical_pack.install'] },
+  // Anyone may read the verticals list; the page is for whoever keeps it or limits fields to it.
+  verticals: { anyPermissions: ['identity.vertical.manage', 'identity.field_definition.publish'] },
   // Customers (revenue). Their outside services, providers and categories have their own pair.
   customers: { permissions: ['revenue.client.read'] },
   manageCustomers: { permissions: ['revenue.client.write'] },
@@ -133,6 +131,8 @@ export const ACCESS = {
   handovers: { permissions: ['delivery.handover.read'] },
   manageHandovers: { permissions: ['delivery.handover.write'] },
   deliverySetup: { permissions: ['delivery.template.manage'] },
+  // Project templates: the phases and milestones a new project starts with (reading them is a project read).
+  projectTemplates: { permissions: ['delivery.template.manage', 'delivery.work_unit.read'] },
   workflows: { permissions: ['delivery.workflow.read'] },
   designWorkflows: { permissions: ['delivery.workflow.manage'] },
   operateWorkflows: { permissions: ['delivery.workflow.operate'] },

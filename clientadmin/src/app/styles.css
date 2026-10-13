@@ -269,6 +269,7 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 .week-error { grid-column: 2; margin-top: 0; }
 .holiday-table input:not([type='checkbox']) { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
 .holiday-table td { vertical-align: middle; }
+.holiday-table .week-range input { width: auto; }
 @media (max-width: 800px) {
   .week-row { grid-template-columns: 1fr; }
   .week-error { grid-column: 1; }
@@ -337,17 +338,6 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 }
 .field textarea.code-input:focus { outline: 2px solid #bfdbfe; border-color: var(--primary); }
 .field table input[type="checkbox"] { width: auto; }
-.json-preview {
-  background: #f8fafc;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 12px;
-  max-height: 280px;
-  overflow: auto;
-  margin: 0 0 14px;
-}
-.install-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 .vertical-list { display: flex; flex-direction: column; }
 .vertical-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); }
 .vertical-row:first-child { border-top: 0; }
@@ -355,9 +345,20 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 .version-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 12px; }
 .version-tab { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
 .version-tab.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
-.pack-section { margin-top: 14px; }
-.pack-section h3 { font-size: 14px; margin: 0 0 8px; }
-.field-rows input:not([type='checkbox']), .field-rows select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: #fff; }
+/* Custom fields: the forms list and a form's field cards. */
+.form-list { display: flex; flex-direction: column; }
+.form-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.form-row:first-child { border-top: 0; }
+.field-cards { display: flex; flex-direction: column; gap: 10px; }
+.field-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: #fff; }
+.field-card-main { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1.2fr) auto auto; gap: 8px; align-items: center; }
+.field-card-more { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 8px; align-items: start; }
+.field-card input:not([type='checkbox']), .field-card select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: #fff; }
+.field-card .field-card-options { margin-top: 8px; }
+.field-rule-values { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+@media (max-width: 760px) {
+  .field-card-main, .field-card-more { grid-template-columns: minmax(0, 1fr); }
+}
 .vertical-choices { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 4px 0 10px; }
 
 /* ---------- Loading ---------- */
@@ -470,6 +471,7 @@ td.skeleton-wait { border-bottom: 0; }
 .span-all { grid-column: 1 / -1; }
 .subpanel { border: 1px dashed var(--border); border-radius: 10px; padding: 14px 16px 6px; margin-bottom: 16px; background: #fbfdff; }
 .subpanel-title { font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
+.subpanel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .needed { color: #92400e; text-transform: none; letter-spacing: 0; font-weight: 500; }
 
 /* Disciplines get one colour each, shown as a dot. */

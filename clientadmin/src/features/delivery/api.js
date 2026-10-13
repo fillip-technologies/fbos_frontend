@@ -29,6 +29,8 @@ export const projectsApi = {
     api.put(`${DELIVERY}/work-units/${project.id}/members`, { members }, { headers: ifMatch(orgId, project.version) }),
   milestones: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/work-units/${id}/milestones`, orgId, {}, { signal }),
   addMilestone: (orgId, id, body) => api.post(`${DELIVERY}/work-units/${id}/milestones`, body, { headers: inOrg(orgId) }),
+  // Copied from its template, phase by phase: [{ id, phase_id, name, owner_unit, estimated_hours, status }].
+  workPackages: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/work-units/${id}/work-packages`, { headers: inOrg(orgId), signal }),
   risks: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/work-units/${id}/risks`, orgId, {}, { signal }),
   addRisk: (orgId, id, body) => api.post(`${DELIVERY}/work-units/${id}/risks`, body, { headers: inOrg(orgId) }),
   changeRequests: (orgId, id, { signal } = {}) => listAll(`${DELIVERY}/work-units/${id}/change-requests`, orgId, {}, { signal }),
@@ -184,6 +186,8 @@ export const setupApi = {
   updateProjectType: (orgId, id, body) => api.patch(`${DELIVERY}/work-unit-types/${id}`, body, { headers: inOrg(orgId) }),
   templates: (orgId, { signal } = {}) => listAll(`${DELIVERY}/templates`, orgId, {}, { signal }),
   createTemplate: (orgId, body) => api.post(`${DELIVERY}/templates`, body, { headers: inOrg(orgId) }),
+  // { name?, vertical_id? (null: any), status?: 'active' | 'retired' }; a retired template starts no new project.
+  updateTemplate: (orgId, code, body) => api.patch(`${DELIVERY}/templates/${code}`, body, { headers: inOrg(orgId) }),
   templateVersions: (orgId, code, { signal } = {}) => listAll(`${DELIVERY}/templates/${code}/versions`, orgId, {}, { signal }),
   createTemplateVersion: (orgId, code, body) => api.post(`${DELIVERY}/templates/${code}/versions`, body, { headers: inOrg(orgId) }),
   publishTemplateVersion: (orgId, code, versionNo) =>
@@ -243,18 +247,4 @@ export const lookupsApi = {
   customers: (orgId, { signal } = {}) => customersApi.listAll(orgId, { signal }),
   // Leads to attach a task to (a sales touch is about a lead): one page, newest first.
   leads: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/leads?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
-  // The company's published custom fields for tasks (installed by vertical packs), for a team or vertical when given:
-  taskCustomFields: (orgId, unitId, verticalId, { signal } = {}) =>
-    listAll(
-      `${IDENTITY}/field-definitions`,
-      orgId,
-      {
-        object_type: 'task.task',
-        status: 'published',
-        scoped: true,
-        ...(unitId ? { org_unit_id: unitId } : {}),
-        ...(verticalId ? { vertical_id: verticalId } : {}),
-      },
-      { signal }
-    ),
 }

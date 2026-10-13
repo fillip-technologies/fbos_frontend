@@ -179,6 +179,7 @@ const FRIENDLY = {
   WORK_UNIT_TYPE_NOT_FOUND: 'That project type no longer exists.',
   TEMPLATE_NOT_FOUND: 'That template no longer exists.',
   TEMPLATE_NOT_PUBLISHED: 'That template has no published version yet. Publish one first.',
+  TEMPLATE_RETIRED: 'That template is retired. Make it active again under Project templates to start projects from it.',
   TEMPLATE_VERSION_NOT_FOUND: 'That template version no longer exists.',
   VERSION_NOT_DRAFT: 'Only a draft version can be changed. Create a new version instead.',
   CLIENT_REQUIRED: 'This kind of project is for a customer. Choose the customer.',

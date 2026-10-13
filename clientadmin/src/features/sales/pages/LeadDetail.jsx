@@ -12,6 +12,7 @@ import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
 import ConvertLead from '@/features/sales/components/ConvertLead.jsx'
+import LeadCustomFields from '@/features/sales/components/LeadCustomFields.jsx'
 import useVerticals from '@/features/sales/useVerticals.js'
 import { DISQUALIFY_REASONS, LEAD_SOURCES, SUBJECTS } from '@/features/sales/utils.js'
 
@@ -246,6 +247,7 @@ export default function LeadDetail() {
         )}
       </div>
 
+      <LeadCustomFields orgId={orgId} lead={lead} canEdit={canManage} onSaved={setLead} />
       {lead.attributes?.website_lead_id && <WebsiteEnquiry details={lead.attributes} />}
 
       {hasAccess(me, ACCESS.activities) && <ActivityTimeline orgId={orgId} subjectType={SUBJECTS.lead} subjectId={lead.id} />}

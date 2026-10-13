@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { verticalsApi } from '@/features/verticals/api.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 
@@ -30,13 +29,7 @@ export default function VerticalsPanel({ orgId, verticals, canManage, onChanged 
   return (
     <div className="panel role-card">
       <div className="section-head">
-        <div>
-          <h2>Verticals</h2>
-          <p className="muted small" style={{ margin: '2px 0 0' }}>
-            The industries you work in, e.g. “Construction” or “Interior design”. They're private to your account; every pack belongs
-            to one. Set which branches and departments work in each on <Link to="/org-units">Company structure</Link>.
-          </p>
-        </div>
+        <h2>Your verticals</h2>
         {canManage && !adding && <button className="btn secondary" onClick={() => setAdding(true)}>+ Add vertical</button>}
       </div>
       <ErrorBanner error={error} />
@@ -50,7 +43,7 @@ export default function VerticalsPanel({ orgId, verticals, canManage, onChanged 
 
       {verticals.length === 0 && !adding && (
         <p className="muted small" style={{ marginBottom: 0 }}>
-          No verticals yet.{canManage ? ' Add the first one to start building packs.' : ' Ask an administrator to add one.'}
+          No verticals yet.{canManage ? ' Add the first one to limit custom fields to it.' : ' Ask an administrator to add one.'}
         </p>
       )}
 

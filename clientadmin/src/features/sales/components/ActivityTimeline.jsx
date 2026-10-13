@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { activitiesApi } from '@/features/sales/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { ACTIVITY_TYPES, formatDateTime, nowLocalInput } from '@/features/sales/utils.js'
+
+// Revenue keeps activity times in UTC without saying so: read them as UTC, not local time.
+const asUtc = (iso) => (iso && !/(Z|[+-]\d\d:?\d\d)$/.test(iso) ? `${iso}Z` : iso)
 
 const EMPTY = () => ({ activity_type: 'call', occurred_at: nowLocalInput(), summary: '', outcome: '' })
 
@@ -113,10 +117,13 @@ export default function ActivityTimeline({ orgId, subjectType, subjectId }) {
                   <span className="chip subtle">{ACTIVITY_TYPES[a.activity_type] || a.activity_type}</span>
                 </td>
                 <td>
-                  <div>{a.summary}</div>
+                  <div style={{ whiteSpace: 'pre-line' }}>{a.summary}</div>
                   {a.outcome && <div className="muted small">Outcome: {a.outcome}</div>}
+                  {a.source?.type === 'task.task' && (
+                    <div className="small"><Link to={`/tasks/${a.source.id}`}>From a task</Link></div>
+                  )}
                 </td>
-                <td className="muted small" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(a.occurred_at)}</td>
+                <td className="muted small" style={{ whiteSpace: 'nowrap' }}>{formatDateTime(asUtc(a.occurred_at))}</td>
               </tr>
             ))}
           </tbody>

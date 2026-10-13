@@ -11,11 +11,15 @@ import {
 } from '@/features/delivery/utils.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import CustomFieldsSection, { CustomizeFormLink } from '@/features/verticals/components/CustomFieldsSection.jsx'
+import useFormFields from '@/features/verticals/useFormFields.js'
 import { changedFields, formatMoney } from '@/features/customers/utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { useQuery } from '@/shared/api/useQuery.js'
+import CustomFieldValues from '@/shared/components/CustomFieldValues.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
+import { changedAttributes, checkFields, isEmpty, toFormValues } from '@/shared/utils/customFields.js'
 import { formatDate } from '@/shared/utils/format.js'
 import { useRecordForm } from '@/shared/utils/useRecordForm.js'
 
@@ -37,9 +41,20 @@ const toForm = (p) => ({
   planned_end: p.planned_end,
 })
 
+// A project's custom fields: those kept for its vertical, else its team's verticals, as its
+// values (kind, priority) show them.
+function useProjectFields(orgId, project, priority = project.priority) {
+  return useFormFields(orgId, 'work.work_unit', {
+    verticalId: project.vertical?.id,
+    unitId: project.owning_unit?.id,
+    values: { work_unit_type_code: project.type?.code, priority, vertical_id: project.vertical?.id },
+  })
+}
+
 export default function ProjectOverview({ orgId, project, setProject, names }) {
   const { user: me } = useAuth()
   const canManage = hasAccess(me, ACCESS.manageProjects)
+  const customFields = useProjectFields(orgId, project)
   const { data: summary, loading: summaryLoading } = useQuery(
     ['project', orgId, project.id, 'summary'],
     ({ signal }) => projectsApi.summary(orgId, project.id, { signal }),
@@ -71,20 +86,13 @@ export default function ProjectOverview({ orgId, project, setProject, names }) {
         {project.objective && <p style={{ marginBottom: 0 }}>{project.objective}</p>}
       </div>
 
-      {project.attributes && Object.keys(project.attributes).length > 0 && (
+      {customFields.some((field) => !isEmpty(project.attributes?.[field.key])) && (
         <div className="panel">
-          <h2 style={{ fontSize: 15, margin: '0 0 12px', fontWeight: 600 }}>Custom attributes</h2>
-          <div className="details-grid">
-            {Object.entries(project.attributes).map(([key, val]) => (
-              <Detail key={key} label={key.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())}>
-                {typeof val === 'boolean'
-                  ? val ? 'Yes' : 'No'
-                  : typeof val === 'object' && val !== null
-                  ? JSON.stringify(val)
-                  : String(val ?? '—')}
-              </Detail>
-            ))}
+          <div className="section-head">
+            <h2 style={{ fontSize: 15, margin: 0, fontWeight: 600 }}>More details</h2>
+            <CustomizeFormLink formCode="work.work_unit" />
           </div>
+          <CustomFieldValues fields={customFields} attributes={project.attributes} />
         </div>
       )}
 
@@ -109,6 +117,7 @@ function ProjectCounts({ summary }) {
   return (
     <div className="panel">
       <div className="details-grid">
+        {summary.phases.length > 0 && <Detail label="Phases">{summary.phases.map((p) => p.name).join(' → ')}</Detail>}
         <Detail label="Milestones">{milestones.length ? `${finished} of ${milestones.length} done` : 'None yet'}</Detail>
         <Detail label="Open risks">{String(summary.risks_open)}</Detail>
         <Detail label="Changes waiting for a decision">{String(summary.pending_approvals)}</Detail>
@@ -173,11 +182,15 @@ function StatusChange({ orgId, project, setProject }) {
 function EditProject({ orgId, project, setProject, names }) {
   const { user: me } = useAuth()
   const { form, base, setForm, rebase } = useRecordForm(project, toForm)
+  const customFields = useProjectFields(orgId, project, form?.priority)
+  const [customValues, setCustomValues] = useState(null) // null until a custom field is edited
+  const [problems, setProblems] = useState({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [saved, setSaved] = useState(false)
   const fieldErrors = getFieldErrors(error)
   if (!form) return null
+  const values = customValues ?? toFormValues(customFields, base.attributes)
   const set = (key, value) => {
     setSaved(false)
     setForm((f) => ({ ...f, [key]: value }))
@@ -188,7 +201,12 @@ function EditProject({ orgId, project, setProject, names }) {
 
   async function handleSave(e) {
     e.preventDefault()
+    const found = checkFields(customFields, values)
+    setProblems(found)
+    if (Object.keys(found).length > 0) return
     const changes = changedFields(toForm(base), form)
+    const attributes = changedAttributes(customFields, values, base.attributes)
+    if (Object.keys(attributes).length > 0) changes.attributes = attributes
     if (Object.keys(changes).length === 0) return
     if ('objective' in changes) changes.objective = changes.objective.trim() // "" clears it; null would be ignored
     setError(null)
@@ -197,6 +215,7 @@ function EditProject({ orgId, project, setProject, names }) {
       const updated = await projectsApi.update(orgId, base.id, base.version, changes)
       setProject(updated)
       rebase(updated)
+      setCustomValues(null)
       setSaved(true)
     } catch (err) {
       setError(err)
@@ -248,6 +267,17 @@ function EditProject({ orgId, project, setProject, names }) {
           {!canMoveDueDate && <div className="hint">Work has started: move the date with a change request.</div>}
         </div>
       </div>
+      <CustomFieldsSection
+        formCode="work.work_unit"
+        fields={customFields}
+        values={values}
+        onChange={(next) => {
+          setSaved(false)
+          setCustomValues(next)
+        }}
+        errors={{ ...fieldErrors, ...problems }}
+        idPrefix="edit_cf"
+      />
       <button className="btn" type="submit" disabled={busy} aria-busy={busy}>Save changes</button>
     </form>
   )
