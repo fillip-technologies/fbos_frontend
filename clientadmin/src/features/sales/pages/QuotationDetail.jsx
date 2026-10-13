@@ -18,7 +18,7 @@ import {
   performQuotationAction,
   quotationActions,
 } from '@/features/sales/components/QuotationActions.jsx'
-import QuotationEmailForm from '@/features/sales/components/QuotationEmailForm.jsx'
+import CustomerEmailForm, { quotationEmailProps } from '@/features/sales/components/CustomerEmailForm.jsx'
 import QuotationHistory from '@/features/sales/components/QuotationHistory.jsx'
 import TaxTotals, { LineTaxes, TaxNotes } from '@/features/tax/components/TaxTotals.jsx'
 import { SUPPLY_TYPES } from '@/features/tax/utils.js'
@@ -234,9 +234,9 @@ export default function QuotationDetail() {
         {quote.terms && <p className="small"><strong>Terms:</strong> {quote.terms}</p>}
 
         {panel === 'email' && (
-          <QuotationEmailForm
+          <CustomerEmailForm
             orgId={orgId}
-            quote={quote}
+            {...quotationEmailProps(orgId, quote)}
             canSeeFiles={hasAccess(me, ACCESS.documents)}
             onSent={(sent) => {
               show(sent.quotation)

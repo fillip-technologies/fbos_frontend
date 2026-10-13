@@ -16,7 +16,7 @@ import { toIsoDate } from '@/shared/utils/dates.js'
 import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
 import ContractForm from '@/features/sales/components/ContractForm.jsx'
-import QuotationEmailForm from '@/features/sales/components/QuotationEmailForm.jsx'
+import CustomerEmailForm, { contractEmailProps, quotationEmailProps } from '@/features/sales/components/CustomerEmailForm.jsx'
 import {
   QuotationActionForm,
   QuotationActionMenu,
@@ -25,6 +25,7 @@ import {
 } from '@/features/sales/components/QuotationActions.jsx'
 import QuotationItemsEditor, { newItem, rowsToItems } from '@/features/sales/components/QuotationItemsEditor.jsx'
 import {
+  CONTRACT_EMAILABLE,
   LOST_REASONS,
   OPEN_QUOTATION_STATUSES,
   OPEN_STAGES,
@@ -171,6 +172,9 @@ export default function OpportunityDetail() {
   // The quotation an email or a quotation action is about, and which action.
   const [acting, setActing] = useState(null) // { quote, action }
   const [emailed, setEmailed] = useState(null)
+  // The contract being emailed from the contract panel.
+  const [emailingContract, setEmailingContract] = useState(null)
+  const [contractEmailed, setContractEmailed] = useState(null)
   // Remounts the timeline so the logged email shows.
   const [timelineKey, setTimelineKey] = useState(0)
   const [lost, setLost] = useState({ reason: 'price', competitor: '', note: '' })
@@ -414,10 +418,10 @@ export default function OpportunityDetail() {
           </div>
         )}
         {panel === 'email' && acting && (
-          <QuotationEmailForm
+          <CustomerEmailForm
             key={acting.quote.id}
             orgId={orgId}
-            quote={acting.quote}
+            {...quotationEmailProps(orgId, acting.quote)}
             canSeeFiles={hasAccess(me, ACCESS.documents)}
             onSent={(sent) => {
               quotationChanged(sent.quotation)
@@ -538,11 +542,51 @@ export default function OpportunityDetail() {
             panel !== 'contract' && <p className="muted small" style={{ margin: 0 }}>The quotation was accepted. Create the contract next.</p>
           ) : (
             contracts.map((c) => (
-              <p key={c.id} style={{ margin: 0 }}>
-                <Link to={`/contracts/${c.id}`} className="mono">{c.contract_no}</Link> <StatusBadge status={c.status} />{' '}
-                <span className="muted small">{formatMoney(c.total_value)}</span>
-              </p>
+              <div key={c.id} className="section-head" style={{ margin: 0 }}>
+                <p style={{ margin: 0 }}>
+                  <Link to={`/contracts/${c.id}`} className="mono">{c.contract_no}</Link> <StatusBadge status={c.status} />{' '}
+                  <span className="muted small">{formatMoney(c.total_value)}</span>
+                  {['draft', 'pending_signature'].includes(c.status) && (
+                    <span className="muted small">
+                      {' · '}
+                      {c.signed_document_id ? 'signed copy attached: activate it on the contract page' : 'waiting for the signed copy'}
+                    </span>
+                  )}
+                </p>
+                {hasAccess(me, ACCESS.manageContracts) && CONTRACT_EMAILABLE.includes(c.status) && emailingContract?.id !== c.id && (
+                  <button
+                    className="btn secondary small-btn"
+                    onClick={() => {
+                      setContractEmailed(null)
+                      setEmailingContract(c)
+                    }}
+                  >
+                    Email contract
+                  </button>
+                )}
+              </div>
             ))
+          )}
+          {contractEmailed && (
+            <div className="alert success" role="status" style={{ marginTop: 10 }}>
+              Emailed {contractEmailed.contract.contract_no} to {contractEmailed.to.join(', ')}
+              {contractEmailed.attachments.length > 0 && ` with ${contractEmailed.attachments.map((f) => f.file_name).join(', ')}`}.
+            </div>
+          )}
+          {emailingContract && (
+            <CustomerEmailForm
+              key={emailingContract.id}
+              orgId={orgId}
+              {...contractEmailProps(orgId, emailingContract)}
+              canSeeFiles={hasAccess(me, ACCESS.documents)}
+              onSent={(sent) => {
+                setContractEmailed(sent)
+                setEmailingContract(null)
+                invalidate(['contract', orgId, sent.contract.id])
+                setTimelineKey((k) => k + 1)
+              }}
+              onCancel={() => setEmailingContract(null)}
+            />
           )}
         </div>
       )}

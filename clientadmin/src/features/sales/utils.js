@@ -80,6 +80,8 @@ export const OPEN_QUOTATION_STATUSES = ['draft', 'pending_approval', 'approved',
 // "Option A - Basic", else its number and revision.
 export const quotationTitle = (q) => q.name || `${q.quote_no} rev ${q.revision_no}`
 
+// A contract goes to the customer for signing, or as a copy once active.
+export const CONTRACT_EMAILABLE = ['draft', 'pending_signature', 'active', 'completed']
 export const CONTRACT_TYPES = {
   project: 'Project',
   retainer: 'Retainer',

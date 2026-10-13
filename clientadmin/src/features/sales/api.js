@@ -80,6 +80,11 @@ export const contractsApi = {
     api.put(`${REVENUE}/contracts/${contract.id}/signed-document`, { document_id: documentId }, { headers: ifMatch(orgId, contract.version) }),
   activate: (orgId, contract) =>
     api.post(`${REVENUE}/contracts/${contract.id}/activate`, undefined, { headers: ifMatch(orgId, contract.version) }),
+  // { sender, contacts, to, subject, message, emailable }: what the email form starts from.
+  emailDraft: (orgId, id, { signal } = {}) =>
+    api.get(`${REVENUE}/contracts/${id}/email-draft`, { headers: inOrg(orgId), signal }),
+  // { to, cc, bcc, subject, message, document_ids } → { from_address, to, cc, bcc, attachments, contract }; its status stays.
+  email: (orgId, id, body) => api.post(`${REVENUE}/contracts/${id}/emails`, body, { headers: inOrg(orgId) }),
 }
 
 // ---------- Offerings (what can be quoted) ----------
