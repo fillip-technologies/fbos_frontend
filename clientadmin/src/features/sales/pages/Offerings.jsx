@@ -6,14 +6,14 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { formatMoney } from '@/features/customers/utils.js'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
-import { useLookup } from '@/shared/api/useQuery.js'
+import { invalidate, useLookup } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import TaxCategorySelect from '@/features/tax/components/TaxCategorySelect.jsx'
 import { useTaxCategories } from '@/features/tax/useTaxConfig.js'
 import useVerticals from '@/features/sales/useVerticals.js'
-import { BILLING_MODELS, OFFERING_UNITS } from '@/features/sales/utils.js'
+import { BILLING_MODELS, FULFILMENTS, OFFERING_UNITS } from '@/features/sales/utils.js'
 
 const EMPTY = (currency) => ({
   code: '',
@@ -23,6 +23,7 @@ const EMPTY = (currency) => ({
   tax_category_code: '',
   unit: 'project',
   billing_model: 'one_time',
+  fulfilment: 'none',
   price: '',
   currency,
 })
@@ -49,6 +50,7 @@ function OfferingForm({ orgId, verticals, defaultCurrency, onCreated, onCancel }
         tax_category_code: form.tax_category_code,
         unit: form.unit,
         billing_model: form.billing_model,
+        fulfilment: form.fulfilment,
         list_price: { amount: Number(form.price), currency: form.currency.trim().toUpperCase() },
       })
       onCreated()
@@ -123,6 +125,14 @@ function OfferingForm({ orgId, verticals, defaultCurrency, onCreated, onCancel }
             ))}
           </select>
         </div>
+        <div className="field">
+          <label htmlFor="off-fulfilment">Once won, set up</label>
+          <select id="off-fulfilment" value={form.fulfilment} onChange={(e) => set('fulfilment', e.target.value)}>
+            {Object.entries(FULFILMENTS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="grid-2">
         {field('sac_code', 'SAC code *', { required: true, maxLength: 20, className: 'mono-input' }, 'GST services code, e.g. 998313.')}
@@ -152,6 +162,21 @@ export default function Offerings() {
   })
   const offerings = data ?? []
   const [adding, setAdding] = useState(false)
+  const [savingId, setSavingId] = useState(null)
+  const [saveError, setSaveError] = useState(null)
+
+  async function setFulfilment(offering, fulfilment) {
+    setSaveError(null)
+    setSavingId(offering.id)
+    try {
+      await offeringsApi.update(orgId, offering.id, { fulfilment })
+      invalidate(['offerings', orgId])
+    } catch (err) {
+      setSaveError(err)
+    } finally {
+      setSavingId(null)
+    }
+  }
 
   return (
     <div>
@@ -170,6 +195,7 @@ export default function Offerings() {
       </div>
 
       <ErrorBanner error={error} onRetry={reload} />
+      <ErrorBanner error={saveError} />
       {adding && (
         <OfferingForm
           orgId={orgId}
@@ -191,14 +217,15 @@ export default function Offerings() {
               <th>List price</th>
               <th>GST</th>
               <th>Billing</th>
+              <th>Once won</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <TableSkeleton cols={6} />
+              <TableSkeleton cols={7} />
             ) : offerings.length === 0 ? (
-              <tr><td colSpan={6} className="center-note">No offerings yet.</td></tr>
+              <tr><td colSpan={7} className="center-note">No offerings yet.</td></tr>
             ) : (
               offerings.map((o) => (
                 <tr key={o.id} style={{ cursor: 'default' }}>
@@ -216,6 +243,22 @@ export default function Offerings() {
                     <div className="muted small mono">SAC {o.sac_code}</div>
                   </td>
                   <td>{BILLING_MODELS[o.billing_model] || o.billing_model}</td>
+                  <td>
+                    {canManage ? (
+                      <select
+                        aria-label={`Once ${o.name} is won, set up`}
+                        value={o.fulfilment || 'none'}
+                        disabled={savingId === o.id}
+                        onChange={(e) => setFulfilment(o, e.target.value)}
+                      >
+                        {Object.entries(FULFILMENTS).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      FULFILMENTS[o.fulfilment] || '—'
+                    )}
+                  </td>
                   <td><StatusBadge status={o.status} /></td>
                 </tr>
               ))

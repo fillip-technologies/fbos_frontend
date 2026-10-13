@@ -80,6 +80,8 @@ export default function ContractDetail() {
 
   const signable = ['draft', 'pending_signature'].includes(contract.status)
   const canManage = hasAccess(me, ACCESS.manageContracts)
+  // What its offerings are delivered as: the next steps once it is active.
+  const fulfilment = contract.fulfilment || []
   const canActivate = canManage && signable
   const hasSignedCopy = Boolean(contract.signed_document_id)
   // A finished contract keeps its files but takes no new ones (the backend enforces it too).
@@ -142,6 +144,28 @@ export default function ContractDetail() {
       </div>
 
       <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
+      {contract.status === 'active' && fulfilment.length > 0 && (
+        <div className="alert info">
+          <strong>Next:</strong>{' '}
+          {fulfilment.includes('project') && 'start the delivery project for it'}
+          {fulfilment.length > 1 && ', and '}
+          {fulfilment.includes('service') && 'record the service on the customer'}
+          {' (its offerings say so).'}
+          <div className="row-actions" style={{ marginTop: 8 }}>
+            {/* Delivery and customers, linked by route only. */}
+            {fulfilment.includes('project') && hasAccess(me, ACCESS.manageProjects) && (
+              <Link className="btn small-btn" to={`/projects/new?customer=${contract.client.id}&contract=${contract.id}`}>
+                Start project
+              </Link>
+            )}
+            {fulfilment.includes('service') && hasAccess(me, ACCESS.clientServices) && (
+              <Link className="btn small-btn" to={`/customers/${contract.client.id}?tab=services`}>
+                Customer’s services
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
       {emailed && (
         <div className="alert success" role="status">
           Emailed to {emailed.to.join(', ')}

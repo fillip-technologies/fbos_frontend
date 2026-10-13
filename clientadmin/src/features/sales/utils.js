@@ -96,6 +96,12 @@ export const PAYMENT_TRIGGERS = {
   on_completion: 'On completion',
 }
 
+// What a won contract for an offering is delivered as; the contract page offers the next step.
+export const FULFILMENTS = {
+  none: 'Nothing to set up',
+  project: 'A delivery project',
+  service: 'A customer service',
+}
 export const OFFERING_UNITS = { project: 'Project', hour: 'Hour', month: 'Month', unit: 'Unit' }
 export const BILLING_MODELS = {
   one_time: 'One-time',

@@ -5,6 +5,7 @@ import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import useOwners from '@/features/customers/useOwners.js'
+import { customersApi } from '@/features/customers/api.js'
 import { formatMoney } from '@/features/customers/utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
@@ -145,6 +146,13 @@ export default function OpportunityDetail() {
   const quotationsQuery = useQuery(['quotations', orgId, { opportunity: id }], ({ signal }) =>
     opportunitiesApi.quotations(orgId, id, { signal }), { enabled: Boolean(orgId) }
   )
+  // Whether the customer is still a prospect (it becomes active when it accepts a quotation).
+  const clientId = oppQuery.data?.client.id
+  const { data: customer } = useQuery(
+    ['customer', orgId, clientId],
+    ({ signal }) => customersApi.get(orgId, clientId, { signal }),
+    { enabled: Boolean(orgId && clientId) && hasAccess(me, ACCESS.customers) }
+  )
   const contractsQuery = useQuery(
     ['contracts', orgId, { opportunity_id: id }],
     ({ signal }) => contractsApi.list(orgId, { opportunity_id: id, limit: 100 }, { signal }),
@@ -192,6 +200,9 @@ export default function OpportunityDetail() {
     invalidate(['quotation', orgId])
     invalidate(['quotation-events', orgId])
     invalidate(['opportunities', orgId])
+    // Accepting makes a prospect a customer.
+    invalidate(['customer', orgId])
+    invalidate(['customers', orgId])
     quotationsQuery.reload()
     oppQuery.reload()
     setTimelineKey((k) => k + 1)
@@ -288,6 +299,12 @@ export default function OpportunityDetail() {
           </h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
             <span className="mono">{opp.code}</span> · <Link to={`/customers/${opp.client.id}`}>{opp.client.name}</Link>
+            {customer?.status === 'prospect' && (
+              <>
+                {' '}
+                <StatusBadge status="prospect" label="Prospect" />
+              </>
+            )}
             {opp.lead_id && (
               <>
                 {' · '}

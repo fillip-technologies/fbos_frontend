@@ -23,6 +23,8 @@ export const opportunitiesApi = {
   // Filters: stage, client_id, owner_user_id.
   list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/opportunities?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
   get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/opportunities/${id}`, { headers: inOrg(orgId), signal }),
+  // Repeat business: { client_id, name, expected_value, expected_close_date, owner_user_id? }, no lead.
+  create: (orgId, body) => api.post(`${REVENUE}/opportunities`, body, { headers: inOrg(orgId) }),
   update: (orgId, id, version, body) =>
     api.patch(`${REVENUE}/opportunities/${id}`, body, { headers: ifMatch(orgId, version) }),
   markLost: (orgId, id, version, body) =>
@@ -92,6 +94,8 @@ export const offeringsApi = {
   list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/offerings?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
   listAll: (orgId, { signal } = {}) => listAll(`${REVENUE}/offerings`, orgId, {}, { signal }),
   create: (orgId, body) => api.post(`${REVENUE}/offerings`, body, { headers: inOrg(orgId) }),
+  // { fulfilment }: what a won contract for it is delivered as.
+  update: (orgId, id, body) => api.patch(`${REVENUE}/offerings/${id}`, body, { headers: inOrg(orgId) }),
 }
 
 // ---------- Activities: calls, meetings and notes on a lead / opportunity / contract ----------
