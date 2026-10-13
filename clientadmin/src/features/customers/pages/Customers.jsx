@@ -9,8 +9,15 @@ import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
-import { CUSTOMER_STATUSES, CUSTOMER_TYPES, capitalize } from '@/features/customers/utils.js'
+import { CUSTOMER_TYPES, capitalize } from '@/features/customers/utils.js'
 import useOwners from '@/features/customers/useOwners.js'
+
+// Prospects (converted leads still to accept a quotation) are kept apart from customers.
+const TABS = [
+  ['active', 'Customers'],
+  ['prospect', 'Prospects'],
+  ['inactive', 'Inactive'],
+]
 
 export default function Customers() {
   const navigate = useNavigate()
@@ -19,7 +26,7 @@ export default function Customers() {
   const { orgId, activeOrg } = useActiveOrg()
   const { ownerName } = useOwners(orgId)
 
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState('active')
   const [cursor, setCursor] = useState(undefined)
   const [stack, setStack] = useState([])
   const notice = location.state?.notice
@@ -54,20 +61,26 @@ export default function Customers() {
 
       {notice && <div className="alert success">{notice}</div>}
 
-      <div className="toolbar">
-        <select
-          value={status}
-          onChange={(e) => {
-            resetPaging()
-            setStatus(e.target.value)
-          }}
-        >
-          <option value="">All statuses</option>
-          {CUSTOMER_STATUSES.map((s) => (
-            <option key={s} value={s}>{capitalize(s)}</option>
-          ))}
-        </select>
+      <div className="version-tabs" role="tablist">
+        {TABS.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={status === key}
+            className={`version-tab${status === key ? ' active' : ''}`}
+            onClick={() => {
+              resetPaging()
+              setStatus(key)
+            }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
+      {status === 'prospect' && (
+        <p className="muted small">Converted from leads; each becomes a customer when it accepts a quotation.</p>
+      )}
 
       <ErrorBanner error={error} onRetry={reload} />
       <div className={`panel${refreshing ? ' is-refreshing' : ''}`} style={{ padding: 0, overflowX: 'auto' }}>

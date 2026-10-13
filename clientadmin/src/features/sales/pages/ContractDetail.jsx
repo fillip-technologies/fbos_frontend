@@ -11,9 +11,10 @@ import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
+import CustomerEmailForm, { contractEmailProps } from '@/features/sales/components/CustomerEmailForm.jsx'
 import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
 import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
-import { CONTRACT_TYPES, PAYMENT_TRIGGERS, SUBJECTS, formatDateTime } from '@/features/sales/utils.js'
+import { CONTRACT_EMAILABLE, CONTRACT_TYPES, PAYMENT_TRIGGERS, SUBJECTS, formatDateTime } from '@/features/sales/utils.js'
 
 function Detail({ label, children }) {
   return (
@@ -45,12 +46,17 @@ export default function ContractDetail() {
   }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [emailing, setEmailing] = useState(false)
+  const [emailed, setEmailed] = useState(null)
+  // Remounts the timeline: signing, activating and emailing each add a line to it.
+  const [timelineKey, setTimelineKey] = useState(0)
 
   async function save(change) {
     setError(null)
     setBusy(true)
     try {
       setContract(await change())
+      setTimelineKey((k) => k + 1)
     } catch (err) {
       setError(err)
     } finally {
@@ -74,6 +80,8 @@ export default function ContractDetail() {
 
   const signable = ['draft', 'pending_signature'].includes(contract.status)
   const canManage = hasAccess(me, ACCESS.manageContracts)
+  // What its offerings are delivered as: the next steps once it is active.
+  const fulfilment = contract.fulfilment || []
   const canActivate = canManage && signable
   const hasSignedCopy = Boolean(contract.signed_document_id)
   // A finished contract keeps its files but takes no new ones (the backend enforces it too).
@@ -114,6 +122,17 @@ export default function ContractDetail() {
               Activate
             </button>
           )}
+          {canManage && CONTRACT_EMAILABLE.includes(contract.status) && !emailing && (
+            <button
+              className="btn secondary"
+              onClick={() => {
+                setEmailed(null)
+                setEmailing(true)
+              }}
+            >
+              Email contract
+            </button>
+          )}
           {/* Delivery, linked by route only: the project form reads the customer and contract. */}
           {hasAccess(me, ACCESS.manageProjects) && ['active', 'pending_signature'].includes(contract.status) && (
             <Link className="btn secondary" to={`/projects/new?customer=${contract.client.id}&contract=${contract.id}`}>
@@ -125,6 +144,48 @@ export default function ContractDetail() {
       </div>
 
       <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
+      {contract.status === 'active' && fulfilment.length > 0 && (
+        <div className="alert info">
+          <strong>Next:</strong>{' '}
+          {fulfilment.includes('project') && 'start the delivery project for it'}
+          {fulfilment.length > 1 && ', and '}
+          {fulfilment.includes('service') && 'record the service on the customer'}
+          {' (its offerings say so).'}
+          <div className="row-actions" style={{ marginTop: 8 }}>
+            {/* Delivery and customers, linked by route only. */}
+            {fulfilment.includes('project') && hasAccess(me, ACCESS.manageProjects) && (
+              <Link className="btn small-btn" to={`/projects/new?customer=${contract.client.id}&contract=${contract.id}`}>
+                Start project
+              </Link>
+            )}
+            {fulfilment.includes('service') && hasAccess(me, ACCESS.clientServices) && (
+              <Link className="btn small-btn" to={`/customers/${contract.client.id}?tab=services`}>
+                Customer’s services
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+      {emailed && (
+        <div className="alert success" role="status">
+          Emailed to {emailed.to.join(', ')}
+          {emailed.attachments.length > 0 && ` with ${emailed.attachments.map((f) => f.file_name).join(', ')}`}.
+        </div>
+      )}
+      {emailing && (
+        <CustomerEmailForm
+          orgId={orgId}
+          {...contractEmailProps(orgId, contract)}
+          canSeeFiles={hasAccess(me, ACCESS.documents)}
+          onSent={(sent) => {
+            setContract(sent.contract)
+            setEmailed(sent)
+            setEmailing(false)
+            setTimelineKey((k) => k + 1)
+          }}
+          onCancel={() => setEmailing(false)}
+        />
+      )}
       <div className="panel">
         <div className="details-grid">
           <Detail label="Type">{CONTRACT_TYPES[contract.contract_type] || contract.contract_type}</Detail>
@@ -210,7 +271,7 @@ export default function ContractDetail() {
       </div>
 
       {hasAccess(me, ACCESS.activities) && (
-        <ActivityTimeline orgId={orgId} subjectType={SUBJECTS.contract} subjectId={contract.id} />
+        <ActivityTimeline key={timelineKey} orgId={orgId} subjectType={SUBJECTS.contract} subjectId={contract.id} />
       )}
     </div>
   )

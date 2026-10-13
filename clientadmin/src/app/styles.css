@@ -119,6 +119,7 @@ tbody tr:hover { background: #f8fafc; cursor: pointer; }
 .alert.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 .alert.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 .alert.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.alert.warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
 
 /* ---------- Auth screen ---------- */
 .auth-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
@@ -305,7 +306,8 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 .badge.qualified, .badge.negotiation, .badge.approved, .badge.sent { background: #dbeafe; color: #1e40af; }
 .badge.converted, .badge.won, .badge.accepted, .badge.completed { background: #dcfce7; color: #166534; }
 .badge.disqualified, .badge.lost, .badge.rejected, .badge.terminated { background: #fee2e2; color: #991b1b; }
-.badge.superseded { background: #f1f5f9; color: #475569; }
+.badge.superseded, .badge.withdrawn, .badge.not_chosen { background: #f1f5f9; color: #475569; }
+.badge.changes_requested { background: #fef3c7; color: #92400e; }
 /* Billing: invoices, payments, collection cases */
 .badge.issued, .badge.open, .badge.confirmed { background: #dbeafe; color: #1e40af; }
 .badge.partially_paid, .badge.promised, .badge.pending { background: #fef3c7; color: #92400e; }
@@ -591,3 +593,21 @@ td.skeleton-wait { border-bottom: 0; }
   .contact-picker, .contact-picker tbody, .contact-picker tr, .contact-picker td { display: block; width: 100%; }
   .contact-picker td[style] { text-align: left !important; }
 }
+
+/* A row's "Actions" menu (quotations on the opportunity page). */
+.action-menu { position: relative; display: inline-block; }
+.action-menu-list {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 200px;
+  background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 4px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12); display: flex; flex-direction: column;
+}
+.action-menu-list button {
+  background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: 6px;
+  font-size: 13px; cursor: pointer; color: inherit; white-space: nowrap;
+}
+.action-menu-list button:hover, .action-menu-list button:focus-visible { background: #f1f5f9; outline: none; }
+.action-menu-list button.danger { color: var(--danger); }
+.quotation-history { list-style: none; margin: 0; padding: 0; }
+.quotation-history li { padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.quotation-history li:first-child { border-top: 0; }
+.main-star { color: #d97706; font-size: 15px; }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { customersApi } from '@/features/customers/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
@@ -132,7 +132,13 @@ export default function CustomerDetail() {
             {activeOrg && ` · ${activeOrg.name}`}
           </p>
         </div>
-        <button className="btn secondary" onClick={() => navigate('/customers')}>← Back</button>
+        <div className="row-actions">
+          {/* Sales, linked by route only: repeat business starts an opportunity without a lead. */}
+          {hasAccess(me, ACCESS.manageOpportunities) && customer.status !== 'inactive' && (
+            <Link className="btn" to={`/opportunities/new?customer=${customer.id}`}>New opportunity</Link>
+          )}
+          <button className="btn secondary" onClick={() => navigate('/customers')}>← Back</button>
+        </div>
       </div>
 
       <div className="version-tabs" role="tablist">

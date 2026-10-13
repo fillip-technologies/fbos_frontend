@@ -39,6 +39,7 @@ const LeadCreate = lazy(pages.LeadCreate)
 const LeadDetail = lazy(pages.LeadDetail)
 const Opportunities = lazy(pages.Opportunities)
 const OpportunityDetail = lazy(pages.OpportunityDetail)
+const OpportunityCreate = lazy(pages.OpportunityCreate)
 const QuotationDetail = lazy(pages.QuotationDetail)
 const Contracts = lazy(pages.Contracts)
 const ContractDetail = lazy(pages.ContractDetail)
@@ -116,6 +117,7 @@ export default function App() {
           <Route path="/leads/new" element={<RequireAccess rule={ACCESS.manageLeads}><LeadCreate /></RequireAccess>} />
           <Route path="/leads/:id" element={<RequireAccess rule={ACCESS.leads}><LeadDetail /></RequireAccess>} />
           <Route path="/opportunities" element={<RequireAccess rule={ACCESS.opportunities}><Opportunities /></RequireAccess>} />
+          <Route path="/opportunities/new" element={<RequireAccess rule={ACCESS.manageOpportunities}><OpportunityCreate /></RequireAccess>} />
           <Route path="/opportunities/:id" element={<RequireAccess rule={ACCESS.opportunities}><OpportunityDetail /></RequireAccess>} />
           <Route path="/quotations/:id" element={<RequireAccess rule={ACCESS.opportunities}><QuotationDetail /></RequireAccess>} />
           <Route path="/contracts" element={<RequireAccess rule={ACCESS.contracts}><Contracts /></RequireAccess>} />
