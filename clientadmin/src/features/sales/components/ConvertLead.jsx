@@ -6,8 +6,21 @@ import { customersApi } from '@/features/customers/api.js'
 import CustomerFields from '@/features/customers/components/CustomerFields.jsx'
 import { EMPTY_ADDRESS, addressFromForm } from '@/features/customers/utils.js'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
+import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { toIsoDate } from '@/shared/utils/dates.js'
+
+const MATCH_REASONS = { gstin: 'same GSTIN', pan: 'same PAN', email: 'same contact email', name: 'similar name' }
+
+// Typing settles before customers are looked up again. `value` must be a primitive.
+function useSettled(value, delay = 400) {
+  const [settled, setSettled] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return settled
+}
 
 function inDays(days) {
   const d = new Date()
@@ -52,6 +65,17 @@ export default function ConvertLead({ orgId, lead, owners, defaultCurrency, onCo
     customersApi.listAll(orgId).then(setCustomers).catch(() => setCustomers([]))
   }, [orgId, canPickExisting])
 
+  // Customers that may already be this business, so a duplicate isn't created by accident.
+  // Settled as text: an object would be new on every render and never settle.
+  const matchParams = JSON.parse(
+    useSettled(JSON.stringify({ gstin: customer.gstin, pan: customer.pan, email: lead.contact_email || '', name: customer.name }))
+  )
+  const { data: matches = [] } = useQuery(
+    ['client-matches', orgId, matchParams],
+    ({ signal }) => customersApi.matches(orgId, matchParams, { signal }),
+    { enabled: Boolean(orgId) && canPickExisting && mode === 'new' }
+  )
+
   const setCustomerField = (k, v) => setCustomer((c) => ({ ...c, [k]: v }))
   const setAddress = (k, v) => setCustomer((c) => ({ ...c, address: { ...c.address, [k]: v } }))
   const setOpp = (k, v) => setOpportunity((o) => ({ ...o, [k]: v }))
@@ -92,6 +116,7 @@ export default function ConvertLead({ orgId, lead, owners, defaultCurrency, onCo
       <h3>Convert lead</h3>
       <p className="muted small" style={{ marginTop: 0 }}>
         Creates an opportunity. A new customer starts as a prospect and becomes active when they accept a quotation.
+        The lead’s contact is added to the customer’s contacts.
       </p>
       {error && Object.keys(fieldErrors).length === 0 && <ErrorBanner error={error} />}
 
@@ -123,7 +148,30 @@ export default function ConvertLead({ orgId, lead, owners, defaultCurrency, onCo
           </select>
         </div>
       ) : (
-        <CustomerFields
+        <>
+          {matches.length > 0 && (
+            <div className="alert warning small" role="status">
+              <strong>This may be a customer you already have:</strong>
+              <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                {matches.map((m) => (
+                  <li key={m.id}>
+                    {m.name} <span className="mono">({m.code})</span> · {m.status} · {m.reasons.map((r) => MATCH_REASONS[r]).join(', ')}{' '}
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => {
+                        setExistingId(m.id)
+                        setMode('existing')
+                      }}
+                    >
+                      Use this customer
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <CustomerFields
           form={customer}
           set={setCustomerField}
           setAddress={setAddress}
@@ -132,6 +180,7 @@ export default function ConvertLead({ orgId, lead, owners, defaultCurrency, onCo
           me={me}
           isCreate
         />
+        </>
       )}
 
       <h3 style={{ margin: '12px 0 10px', fontSize: 15 }}>Opportunity</h3>

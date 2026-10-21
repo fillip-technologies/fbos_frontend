@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { checkFields, replacedAttributes, toFormValues } from '@/shared/utils/customFields.js'
 import { todayIso } from '@/shared/utils/dates.js'
+import CustomFieldsSection from '@/features/verticals/components/CustomFieldsSection.jsx'
+import useFormFields from '@/features/verticals/useFormFields.js'
 import {
   BILLING_CYCLES,
   MANAGED_BY,
@@ -15,12 +18,18 @@ import {
 
 // Add or edit one outside service of a customer. `onSave(body)` gets the full body for a
 // new record and only the changed fields for an existing one; it may throw an ApiError.
-export default function ServiceForm({ service, providers, categories, defaultCurrency, onSave, onCancel }) {
+// Its custom fields are the exception: a save replaces all of a service's extra values, so
+// when they change the whole set goes (the stored ones plus the form's).
+export default function ServiceForm({ orgId, service, providers, categories, defaultCurrency, onSave, onCancel }) {
   const [form, setForm] = useState(() => serviceToForm(service, defaultCurrency))
+  const customFields = useFormFields(orgId, 'revenue.client_service', { values: form })
+  const [customValues, setCustomValues] = useState(null) // null until a custom field is edited
+  const [problems, setProblems] = useState({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const fieldErrors = getFieldErrors(error)
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  const values = customValues ?? toFormValues(customFields, service?.attributes)
 
   // A provider brings its usual category along unless one was already picked.
   function pickProvider(id) {
@@ -30,11 +39,21 @@ export default function ServiceForm({ service, providers, categories, defaultCur
 
   async function handleSubmit(e) {
     e.preventDefault()
+    const found = checkFields(customFields, values)
+    setProblems(found)
+    if (Object.keys(found).length > 0) return
     setError(null)
     setSaving(true)
     try {
       const body = serviceFromForm(form)
-      await onSave(service ? changedFields(serviceFromForm(serviceToForm(service, defaultCurrency)), body) : body)
+      const attributes = replacedAttributes(customFields, values, service?.attributes)
+      if (!service) {
+        await onSave(Object.keys(attributes).length > 0 ? { ...body, attributes } : body)
+        return
+      }
+      const changes = changedFields(serviceFromForm(serviceToForm(service, defaultCurrency)), body)
+      if (JSON.stringify(attributes) !== JSON.stringify(service.attributes || {})) changes.attributes = attributes
+      await onSave(changes)
     } catch (err) {
       setError(err)
       setSaving(false)
@@ -188,6 +207,15 @@ export default function ServiceForm({ service, providers, categories, defaultCur
         <label htmlFor="svc-notes">Notes</label>
         <textarea id="svc-notes" rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
       </div>
+
+      <CustomFieldsSection
+        formCode="revenue.client_service"
+        fields={customFields}
+        values={values}
+        onChange={setCustomValues}
+        errors={{ ...fieldErrors, ...problems }}
+        idPrefix="svc_cf"
+      />
 
       <div className="row-actions">
         <button className="btn" type="submit" disabled={saving}>

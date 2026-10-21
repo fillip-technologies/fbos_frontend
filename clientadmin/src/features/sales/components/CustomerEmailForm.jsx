@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { quotationsApi } from '@/features/sales/api.js'
+import { contractsApi, quotationsApi } from '@/features/sales/api.js'
 import { documentsApi, DOCUMENT_SUBJECTS, formatFileSize } from '@/features/documents/api.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { useQuery } from '@/shared/api/useQuery.js'
@@ -62,7 +62,7 @@ function RecipientField({ id, label, values, onAdd, onRemove, required, serverEr
   )
 }
 
-function Form({ orgId, quote, draft, files, canSeeFiles, onSent, onCancel }) {
+function Form({ draft, files, canSeeFiles, sendFn, onSent, onCancel }) {
   const [recipients, setRecipients] = useState({ to: draft.to, cc: [], bcc: [] })
   const [subject, setSubject] = useState(draft.subject)
   const [message, setMessage] = useState(draft.message)
@@ -98,7 +98,7 @@ function Form({ orgId, quote, draft, files, canSeeFiles, onSent, onCancel }) {
     setError(null)
     setSending(true)
     try {
-      const sent = await quotationsApi.email(orgId, quote, {
+      const sent = await sendFn({
         ...recipients,
         subject: subject.trim(),
         message,
@@ -165,7 +165,7 @@ function Form({ orgId, quote, draft, files, canSeeFiles, onSent, onCancel }) {
       {LISTS.map(([key, label]) => (
         <RecipientField
           key={key}
-          id={`q-email-${key}`}
+          id={`customer-email-${key}`}
           label={label}
           required={key === 'to'}
           values={recipients[key]}
@@ -176,19 +176,19 @@ function Form({ orgId, quote, draft, files, canSeeFiles, onSent, onCancel }) {
       ))}
 
       <div className="field">
-        <label htmlFor="q-email-subject">Subject *</label>
-        <input id="q-email-subject" required maxLength={255} value={subject} onChange={(e) => setSubject(e.target.value)} />
+        <label htmlFor="customer-email-subject">Subject *</label>
+        <input id="customer-email-subject" required maxLength={255} value={subject} onChange={(e) => setSubject(e.target.value)} />
       </div>
       <div className="field">
-        <label htmlFor="q-email-message">Message *</label>
-        <textarea id="q-email-message" required rows={8} value={message} onChange={(e) => setMessage(e.target.value)} />
+        <label htmlFor="customer-email-message">Message *</label>
+        <textarea id="customer-email-message" required rows={8} value={message} onChange={(e) => setMessage(e.target.value)} />
       </div>
 
       {canSeeFiles && (
         <div className="field">
           <div className="detail-label">Files to attach</div>
           {files.length === 0 ? (
-            <p className="muted small" style={{ margin: 0 }}>No files are attached to this quotation.</p>
+            <p className="muted small" style={{ margin: 0 }}>No files are attached here yet.</p>
           ) : (
             files.map((d) => (
               <label key={d.id} className="file-choice">
@@ -236,15 +236,17 @@ function Form({ orgId, quote, draft, files, canSeeFiles, onSent, onCancel }) {
   )
 }
 
-// Email a quotation, with the files chosen from it, to the customer.
-export default function QuotationEmailForm({ orgId, quote, canSeeFiles, onSent, onCancel }) {
-  const draftQuery = useQuery(['quotation-email-draft', orgId, quote.id], ({ signal }) =>
-    quotationsApi.emailDraft(orgId, quote.id, { signal }), { staleTime: 0 }
-  )
-  // Same key as the quotation's DocumentPanel, so both share one request.
+/**
+ * Email a record (a quotation, a contract) and the files chosen from it to the customer.
+ * `draftFn({ signal })` loads what the form starts from (GET .../email-draft), `sendFn(body)`
+ * sends it (POST .../emails), `subject` is the record's documents subject `{ type, id }`.
+ */
+export default function CustomerEmailForm({ orgId, title, subject, draftFn, sendFn, notEmailable, canSeeFiles, onSent, onCancel }) {
+  const draftQuery = useQuery(['customer-email-draft', orgId, subject.type, subject.id], draftFn, { staleTime: 0 })
+  // Same key as the record's DocumentPanel, so both share one request.
   const filesQuery = useQuery(
-    ['documents', orgId, DOCUMENT_SUBJECTS.quotation, quote.id],
-    ({ signal }) => documentsApi.listForSubject(orgId, DOCUMENT_SUBJECTS.quotation, quote.id, { signal }),
+    ['documents', orgId, subject.type, subject.id],
+    ({ signal }) => documentsApi.listForSubject(orgId, subject.type, subject.id, { signal }),
     { enabled: canSeeFiles },
   )
   const draft = draftQuery.data
@@ -253,26 +255,22 @@ export default function QuotationEmailForm({ orgId, quote, canSeeFiles, onSent, 
 
   return (
     <div className="inline-panel">
-      <h3>Email quotation · {quote.quote_no} rev {quote.revision_no}</h3>
+      <h3>{title}</h3>
       <ErrorBanner error={draftQuery.error || filesQuery.error} onRetry={() => { draftQuery.reload(); filesQuery.reload() }} />
       {loading ? (
         <PanelSkeleton />
       ) : draft && !draft.emailable ? (
         <>
-          <p className="muted small">
-            This quotation can't be emailed while it is {quote.status.replaceAll('_', ' ')}. Only a draft, approved, sent or
-            accepted quotation goes to the customer.
-          </p>
+          <p className="muted small">{notEmailable}</p>
           <button type="button" className="btn secondary" onClick={onCancel}>Close</button>
         </>
       ) : (
         draft && (
           <Form
-            orgId={orgId}
-            quote={quote}
             draft={draft}
             files={files}
             canSeeFiles={canSeeFiles}
+            sendFn={sendFn}
             onSent={onSent}
             onCancel={onCancel}
           />
@@ -280,4 +278,26 @@ export default function QuotationEmailForm({ orgId, quote, canSeeFiles, onSent, 
       )}
     </div>
   )
+}
+
+// The form's props for a quotation.
+export function quotationEmailProps(orgId, quote) {
+  return {
+    title: `Email quotation · ${quote.quote_no} rev ${quote.revision_no}`,
+    subject: { type: DOCUMENT_SUBJECTS.quotation, id: quote.id },
+    draftFn: ({ signal }) => quotationsApi.emailDraft(orgId, quote.id, { signal }),
+    sendFn: (body) => quotationsApi.email(orgId, quote, body),
+    notEmailable: `This quotation can't be emailed while it is ${quote.status.replaceAll('_', ' ')}. Only an open or accepted quotation goes to the customer.`,
+  }
+}
+
+// The form's props for a contract: for signing while it waits for one, else a copy.
+export function contractEmailProps(orgId, contract) {
+  return {
+    title: `Email contract · ${contract.contract_no}`,
+    subject: { type: DOCUMENT_SUBJECTS.contract, id: contract.id },
+    draftFn: ({ signal }) => contractsApi.emailDraft(orgId, contract.id, { signal }),
+    sendFn: (body) => contractsApi.email(orgId, contract.id, body),
+    notEmailable: `This contract can't be emailed while it is ${contract.status.replaceAll('_', ' ')}.`,
+  }
 }

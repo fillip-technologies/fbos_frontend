@@ -1,5 +1,6 @@
 import SlaBadge from '@/features/delivery/components/SlaBadge.jsx'
-import { cardFields, disciplineLabel, formatFieldValue } from '@/features/delivery/taskFields.js'
+import { cardFields, disciplineLabel } from '@/features/delivery/taskFields.js'
+import { formatFieldValue } from '@/shared/utils/customFields.js'
 import { TASK_PRIORITY_LABELS, formatDay, isOverdue, subjectLabel } from '@/features/delivery/utils.js'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 

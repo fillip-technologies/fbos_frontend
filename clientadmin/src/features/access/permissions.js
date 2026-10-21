@@ -63,11 +63,16 @@ export const actionLabel = (code) => titleCase(parseCode(code).action)
 export const entityLabel = (entity) => ENTITY_LABELS[entity] || titleCase(entity)
 export const serviceLabel = (service) => SERVICE_LABELS[service] || titleCase(service)
 
+// Codes still in the catalog that no screen uses any more (vertical packs gave way to
+// per-form custom fields): the editors leave them out.
+const UNUSED_ENTITIES = new Set(['vertical_pack'])
+
 // [{ service, entities: [{ entity, permissions: [catalogItem] }] }] in catalog order.
 export function groupCatalog(catalog) {
   const services = new Map()
   for (const perm of catalog) {
     const { entity } = parseCode(perm.code)
+    if (UNUSED_ENTITIES.has(entity)) continue
     if (!services.has(perm.service)) services.set(perm.service, new Map())
     const entities = services.get(perm.service)
     if (!entities.has(entity)) entities.set(entity, [])

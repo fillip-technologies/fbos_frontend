@@ -76,6 +76,7 @@ export default function CustomerServices({ orgId, customerId, canManage, default
       {editing && !catalog.loading && (
         <ServiceForm
           key={editing === 'new' ? 'new' : editing.id}
+          orgId={orgId}
           service={editing === 'new' ? null : editing}
           providers={catalog.providers}
           categories={catalog.categories}

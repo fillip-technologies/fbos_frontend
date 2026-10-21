@@ -2,16 +2,10 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { lookupsApi, projectsApi, routingApi, tasksApi } from '@/features/delivery/api.js'
 import AssigneeOptions from '@/features/delivery/components/AssigneeOptions.jsx'
-import TaskFieldInputs from '@/features/delivery/components/TaskFieldInputs.jsx'
-import {
-  DISCIPLINE_ORDER,
-  attributeErrors,
-  checkFields,
-  disciplineLabel,
-  formatTarget,
-  isEmpty,
-  toAttributes,
-} from '@/features/delivery/taskFields.js'
+import CustomFieldInputs from '@/shared/components/CustomFieldInputs.jsx'
+import { CustomizeFormLink } from '@/features/verticals/components/CustomFieldsSection.jsx'
+import { DISCIPLINE_ORDER, attributeErrors, disciplineLabel, formatTarget } from '@/features/delivery/taskFields.js'
+import { checkFields, isEmpty, toAttributes } from '@/shared/utils/customFields.js'
 import useAssignablePeople from '@/features/delivery/useAssignablePeople.js'
 import useAssignmentPolicies from '@/features/delivery/useAssignmentPolicies.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
@@ -86,7 +80,7 @@ export default function TaskCreate() {
   // A chosen team, else the one the rules give this work, else the project's delivering team.
   const owningUnitId = form.owning_unit_id || routedUnitId || chosenProject?.owning_unit?.id || ''
   const taskUnitId = isProjectTask ? null : (owningUnitId || null)
-  const fields = useTaskFields(orgId, taskType, taskUnitId, taskVerticalId)
+  const fields = useTaskFields(orgId, taskType, taskUnitId, taskVerticalId, form)
   const createFields = fields.filter((f) => !f.required_on_submit)
   // Reviewers may be anyone; the assignee is someone the task's team may give its work to.
   const people = names.people || [me].filter(Boolean)
@@ -236,8 +230,11 @@ export default function TaskCreate() {
 
         {createFields.length > 0 && (
           <div className="subpanel">
-            <div className="subpanel-title">{taskType?.name} details</div>
-            <TaskFieldInputs fields={createFields} values={values} onChange={setValues} errors={fieldErrors} />
+            <div className="subpanel-head">
+              <div className="subpanel-title">{taskType?.name} details</div>
+              <CustomizeFormLink formCode="task.task" />
+            </div>
+            <CustomFieldInputs fields={createFields} values={values} onChange={setValues} errors={fieldErrors} />
             {fields.some((f) => f.required_on_submit) && (
               <p className="muted small" style={{ margin: 0 }}>
                 Filled in when it's submitted: {fields.filter((f) => f.required_on_submit).map((f) => f.label).join(', ')}.

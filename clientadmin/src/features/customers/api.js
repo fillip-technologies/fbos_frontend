@@ -12,6 +12,11 @@ export const customersApi = {
   get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/clients/${id}`, { headers: inOrg(orgId), signal }),
   create: (orgId, body) => api.post(`${REVENUE}/clients`, body, { headers: inOrg(orgId) }),
   update: (orgId, id, version, body) => api.patch(`${REVENUE}/clients/${id}`, body, { headers: ifMatch(orgId, version) }),
+  // Customers that may be the same business: { gstin, pan, email, name } → [{ id, code, name, status, gstin, reasons }].
+  matches: (orgId, params, { signal } = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, v]) => v && String(v).trim()))
+    return api.get(`${REVENUE}/clients/matches?${query}`, { headers: inOrg(orgId), signal })
+  },
   addContact: (orgId, id, body) => api.post(`${REVENUE}/clients/${id}/contacts`, body, { headers: inOrg(orgId) }),
   // How tax applies to the customer; version 0 (and `effective` from GSTIN and address) until saved.
   taxProfile: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/clients/${id}/tax-profile`, { headers: inOrg(orgId), signal }),
