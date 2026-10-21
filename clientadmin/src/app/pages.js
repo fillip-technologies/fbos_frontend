@@ -58,6 +58,9 @@ export const pages = {
   WorkflowBuilder: () => import('@/features/delivery/pages/WorkflowBuilder.jsx'),
   Requests: () => import('@/features/delivery/pages/Requests.jsx'),
   RequestCreate: () => import('@/features/delivery/pages/RequestCreate.jsx'),
+  Devices: () => import('@/features/inventory/pages/Devices.jsx'),
+  DeviceDetail: () => import('@/features/inventory/pages/DeviceDetail.jsx'),
+  StockLocations: () => import('@/features/inventory/pages/StockLocations.jsx'),
 }
 
 // Sidebar path -> the pages of that section. Hovering an entry downloads the list page
@@ -93,6 +96,8 @@ const NAV_PAGES = {
   '/audit-log': [pages.AuditLog],
   '/profile': [pages.Profile],
   '/notifications': [pages.Notifications],
+  '/inventory/devices': [pages.Devices, pages.DeviceDetail],
+  '/inventory/stock': [pages.StockLocations],
 }
 
 // Starts downloading a section's code; a failed preload is ignored (the click retries it).

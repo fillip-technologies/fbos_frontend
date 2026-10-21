@@ -7,6 +7,7 @@ import { inOrg, pageQuery } from '@/shared/api/query.js'
 export const DOCUMENT_SUBJECTS = {
   quotation: 'revenue.quotation',
   contract: 'revenue.contract',
+  device: 'inventory.device',
 }
 
 export const documentsApi = {

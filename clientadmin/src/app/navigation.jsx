@@ -1,4 +1,5 @@
 import { ACCESS } from '@/features/auth/access.js'
+import { inventoryPageOn } from '@/features/inventory/flags.js'
 
 const icon = (d) => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -99,6 +100,22 @@ export const NAV_ITEMS = [
     access: ACCESS.projectTemplates,
     icon: icon(<><rect x="4" y="3" width="16" height="18" rx="2" strokeDasharray="3 2" /><path d="M8 8h8M8 12h8M8 16h5" /></>),
   },
+  ...(inventoryPageOn('devices')
+    ? [{
+        to: '/inventory/devices',
+        label: 'Devices',
+        access: ACCESS.devices,
+        icon: icon(<><rect x="3" y="7" width="13" height="10" rx="2" /><path d="M16 10l5-3v10l-5-3" /><circle cx="9.5" cy="12" r="2" /></>),
+      }]
+    : []),
+  ...(inventoryPageOn('stock')
+    ? [{
+        to: '/inventory/stock',
+        label: 'Stock',
+        access: ACCESS.devices,
+        icon: icon(<><path d="M3 9l9-5 9 5v11H3V9z" /><path d="M8 20v-6h8v6" /><path d="M8 11h8" /></>),
+      }]
+    : []),
   {
     to: '/invoices',
     label: 'Invoices',
