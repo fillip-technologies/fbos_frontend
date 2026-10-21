@@ -206,9 +206,12 @@ A long-term plan for tasks across many teams and domains, built phase by phase. 
 
 **Project templates (2026-10-12):**
 - `/project-templates` (list + new) and `/project-templates/:code` (`ProjectTemplateBuilder.jsx`), both behind `ACCESS.projectTemplates` (`delivery.template.manage` + `delivery.work_unit.read`). A template (`work_templates`) belongs to one company and makes one kind of project; its content is versioned (`work_template_versions.structure`: `{ phases, milestones, packages }`). Nothing creates templates except this screen (or the API).
-- The builder edits phases and milestones and publishes them as the next version; the New project form offers active templates with a published version, and a project copies that version once (`_copy_template_structure`). Packages, phase dates, weights and the version's `workflow_definition_code` aren't shown and are carried over.
+- The builder edits phases, milestones, work packages and the template's workflow, and publishes them as the next version. The New project form offers active templates with a published version, and a project copies that version once (`_copy_template_structure`). Phase dates and milestone weights aren't shown and are carried over.
 - A milestone's planned date: its fixed `planned_date`, else `offset_days` after the project starts (never after it is due), else the due date.
 - `PATCH /templates/{code}` renames a template, changes its vertical or retires it (`TEMPLATE_RETIRED` on create); publishing doesn't bring a retired one back.
+- Work packages (`{ name, phase_seq, estimated_hours, owner_unit_id }` in the structure) are read back with `GET /work-units/{id}/work-packages` (`delivery.work_unit.read`), shown on the project's Milestones tab (`ProjectWorkPackages`). Values a project can't use are ignored on copy.
+- A template version's `workflow_definition_code` must name an active `work.work_unit` workflow with a published version (else 422 `VALIDATION_ERROR`, `details[].field`). The template list says which one the published version starts (`published_workflow_definition_code`); the New project form offers to start it (`start_workflow`, needs `delivery.workflow.operate`). The builder's picker needs `delivery.workflow.read`; without it the workflow is kept as it is.
+- Project workflows: the Project workflows panel on `/project-templates` lists and starts them; `/project-workflows/:code` is `WorkflowBuilder` with `subject="project"` (behind `ACCESS.designWorkflows`), the same editor as task workflows without the task status column.
 
 **Next:** the rest of Phase G (reports, domain packs), or a team lead view.
 

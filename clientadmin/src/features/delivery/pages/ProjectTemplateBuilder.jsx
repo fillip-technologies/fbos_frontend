@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { setupApi } from '@/features/delivery/api.js'
+import { setupApi, workflowsApi } from '@/features/delivery/api.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
-import { formatDateTime, toUpperCode } from '@/features/delivery/utils.js'
+import { SUBJECT_TYPES, formatDateTime, toUpperCode } from '@/features/delivery/utils.js'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
@@ -14,14 +16,22 @@ import { formatDate } from '@/shared/utils/format.js'
 let rowSeq = 0
 const rowId = () => `row-${(rowSeq += 1)}`
 
-// A project template's phases and milestones, changed and published as its next version. New
-// projects copy the latest published version; projects already made keep what they copied. What
-// this page doesn't show (work packages, phase dates, weights, the template's workflow) is kept.
+// A project template's phases, milestones, work packages and workflow, changed and published as
+// its next version. New projects copy the latest published version; projects already made keep
+// what they copied. What this page doesn't show (phase dates, milestone weights) is kept.
 export default function ProjectTemplateBuilder() {
   const { code } = useParams()
   const { orgId } = useActiveOrg()
+  const { user: me } = useAuth()
   const enabled = Boolean(orgId)
   const names = useDeliveryNames(orgId)
+  // Listing workflows is its own permission: without it the template's workflow stays as it is.
+  const canReadWorkflows = hasAccess(me, ACCESS.workflows)
+  const workflows = useQuery(
+    ['workflow-definitions', orgId, SUBJECT_TYPES.project],
+    ({ signal }) => workflowsApi.definitions(orgId, { subject_type: SUBJECT_TYPES.project }, { signal }),
+    { enabled: enabled && canReadWorkflows }
+  )
   const templates = useQuery(['project-templates', orgId], ({ signal }) => setupApi.templates(orgId, { signal }), { enabled })
   const versions = useQuery(
     ['project-template-versions', orgId, code],
@@ -67,6 +77,8 @@ export default function ProjectTemplateBuilder() {
         orgId={orgId}
         template={template}
         start={start}
+        names={names}
+        workflows={{ canRead: canReadWorkflows, data: workflows.data ?? null, error: workflows.error, reload: workflows.reload }}
         onEdit={() => setNotice('')}
         onPublished={(versionNo) =>
           setNotice(
@@ -84,8 +96,8 @@ export default function ProjectTemplateBuilder() {
 const asList = (value) => (Array.isArray(value) ? value : [])
 const bySeq = (a, b) => (a.seq ?? 0) - (b.seq ?? 0)
 
-// The version's structure as editor rows. Milestones point at a phase row, not a number, so
-// phases can be moved and removed; `item` keeps every field the page doesn't show.
+// The version's structure as editor rows. Milestones and packages point at a phase row, not a
+// number, so phases can be moved and removed; `item` keeps every field the page doesn't show.
 function fromStructure(structure) {
   const phaseRowBySeq = new Map()
   const phases = [...asList(structure.phases)].sort(bySeq).map((item) => {
@@ -108,12 +120,20 @@ function fromStructure(structure) {
     requires_client_acceptance: Boolean(item.requires_client_acceptance),
     item,
   }))
-  return { phases, milestones, phaseRowBySeq }
+  const packages = asList(structure.packages).map((item) => ({
+    id: rowId(),
+    name: typeof item.name === 'string' ? item.name : '',
+    phase: phaseRow(item.phase_seq),
+    hours: typeof item.estimated_hours === 'number' && item.estimated_hours > 0 ? String(item.estimated_hours) : '',
+    unit: typeof item.owner_unit_id === 'string' ? item.owner_unit_id : '',
+    item,
+  }))
+  return { phases, milestones, packages }
 }
 
 // Editor rows back to a structure: phases numbered 1..n in their order, and everything that
-// points at a phase (milestones, the work packages carried over) pointed at its new number.
-function toStructure(original, phases, milestones, phaseRowBySeq) {
+// points at a phase (milestones, work packages) pointed at its new number.
+function toStructure(original, phases, milestones, packages) {
   const seqByRow = new Map(phases.map((p, i) => [p.id, i + 1]))
   const inPhase = (item, row) => {
     const out = { ...item }
@@ -140,8 +160,15 @@ function toStructure(original, phases, milestones, phaseRowBySeq) {
       )
     ),
   }
-  if (Array.isArray(original.packages)) {
-    structure.packages = original.packages.map((p) => inPhase(p, phaseRowBySeq.get(p.phase_seq)))
+  if (packages.length > 0 || Array.isArray(original.packages)) {
+    structure.packages = packages.map((p) => {
+      const out = inPhase({ ...p.item, name: p.name.trim() }, p.phase)
+      delete out.estimated_hours
+      delete out.owner_unit_id
+      if (p.hours !== '') out.estimated_hours = Number(p.hours)
+      if (p.unit) out.owner_unit_id = p.unit
+      return out
+    })
   }
   return structure
 }
@@ -154,9 +181,11 @@ function withoutDates(item) {
 }
 
 // What would make a template that projects can't use, said before publishing.
-function problems(phases, milestones) {
+function problems(phases, milestones, packages, workflowGone) {
   const found = []
-  if (phases.length === 0 && milestones.length === 0) found.push('Add at least one phase or milestone.')
+  if (phases.length === 0 && milestones.length === 0 && packages.length === 0) {
+    found.push('Add at least one phase, milestone or work package.')
+  }
   if (phases.some((p) => !p.name.trim())) found.push('Every phase needs a name.')
   if (milestones.some((m) => !m.name.trim())) found.push('Every milestone needs a name.')
   const codes = milestones.map((m) => m.code.trim())
@@ -165,6 +194,11 @@ function problems(phases, milestones) {
   if (milestones.some((m) => m.offset !== '' && !/^\d{1,4}$/.test(m.offset))) {
     found.push('Days after the start are whole numbers: 0 for the day it starts, up to 9999.')
   }
+  if (packages.some((p) => !p.name.trim())) found.push('Every work package needs a name.')
+  if (packages.some((p) => p.hours !== '' && !/^\d{1,6}(\.\d{1,2})?$/.test(p.hours))) {
+    found.push('Hours are a number from 0 to 999999, with at most two decimals.')
+  }
+  if (workflowGone) found.push('The workflow chosen can’t be started any more: choose another, or none.')
   return found
 }
 
@@ -184,20 +218,28 @@ function moveRow(rows, id, delta) {
   return next
 }
 
-function Editor({ orgId, template, start, onEdit, onPublished }) {
+function Editor({ orgId, template, start, names, workflows, onEdit, onPublished }) {
   const original = start?.structure ?? {}
   const [initial] = useState(() => fromStructure(original))
   const [phases, setPhases] = useState(initial.phases)
   const [milestones, setMilestones] = useState(initial.milestones)
+  const [packages, setPackages] = useState(initial.packages)
+  const [workflow, setWorkflow] = useState(start?.workflow_definition_code ?? '')
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const found = problems(phases, milestones)
+  // Only an active project workflow with a published version can start with a project. A
+  // choice that no longer is one (retired, or set through the API) is known once the list is in.
+  const workflowList = workflows.canRead ? workflows.data : null
+  const usable = (workflowList ?? []).filter((d) => d.status === 'active' && d.current_version_no)
+  const workflowGone = Boolean(workflow && workflowList && !usable.some((d) => d.code === workflow))
+  const workflowIssue = (error?.details?.detail?.details ?? []).find((d) => d.field === 'workflow_definition_code')?.issue
+  const units = (names.units || []).filter((u) => u.status !== 'inactive')
+  const found = problems(phases, milestones, packages, workflowGone)
   // An unchanged draft is published as it is; anything else becomes the next version first.
   const reuseDraft = !dirty && start?.status === 'draft'
   const canPublish = found.length === 0 && (dirty || reuseDraft)
   const nextVersionNo = reuseDraft ? start.version_no : (start?.version_no ?? 0) + 1
-  const packages = asList(original.packages)
 
   function touch() {
     setDirty(true)
@@ -211,6 +253,10 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
     touch()
     setMilestones((all) => all.map((m) => (m.id === id ? { ...m, ...changes } : m)))
   }
+  const setPackage = (id, changes) => {
+    touch()
+    setPackages((all) => all.map((p) => (p.id === id ? { ...p, ...changes } : p)))
+  }
 
   function addPhase() {
     touch()
@@ -221,6 +267,7 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
     touch()
     setPhases((all) => all.filter((p) => p.id !== id))
     setMilestones((all) => all.map((m) => (m.phase === id ? { ...m, phase: '' } : m)))
+    setPackages((all) => all.map((p) => (p.phase === id ? { ...p, phase: '' } : p)))
   }
 
   function addMilestone() {
@@ -229,6 +276,11 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
       ...all,
       { id: rowId(), name: '', code: '', codeEdited: false, phase: '', offset: '', fixed: null, is_billing_milestone: false, requires_client_acceptance: false, item: {} },
     ])
+  }
+
+  function addPackage() {
+    touch()
+    setPackages((all) => [...all, { id: rowId(), name: '', phase: '', hours: '', unit: '', item: {} }])
   }
 
   function renameMilestone(milestone, name) {
@@ -248,8 +300,8 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
       let versionNo = start?.version_no
       if (!reuseDraft) {
         const draft = await setupApi.createTemplateVersion(orgId, template.code, {
-          structure: toStructure(original, phases, milestones, initial.phaseRowBySeq),
-          ...(start?.workflow_definition_code ? { workflow_definition_code: start.workflow_definition_code } : {}),
+          structure: toStructure(original, phases, milestones, packages),
+          ...(workflow ? { workflow_definition_code: workflow } : {}),
         })
         versionNo = draft.version_no
       }
@@ -407,14 +459,117 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
         <button type="button" className="btn secondary" style={{ marginTop: 10 }} onClick={addMilestone}>+ Add a milestone</button>
       </div>
 
-      {(packages.length > 0 || start?.workflow_definition_code) && (
-        <p className="muted small">
-          Kept as they are:
-          {packages.length > 0 && ` ${packages.length} work package${packages.length === 1 ? '' : 's'}`}
-          {packages.length > 0 && start?.workflow_definition_code && ' and'}
-          {start?.workflow_definition_code && <> the workflow <span className="mono">{start.workflow_definition_code}</span></>}.
+      <div className="panel">
+        <h2 style={{ marginTop: 0, fontSize: 17 }}>Work packages</h2>
+        <p className="muted small" style={{ marginTop: 0 }}>
+          Chunks of the work, each with the hours it should take and, if another team does it, that team. Optional.
         </p>
-      )}
+        {packages.length > 0 && (
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Package</th>
+                  <th>Phase</th>
+                  <th>Hours</th>
+                  <th>Team</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {packages.map((p) => (
+                  <tr key={p.id} style={{ cursor: 'default' }}>
+                    <td>
+                      <input aria-label="Package name" placeholder="e.g. Home page" maxLength={255} value={p.name} onChange={(e) => setPackage(p.id, { name: e.target.value })} />
+                    </td>
+                    <td>
+                      <select aria-label="Phase" value={p.phase} onChange={(e) => setPackage(p.id, { phase: e.target.value })}>
+                        <option value="">— None —</option>
+                        {phases.map((ph, n) => <option key={ph.id} value={ph.id}>{ph.name.trim() || `Phase ${n + 1}`}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        aria-label="Hours"
+                        type="number"
+                        min={0}
+                        step="0.25"
+                        placeholder="—"
+                        style={{ width: 100 }}
+                        value={p.hours}
+                        onChange={(e) => setPackage(p.id, { hours: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <select aria-label="Team" value={p.unit} onChange={(e) => setPackage(p.id, { unit: e.target.value })}>
+                        <option value="">— The project’s team —</option>
+                        {p.unit && !units.some((u) => u.id === p.unit) && <option value={p.unit}>{names.unitName(p.unit)}</option>}
+                        {units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          className="btn danger-outline small-btn"
+                          onClick={() => {
+                            touch()
+                            setPackages((all) => all.filter((x) => x.id !== p.id))
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <button type="button" className="btn secondary" style={{ marginTop: 10 }} onClick={addPackage}>+ Add a work package</button>
+      </div>
+
+      <div className="panel">
+        <h2 style={{ marginTop: 0, fontSize: 17 }}>Workflow</h2>
+        <p className="muted small" style={{ marginTop: 0 }}>
+          The stages each project made from this template goes through. The New project form offers to start it with the
+          project. Project workflows are made under Project workflows on the <Link to="/project-templates">templates page</Link>.
+        </p>
+        {!workflows.canRead ? (
+          workflow ? (
+            <p className="small" style={{ marginBottom: 0 }}>
+              Starts <span className="mono">{workflow}</span>. It stays as it is: seeing workflows needs workflow access.
+            </p>
+          ) : (
+            <p className="muted small" style={{ marginBottom: 0 }}>None. Choosing one needs access to workflows.</p>
+          )
+        ) : workflows.error ? (
+          <ErrorBanner error={workflows.error} onRetry={workflows.reload} />
+        ) : workflowList ? (
+          <div className="field" style={{ maxWidth: 420, marginBottom: 0 }}>
+            <label htmlFor="tpl_workflow">Starts with each new project</label>
+            <select
+              id="tpl_workflow"
+              value={workflow}
+              onChange={(e) => {
+                touch()
+                setWorkflow(e.target.value)
+              }}
+            >
+              <option value="">— No workflow —</option>
+              {workflowGone && <option value={workflow}>{workflow} (can’t be started any more)</option>}
+              {usable.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
+            </select>
+            {(workflowIssue || workflowGone) && (
+              <div className="field-error">{workflowIssue || 'It is retired or has no published version.'}</div>
+            )}
+            {usable.length === 0 && !workflow && <div className="hint">No project workflow is published yet.</div>}
+          </div>
+        ) : null}
+        {workflowIssue && !workflowList && <div className="field-error">{workflowIssue}</div>}
+      </div>
+
       {(dirty || reuseDraft) && found.length > 0 && (
         <div className="alert warn">
           {found.map((p) => <div key={p}>{p}</div>)}
@@ -424,7 +579,7 @@ function Editor({ orgId, template, start, onEdit, onPublished }) {
         <button className="btn" disabled={busy || !canPublish} aria-busy={busy} onClick={publish}>
           Publish as version {nextVersionNo}
         </button>
-        {!dirty && !start && <span className="muted small">Add its phases and milestones, then publish.</span>}
+        {!dirty && !start && <span className="muted small">Add its phases, milestones and work packages, then publish.</span>}
         {!dirty && start && !reuseDraft && <span className="muted small">Change something to publish a new version.</span>}
       </div>
     </>
@@ -517,6 +672,8 @@ function VersionHistory({ versions, inUse }) {
               <th>Published</th>
               <th>Phases</th>
               <th>Milestones</th>
+              <th>Work packages</th>
+              <th>Workflow</th>
             </tr>
           </thead>
           <tbody>
@@ -530,6 +687,8 @@ function VersionHistory({ versions, inUse }) {
                 <td>{formatDateTime(v.published_at)}</td>
                 <td>{asList(v.structure?.phases).length}</td>
                 <td>{asList(v.structure?.milestones).length}</td>
+                <td>{asList(v.structure?.packages).length}</td>
+                <td>{v.workflow_definition_code ? <span className="mono">{v.workflow_definition_code}</span> : <span className="muted">—</span>}</td>
               </tr>
             ))}
           </tbody>

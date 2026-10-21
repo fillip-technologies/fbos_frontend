@@ -6,6 +6,7 @@ import { PROJECT_PRIORITY_LABELS } from '@/features/delivery/utils.js'
 import { orgUnitsApi } from '@/features/org-units/api.js'
 import CustomFieldsSection from '@/features/verticals/components/CustomFieldsSection.jsx'
 import useFormFields from '@/features/verticals/useFormFields.js'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
@@ -29,6 +30,7 @@ export default function ProjectCreate() {
   const [form, setForm] = useState({
     work_unit_type_code: params.get('customer') ? 'project' : 'internal',
     template_code: '',
+    start_workflow: false,
     name: '',
     objective: '',
     client_id: params.get('customer') || '',
@@ -55,6 +57,9 @@ export default function ProjectCreate() {
   })
 
   const projectType = types.find((t) => t.code === form.work_unit_type_code)
+  // Starting the template's workflow with the project is running a workflow: it needs that access.
+  const canStartWorkflow = hasAccess(me, ACCESS.operateWorkflows)
+  const templateWorkflow = templates.find((t) => t.code === form.template_code)?.published_workflow_definition_code || null
   const typeTemplates = templates.filter(
     (t) => t.work_unit_type_code === form.work_unit_type_code && t.status === 'active' && t.published_version_no
   )
@@ -62,7 +67,7 @@ export default function ProjectCreate() {
   const units = (names.units || []).filter((u) => u.status !== 'inactive')
 
   function chooseType(code) {
-    setForm((f) => ({ ...f, work_unit_type_code: code, template_code: '' }))
+    setForm((f) => ({ ...f, work_unit_type_code: code, template_code: '', start_workflow: false }))
   }
 
   function chooseTemplate(code) {
@@ -70,6 +75,7 @@ export default function ProjectCreate() {
     setForm((f) => ({
       ...f,
       template_code: code,
+      start_workflow: Boolean(t?.published_workflow_definition_code),
       ...(t?.vertical_id && !f.vertical_id ? { vertical_id: t.vertical_id } : {}),
     }))
   }
@@ -109,6 +115,7 @@ export default function ProjectCreate() {
       if (form.objective.trim()) body.objective = form.objective.trim()
       if (form.client_id) body.client_id = form.client_id
       if (contractId) body.contract_id = contractId
+      if (form.start_workflow && templateWorkflow && canStartWorkflow) body.start_workflow = true
       if (form.vertical_id) body.vertical_id = form.vertical_id
 
       const attributes = toAttributes(customFields, customAttributes)
@@ -154,7 +161,16 @@ export default function ProjectCreate() {
                 <option key={t.code} value={t.code}>{t.name}</option>
               ))}
             </select>
-            <div className="hint">A template adds its phases and milestones, each planned from the project’s start and due dates.</div>
+            <div className="hint">A template adds its phases, milestones and work packages, each milestone planned from the project’s start and due dates.</div>
+            {templateWorkflow && canStartWorkflow && (
+              <label className="inline-check" style={{ marginTop: 6 }}>
+                <input type="checkbox" checked={form.start_workflow} onChange={(e) => set('start_workflow', e.target.checked)} />
+                Start its workflow (<span className="mono">{templateWorkflow}</span>) with the project
+              </label>
+            )}
+            {templateWorkflow && !canStartWorkflow && (
+              <div className="hint">Its workflow can be started later from the project’s page, by someone who runs workflows.</div>
+            )}
           </div>
         </div>
 
