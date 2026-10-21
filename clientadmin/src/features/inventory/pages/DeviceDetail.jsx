@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { devicesApi } from '@/features/inventory/api.js'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { devicesApi, issuesApi } from '@/features/inventory/api.js'
 import { HealthBadge, LifecycleBadge, WarrantyBadge } from '@/features/inventory/components/LifecycleBadge.jsx'
 import DeviceActions from '@/features/inventory/components/DeviceActions.jsx'
 import DeviceTimeline from '@/features/inventory/components/DeviceTimeline.jsx'
@@ -25,6 +25,7 @@ const TABS = [
   ['overview', 'Overview'],
   ['timeline', 'Timeline'],
   ['installations', 'Installations'],
+  ['issues', 'Issues'],
   ['warranty', 'Warranty'],
   ['documents', 'Documents'],
 ]
@@ -99,6 +100,7 @@ export default function DeviceDetail() {
       )}
       {tab === 'timeline' && <DeviceTimeline orgId={orgId} deviceId={device.id} />}
       {tab === 'installations' && <DeviceInstallations orgId={orgId} deviceId={device.id} />}
+      {tab === 'issues' && <DeviceIssues orgId={orgId} deviceId={device.id} />}
       {tab === 'warranty' && <DeviceWarranties orgId={orgId} device={device} />}
       {tab === 'documents' && <DeviceDocuments orgId={orgId} device={device} />}
     </div>
@@ -223,5 +225,31 @@ function DeviceDocuments({ orgId, device }) {
         onUploaded={(doc) => devicesApi.linkDocument(orgId, device.id, { document_id: doc.id, doc_type: 'other' }).catch(setLinkError)}
       />
     </>
+  )
+}
+
+function DeviceIssues({ orgId, deviceId }) {
+  const { user: me } = useAuth()
+  const allowed = hasAccess(me, ACCESS.deviceIssues)
+  const { data, error, loading, reload } = useQuery(['issues', orgId, { device: deviceId }], ({ signal }) => issuesApi.list(orgId, { limit: 50, device_id: deviceId }, { signal }), { enabled: Boolean(orgId) && allowed })
+  if (!allowed) return <div className="panel muted">You don't have access to issues.</div>
+  if (loading) return <PanelSkeleton />
+  const rows = data?.data ?? []
+  return (
+    <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+      <ErrorBanner error={error} onRetry={reload} />
+      <table>
+        <thead><tr><th>Issue</th><th>Status</th><th>Raised</th></tr></thead>
+        <tbody>
+          {rows.length === 0 ? <tr><td colSpan={3} className="center-note">No issues on this device.</td></tr> : rows.map((i) => (
+            <tr key={i.id}>
+              <td><Link className="mono" to={`/inventory/issues/${i.id}`}>{i.issue_number}</Link> <span className="muted small">{i.category.name}</span></td>
+              <td><StatusBadge status={i.status} /></td>
+              <td className="muted small">{formatDate(i.created_at)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

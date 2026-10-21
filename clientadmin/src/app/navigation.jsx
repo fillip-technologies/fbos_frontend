@@ -124,6 +124,36 @@ export const NAV_ITEMS = [
         icon: icon(<><path d="M3 7h13l-3-3M21 17H8l3 3" /></>),
       }]
     : []),
+  ...(inventoryPageOn('service')
+    ? [
+        {
+          to: '/inventory/issues',
+          label: 'Device issues',
+          access: ACCESS.deviceIssues,
+          icon: icon(<><path d="M12 3l9 16H3L12 3z" /><path d="M12 10v4M12 17h.01" /></>),
+        },
+        {
+          to: '/inventory/repairs',
+          label: 'Repairs',
+          access: ACCESS.repairOrders,
+          icon: icon(<><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4 2.5-2.5z" /></>),
+        },
+        {
+          to: '/inventory/disposals',
+          label: 'Disposals',
+          access: ACCESS.disposals,
+          icon: icon(<><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></>),
+        },
+      ]
+    : []),
+  ...(inventoryPageOn('reports')
+    ? [{
+        to: '/inventory/reports',
+        label: 'Inventory reports',
+        access: ACCESS.inventoryReports,
+        icon: icon(<><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>),
+      }]
+    : []),
   ...(inventoryPageOn('purchasing')
     ? [{
         to: '/inventory/purchase-orders',

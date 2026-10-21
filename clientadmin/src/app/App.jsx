@@ -66,6 +66,11 @@ const DeviceCatalog = lazy(pages.DeviceCatalog)
 const Transfers = lazy(pages.Transfers)
 const TransferCreate = lazy(pages.TransferCreate)
 const TransferDetail = lazy(pages.TransferDetail)
+const Issues = lazy(pages.Issues)
+const IssueDetail = lazy(pages.IssueDetail)
+const Repairs = lazy(pages.Repairs)
+const Disposals = lazy(pages.Disposals)
+const InventoryReports = lazy(pages.InventoryReports)
 const Projects = lazy(pages.Projects)
 const ProjectCreate = lazy(pages.ProjectCreate)
 const ProjectDetail = lazy(pages.ProjectDetail)
@@ -159,6 +164,17 @@ export default function App() {
               <Route path="/inventory/transfers/new" element={<RequireAccess rule={ACCESS.manageStockTransfers}><TransferCreate /></RequireAccess>} />
               <Route path="/inventory/transfers/:id" element={<RequireAccess rule={ACCESS.stockTransfers}><TransferDetail /></RequireAccess>} />
             </>
+          )}
+          {inventoryPageOn('service') && (
+            <>
+              <Route path="/inventory/issues" element={<RequireAccess rule={ACCESS.deviceIssues}><Issues /></RequireAccess>} />
+              <Route path="/inventory/issues/:id" element={<RequireAccess rule={ACCESS.deviceIssues}><IssueDetail /></RequireAccess>} />
+              <Route path="/inventory/repairs" element={<RequireAccess rule={ACCESS.repairOrders}><Repairs /></RequireAccess>} />
+              <Route path="/inventory/disposals" element={<RequireAccess rule={ACCESS.disposals}><Disposals /></RequireAccess>} />
+            </>
+          )}
+          {inventoryPageOn('reports') && (
+            <Route path="/inventory/reports" element={<RequireAccess rule={ACCESS.inventoryReports}><InventoryReports /></RequireAccess>} />
           )}
           {inventoryPageOn('purchasing') && (
             <>

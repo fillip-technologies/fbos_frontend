@@ -78,3 +78,55 @@ export const installationsApi = {
   install: (orgId, device, body) => api.post(`${INVENTORY}/installations`, { device_id: device.id, ...body }, { headers: ifMatch(orgId, device.version) }),
   remove: (orgId, installationId, reason) => api.post(`${INVENTORY}/installations/${installationId}/remove`, { reason }, { headers: inOrg(orgId) }),
 }
+
+export const issuesApi = {
+  // Filters: status (comma list), priority, device_id, site_id, mine, overdue, q.
+  list: (orgId, opts, { signal } = {}) => api.get(`${INVENTORY}/issues?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  get: (orgId, id, { signal } = {}) => api.get(`${INVENTORY}/issues/${id}`, { headers: inOrg(orgId), signal }),
+  categories: (orgId, deviceId, { signal } = {}) =>
+    api.get(`${INVENTORY}/issue-categories${deviceId ? `?device_id=${deviceId}` : ''}`, { headers: inOrg(orgId), signal }).then((r) => r.data),
+  technicians: (orgId, siteId, { signal } = {}) =>
+    api.get(`${INVENTORY}/technicians${siteId ? `?site_id=${siteId}` : ''}`, { headers: inOrg(orgId), signal }).then((r) => r.data),
+  // { device_id, category_id, priority, description }
+  raise: (orgId, body) => api.post(`${INVENTORY}/issues`, body, { headers: inOrg(orgId) }),
+  assign: (orgId, issue, technicianId) => api.post(`${INVENTORY}/issues/${issue.id}/assign`, { technician_id: technicianId }, { headers: ifMatch(orgId, issue.version) }),
+  // { to_status, notes?, resolution_type? }
+  move: (orgId, issue, body) => api.post(`${INVENTORY}/issues/${issue.id}/status`, body, { headers: ifMatch(orgId, issue.version) }),
+  checkIn: (orgId, issueId, body = {}) => api.post(`${INVENTORY}/issues/${issueId}/visits`, body, { headers: inOrg(orgId) }),
+  // { outcome, findings?, signatory_name? }
+  checkOut: (orgId, visitId, body) => api.post(`${INVENTORY}/visits/${visitId}/check-out`, body, { headers: inOrg(orgId) }),
+}
+
+export const replacementsApi = {
+  // { issue_id, reason, old_device_disposition, replacement_basis?, cost_borne_by? }
+  request: (orgId, body) => api.post(`${INVENTORY}/replacements`, body, { headers: inOrg(orgId) }),
+  approve: (orgId, id, body = {}) => api.post(`${INVENTORY}/replacements/${id}/approve`, body, { headers: inOrg(orgId) }),
+  reject: (orgId, id, note) => api.post(`${INVENTORY}/replacements/${id}/reject`, { note }, { headers: inOrg(orgId) }),
+  complete: (orgId, id, body = {}) => api.post(`${INVENTORY}/replacements/${id}/complete`, body, { headers: inOrg(orgId) }),
+}
+
+export const repairsApi = {
+  list: (orgId, opts, { signal } = {}) => api.get(`${INVENTORY}/repair-orders?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  get: (orgId, id, { signal } = {}) => api.get(`${INVENTORY}/repair-orders/${id}`, { headers: inOrg(orgId), signal }),
+  create: (orgId, body) => api.post(`${INVENTORY}/repair-orders`, body, { headers: inOrg(orgId) }),
+  approve: (orgId, ro) => api.post(`${INVENTORY}/repair-orders/${ro.id}/approve`, undefined, { headers: ifMatch(orgId, ro.version) }),
+  dispatch: (orgId, ro, body, key) => api.post(`${INVENTORY}/repair-orders/${ro.id}/dispatch`, body, { headers: ifMatch(orgId, ro.version, once(key)) }),
+  arrived: (orgId, ro) => api.post(`${INVENTORY}/repair-orders/${ro.id}/arrived`, undefined, { headers: inOrg(orgId) }),
+  // { outcome, return_location_id?, final_cost?, parts? }
+  close: (orgId, ro, body) => api.post(`${INVENTORY}/repair-orders/${ro.id}/close`, body, { headers: ifMatch(orgId, ro.version) }),
+  cancel: (orgId, ro) => api.post(`${INVENTORY}/repair-orders/${ro.id}/cancel`, undefined, { headers: ifMatch(orgId, ro.version) }),
+}
+
+export const disposalsApi = {
+  list: (orgId, opts, { signal } = {}) => api.get(`${INVENTORY}/disposals?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  retire: (orgId, deviceId, reason) => api.post(`${INVENTORY}/devices/${deviceId}/retire`, { reason }, { headers: inOrg(orgId) }),
+  request: (orgId, body) => api.post(`${INVENTORY}/disposals`, body, { headers: inOrg(orgId) }),
+  decide: (orgId, id, approve, note) => api.post(`${INVENTORY}/disposals/${id}/${approve ? 'approve' : 'reject'}`, { note }, { headers: inOrg(orgId) }),
+  // { data_wiped, certificate_document_id?, recovered_value? }
+  complete: (orgId, id, body) => api.post(`${INVENTORY}/disposals/${id}/complete`, body, { headers: inOrg(orgId) }),
+}
+
+export const inventoryReportsApi = {
+  get: (orgId, name, params = {}, { signal } = {}) =>
+    api.get(`${INVENTORY}/reports/${name}?${new URLSearchParams(params)}`, { headers: inOrg(orgId), signal }).then((r) => r.data),
+}

@@ -139,3 +139,20 @@ export const poTone = (s) => ({ partially_received: 'partially_paid', received: 
 
 // The inventory service sends dates as full ISO timestamps; the console's formatDate takes a day.
 export const formatDay = (iso) => formatDate(iso ? iso.slice(0, 10) : iso)
+
+export const ISSUE_STATUS_LABELS = {
+  open: 'Open', assigned: 'Assigned', in_progress: 'In progress', on_hold: 'On hold',
+  resolved: 'Resolved', closed: 'Closed', reopened: 'Reopened',
+}
+export const PRIORITY_LABELS = { low: 'Low', medium: 'Medium', high: 'High', critical: 'Critical' }
+export const priorityTone = (p) => ({ critical: 'p1', high: 'p2', medium: 'p3', low: 'p4' })[p]
+export const WARRANTY_STATUS_LABELS = { in_warranty: 'In warranty', out_of_warranty: 'Out of warranty', unknown: 'Warranty unknown' }
+export const warrantyTone = (w) => ({ in_warranty: 'active', out_of_warranty: 'expired' })[w] ?? 'inactive'
+export const VISIT_OUTCOME_LABELS = {
+  fixed: 'Fixed on site', needs_parts: 'Needs parts', needs_replacement: 'Needs replacement',
+  needs_repair: 'Needs repair', not_reproducible: 'Could not reproduce', other: 'Other',
+}
+export const REPAIR_STATUS_LABELS = { requested: 'Requested', approved: 'Approved', sent: 'Out for repair', returned: 'Returned', closed: 'Closed', cancelled: 'Cancelled' }
+export const REPAIR_TYPE_LABELS = { in_house: 'In-house bench', service_center: 'Service centre', vendor_rma: 'Vendor RMA' }
+export const DISPOSAL_METHOD_LABELS = { scrap: 'Scrap', sold: 'Sold', recycled: 'Recycled', returned_to_vendor: 'Returned to vendor', donated: 'Donated' }
+export const DISPOSITION_LABELS = { to_repair: 'Send for repair', vendor_rma: 'Back to the vendor (RMA)', return_to_stock: 'Back to stock (it works)', scrap: 'Scrap it' }
