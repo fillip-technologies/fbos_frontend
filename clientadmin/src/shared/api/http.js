@@ -141,6 +141,9 @@ async function send(method, path, { body, auth, headers, signal, background }) {
     return await fetch(path, {
       method,
       credentials: 'same-origin',
+      // Never the browser's HTTP cache: useQuery caches, and a stored copy answered by
+      // 304 would outlive a fixed backend (bad inventory bodies stuck after a gateway fix).
+      cache: 'no-store',
       headers: finalHeaders,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
