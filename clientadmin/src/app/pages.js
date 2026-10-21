@@ -61,6 +61,13 @@ export const pages = {
   Devices: () => import('@/features/inventory/pages/Devices.jsx'),
   DeviceDetail: () => import('@/features/inventory/pages/DeviceDetail.jsx'),
   StockLocations: () => import('@/features/inventory/pages/StockLocations.jsx'),
+  PurchaseOrders: () => import('@/features/inventory/pages/PurchaseOrders.jsx'),
+  PurchaseOrderCreate: () => import('@/features/inventory/pages/PurchaseOrderCreate.jsx'),
+  PurchaseOrderDetail: () => import('@/features/inventory/pages/PurchaseOrderDetail.jsx'),
+  DeviceCatalog: () => import('@/features/inventory/pages/DeviceCatalog.jsx'),
+  Transfers: () => import('@/features/inventory/pages/Transfers.jsx'),
+  TransferCreate: () => import('@/features/inventory/pages/TransferCreate.jsx'),
+  TransferDetail: () => import('@/features/inventory/pages/TransferDetail.jsx'),
 }
 
 // Sidebar path -> the pages of that section. Hovering an entry downloads the list page
@@ -98,6 +105,8 @@ const NAV_PAGES = {
   '/notifications': [pages.Notifications],
   '/inventory/devices': [pages.Devices, pages.DeviceDetail],
   '/inventory/stock': [pages.StockLocations],
+  '/inventory/transfers': [pages.Transfers, pages.TransferDetail, pages.TransferCreate],
+  '/inventory/purchase-orders': [pages.PurchaseOrders, pages.PurchaseOrderDetail, pages.PurchaseOrderCreate, pages.DeviceCatalog],
 }
 
 // Starts downloading a section's code; a failed preload is ignored (the click retries it).

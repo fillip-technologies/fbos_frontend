@@ -1,3 +1,5 @@
+import { formatDate } from '@/shared/utils/format.js'
+
 // Device lifecycle (Fixly v2 design §5): where a device is in its life. The badge class
 // reuses the console's colours: stock = blue, moving = amber, in service = green,
 // problem = red, end = grey.
@@ -83,8 +85,57 @@ export const EVENT_LABELS = {
   replaced: 'Replaced',
   retired: 'Retired',
   disposed: 'Disposed',
+  released: 'Released from a cancelled transfer',
+  lost: 'Lost',
 }
 export const eventLabel = (type) => EVENT_LABELS[type] ?? type.replace(/_/g, ' ')
 
 export const formatMoneyValue = (m) =>
   m ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: m.currency }).format(Number(m.amount)) : null
+
+export const PO_STATUS_LABELS = {
+  draft: 'Draft',
+  submitted: 'Submitted',
+  approved: 'Approved',
+  partially_received: 'Partly received',
+  received: 'Received',
+  cancelled: 'Cancelled',
+}
+
+export const TRANSFER_TYPE_LABELS = {
+  platform_to_company: 'Warehouse → customer',
+  company_to_client: 'Customer → site',
+  client_to_client: 'Site → site',
+  return_to_company: 'Site → customer (return)',
+  return_to_platform: 'Back to warehouse',
+  replacement_dispatch: 'Replacement to site',
+  to_repair: 'To repair',
+  from_repair: 'Back from repair',
+  to_vendor_rma: 'To vendor (RMA)',
+  from_vendor_rma: 'Back from vendor',
+}
+// Which kinds of place each transfer type starts and ends at (mirrors the inventory service).
+const STORES = ['platform_warehouse', 'company_store', 'client_store']
+export const TRANSFER_ROUTES = {
+  platform_to_company: [['platform_warehouse'], ['company_store']],
+  company_to_client: [['company_store'], ['client_store']],
+  client_to_client: [['client_store'], ['client_store']],
+  return_to_company: [['client_store'], ['company_store']],
+  return_to_platform: [['company_store', 'client_store'], ['platform_warehouse']],
+  replacement_dispatch: [STORES, ['client_store']],
+}
+
+export const TRANSFER_STATUS_LABELS = {
+  draft: 'Waiting for approval',
+  approved: 'Approved',
+  dispatched: 'In transit',
+  received: 'Received',
+  partially_received: 'Partly received',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
+}
+export const transferTone = (s) => ({ draft: 'pending_approval', approved: 'approved', dispatched: 'in_progress', received: 'completed', partially_received: 'on_hold', cancelled: 'cancelled', rejected: 'rejected' })[s] ?? s
+export const poTone = (s) => ({ partially_received: 'partially_paid', received: 'completed' })[s] ?? s
+
+// The inventory service sends dates as full ISO timestamps; the console's formatDate takes a day.
+export const formatDay = (iso) => formatDate(iso ? iso.slice(0, 10) : iso)

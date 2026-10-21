@@ -59,6 +59,13 @@ const DocumentCategories = lazy(pages.DocumentCategories)
 const Devices = lazy(pages.Devices)
 const DeviceDetail = lazy(pages.DeviceDetail)
 const StockLocations = lazy(pages.StockLocations)
+const PurchaseOrders = lazy(pages.PurchaseOrders)
+const PurchaseOrderCreate = lazy(pages.PurchaseOrderCreate)
+const PurchaseOrderDetail = lazy(pages.PurchaseOrderDetail)
+const DeviceCatalog = lazy(pages.DeviceCatalog)
+const Transfers = lazy(pages.Transfers)
+const TransferCreate = lazy(pages.TransferCreate)
+const TransferDetail = lazy(pages.TransferDetail)
 const Projects = lazy(pages.Projects)
 const ProjectCreate = lazy(pages.ProjectCreate)
 const ProjectDetail = lazy(pages.ProjectDetail)
@@ -145,6 +152,21 @@ export default function App() {
           )}
           {inventoryPageOn('stock') && (
             <Route path="/inventory/stock" element={<RequireAccess rule={ACCESS.devices}><StockLocations /></RequireAccess>} />
+          )}
+          {inventoryPageOn('transfers') && (
+            <>
+              <Route path="/inventory/transfers" element={<RequireAccess rule={ACCESS.stockTransfers}><Transfers /></RequireAccess>} />
+              <Route path="/inventory/transfers/new" element={<RequireAccess rule={ACCESS.manageStockTransfers}><TransferCreate /></RequireAccess>} />
+              <Route path="/inventory/transfers/:id" element={<RequireAccess rule={ACCESS.stockTransfers}><TransferDetail /></RequireAccess>} />
+            </>
+          )}
+          {inventoryPageOn('purchasing') && (
+            <>
+              <Route path="/inventory/purchase-orders" element={<RequireAccess rule={ACCESS.purchaseOrders}><PurchaseOrders /></RequireAccess>} />
+              <Route path="/inventory/purchase-orders/new" element={<RequireAccess rule={ACCESS.managePurchaseOrders}><PurchaseOrderCreate /></RequireAccess>} />
+              <Route path="/inventory/purchase-orders/:id" element={<RequireAccess rule={ACCESS.purchaseOrders}><PurchaseOrderDetail /></RequireAccess>} />
+              <Route path="/inventory/catalog" element={<RequireAccess rule={ACCESS.deviceCatalog}><DeviceCatalog /></RequireAccess>} />
+            </>
           )}
           <Route path="/projects" element={<RequireAccess rule={ACCESS.projects}><Projects /></RequireAccess>} />
           <Route path="/projects/new" element={<RequireAccess rule={ACCESS.manageProjects}><ProjectCreate /></RequireAccess>} />

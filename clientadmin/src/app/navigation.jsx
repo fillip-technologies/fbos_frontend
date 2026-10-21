@@ -116,6 +116,22 @@ export const NAV_ITEMS = [
         icon: icon(<><path d="M3 9l9-5 9 5v11H3V9z" /><path d="M8 20v-6h8v6" /><path d="M8 11h8" /></>),
       }]
     : []),
+  ...(inventoryPageOn('transfers')
+    ? [{
+        to: '/inventory/transfers',
+        label: 'Transfers',
+        access: ACCESS.stockTransfers,
+        icon: icon(<><path d="M3 7h13l-3-3M21 17H8l3 3" /></>),
+      }]
+    : []),
+  ...(inventoryPageOn('purchasing')
+    ? [{
+        to: '/inventory/purchase-orders',
+        label: 'Purchasing',
+        access: ACCESS.purchaseOrders,
+        icon: icon(<><path d="M3 4h2l2.5 11h11L21 7H7" /><circle cx="9" cy="19" r="1.5" /><circle cx="17" cy="19" r="1.5" /></>),
+      }]
+    : []),
   {
     to: '/invoices',
     label: 'Invoices',

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { devicesApi } from '@/features/inventory/api.js'
 import { HealthBadge, LifecycleBadge, WarrantyBadge } from '@/features/inventory/components/LifecycleBadge.jsx'
+import DeviceActions from '@/features/inventory/components/DeviceActions.jsx'
 import DeviceTimeline from '@/features/inventory/components/DeviceTimeline.jsx'
 import {
   LIFECYCLE_LABELS,
@@ -14,11 +15,11 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
 import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
-import { useQuery } from '@/shared/api/useQuery.js'
+import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { DetailSkeleton, PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
-import { formatDate } from '@/shared/utils/format.js'
+import { formatDay as formatDate } from '@/features/inventory/utils.js'
 
 const TABS = [
   ['overview', 'Overview'],
@@ -90,7 +91,12 @@ export default function DeviceDetail() {
         ))}
       </div>
 
-      {tab === 'overview' && <DeviceOverview device={device} />}
+      {tab === 'overview' && (
+        <>
+          <DeviceActions orgId={orgId} device={device} onChanged={() => { reload(); invalidate(['device', orgId, device.id]) }} />
+          <DeviceOverview device={device} />
+        </>
+      )}
       {tab === 'timeline' && <DeviceTimeline orgId={orgId} deviceId={device.id} />}
       {tab === 'installations' && <DeviceInstallations orgId={orgId} deviceId={device.id} />}
       {tab === 'warranty' && <DeviceWarranties orgId={orgId} device={device} />}
