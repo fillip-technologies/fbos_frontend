@@ -9,7 +9,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../clientadmin"
 npm ci --no-audit --no-fund --loglevel=error
-npm run build -- --outDir dist-build --emptyOutDir
+# Fixly inventory pages (Fixly is connected): "all", a comma list of page keys
+# (devices,stock,transfers,purchasing,service,reports) or "none" to hide them again.
+VITE_INVENTORY_PAGES="${VITE_INVENTORY_PAGES:-all}" npm run build -- --outDir dist-build --emptyOutDir
 rsync -a --delete \
   --exclude .user.ini --exclude .well-known --exclude 404.html --exclude 502.html \
   dist-build/ dist/
