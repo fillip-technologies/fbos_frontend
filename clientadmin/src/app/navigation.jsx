@@ -1,4 +1,5 @@
 import { ACCESS } from '@/features/auth/access.js'
+import { inventoryPageOn } from '@/features/inventory/flags.js'
 
 const icon = (d) => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -99,6 +100,68 @@ export const NAV_ITEMS = [
     access: ACCESS.projectTemplates,
     icon: icon(<><rect x="4" y="3" width="16" height="18" rx="2" strokeDasharray="3 2" /><path d="M8 8h8M8 12h8M8 16h5" /></>),
   },
+  ...(inventoryPageOn('devices')
+    ? [{
+        to: '/inventory/devices',
+        label: 'Devices',
+        access: ACCESS.devices,
+        icon: icon(<><rect x="3" y="7" width="13" height="10" rx="2" /><path d="M16 10l5-3v10l-5-3" /><circle cx="9.5" cy="12" r="2" /></>),
+      }]
+    : []),
+  ...(inventoryPageOn('stock')
+    ? [{
+        to: '/inventory/stock',
+        label: 'Stock',
+        access: ACCESS.devices,
+        icon: icon(<><path d="M3 9l9-5 9 5v11H3V9z" /><path d="M8 20v-6h8v6" /><path d="M8 11h8" /></>),
+      }]
+    : []),
+  ...(inventoryPageOn('transfers')
+    ? [{
+        to: '/inventory/transfers',
+        label: 'Transfers',
+        access: ACCESS.stockTransfers,
+        icon: icon(<><path d="M3 7h13l-3-3M21 17H8l3 3" /></>),
+      }]
+    : []),
+  ...(inventoryPageOn('service')
+    ? [
+        {
+          to: '/inventory/issues',
+          label: 'Device issues',
+          access: ACCESS.deviceIssues,
+          icon: icon(<><path d="M12 3l9 16H3L12 3z" /><path d="M12 10v4M12 17h.01" /></>),
+        },
+        {
+          to: '/inventory/repairs',
+          label: 'Repairs',
+          access: ACCESS.repairOrders,
+          icon: icon(<><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4 2.5-2.5z" /></>),
+        },
+        {
+          to: '/inventory/disposals',
+          label: 'Disposals',
+          access: ACCESS.disposals,
+          icon: icon(<><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></>),
+        },
+      ]
+    : []),
+  ...(inventoryPageOn('reports')
+    ? [{
+        to: '/inventory/reports',
+        label: 'Inventory reports',
+        access: ACCESS.inventoryReports,
+        icon: icon(<><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>),
+      }]
+    : []),
+  ...(inventoryPageOn('purchasing')
+    ? [{
+        to: '/inventory/purchase-orders',
+        label: 'Purchasing',
+        access: ACCESS.purchaseOrders,
+        icon: icon(<><path d="M3 4h2l2.5 11h11L21 7H7" /><circle cx="9" cy="19" r="1.5" /><circle cx="17" cy="19" r="1.5" /></>),
+      }]
+    : []),
   {
     to: '/invoices',
     label: 'Invoices',

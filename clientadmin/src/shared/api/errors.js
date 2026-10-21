@@ -174,6 +174,21 @@ const FRIENDLY = {
   DOCUMENT_INFECTED: 'This file failed the virus scan and can\'t be downloaded.',
   STORAGE_UPLOAD_FAILED: 'The file couldn\'t be sent to storage. Please try again.',
 
+  // ---- Inventory (the Fixly backend): devices, stock, service ----
+  ORGANIZATION_NOT_SERVED: 'This company has no inventory. Switch to the company that runs the hardware business.',
+  AUTH_SERVICE_UNAVAILABLE: 'Sign-in couldn\'t be checked right now. Please try again shortly.',
+  DEVICE_NOT_FOUND: 'This device doesn\'t exist, or it belongs to a site you can\'t see.',
+  CUSTOMER_NOT_FOUND: 'This customer doesn\'t exist, or you can\'t see it.',
+  SITE_NOT_FOUND: 'This site doesn\'t exist, or you can\'t see it.',
+  STOCK_LOCATION_NOT_FOUND: 'This store doesn\'t exist, or you can\'t see it.',
+  VERSION_MISMATCH: 'Someone else changed this record. Reload it and try again.',
+  INVALID_LIFECYCLE_TRANSITION: (err) => {
+    const meta = err?.details?.detail?.meta ?? {}
+    return meta.from && meta.to ? `A device can't go from ${meta.from.replace(/_/g, ' ')} to ${meta.to.replace(/_/g, ' ')}.` : 'The device can\'t make that move from where it is now.'
+  },
+  INVALID_DEVICE_PLACEMENT: 'A device is either in a zone or in a store, never both.',
+  DEVICE_RETIRED: 'This device is retired and can\'t be used again.',
+
   // ---- Delivery: projects, tasks, time, handovers, workflows ----
   WORK_UNIT_NOT_FOUND: 'This project no longer exists.',
   WORK_UNIT_TYPE_NOT_FOUND: 'That project type no longer exists.',

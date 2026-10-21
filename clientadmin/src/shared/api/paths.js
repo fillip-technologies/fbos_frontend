@@ -8,3 +8,5 @@ export const DOCUMENTS = '/api/documents/v1'
 export const COMMUNICATION = '/api/communication/v1'
 // Base path of the Delivery service (projects, tasks, time, handovers, workflows).
 export const DELIVERY = '/api/delivery/v1'
+// Base path of the Inventory service (the Fixly backend): devices, stock, transfers, service.
+export const INVENTORY = '/api/inventory/v1'

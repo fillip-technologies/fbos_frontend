@@ -9,6 +9,7 @@ export const SERVICE_LABELS = {
   delivery: 'Projects & tasks',
   control: 'Approvals & SLAs',
   documents: 'Documents',
+  inventory: 'Inventory',
 }
 
 export const ENTITY_LABELS = {
@@ -52,6 +53,21 @@ export const ENTITY_LABELS = {
   // Documents.
   document: 'Documents',
   category: 'Document categories',
+  // Inventory (the Fixly backend).
+  device: 'Devices',
+  setup: 'Inventory setup: customers, sites, zones, stores',
+  catalog: 'Device models & vendors',
+  cost: 'Prices & costs',
+  purchase_order: 'Purchase orders',
+  goods_receipt: 'Goods receipts',
+  stock_transfer: 'Stock transfers',
+  warranty: 'Warranties',
+  issue: 'Device issues & visits',
+  replacement: 'Replacements',
+  repair_order: 'Repairs & RMAs',
+  disposal: 'Disposals',
+  maintenance_plan: 'Maintenance plans',
+  report: 'Inventory reports',
 }
 
 export function parseCode(code) {

@@ -9,6 +9,7 @@ import ForgotPassword from '@/features/auth/pages/ForgotPassword.jsx'
 import SetPassword from '@/features/auth/pages/SetPassword.jsx'
 import { ActiveOrgProvider } from '@/features/organizations/ActiveOrg.jsx'
 import { pages } from '@/app/pages.js'
+import { inventoryPageOn } from '@/features/inventory/flags.js'
 import { PageSkeleton } from '@/shared/components/Skeleton.jsx'
 
 const Dashboard = lazy(pages.Dashboard)
@@ -55,6 +56,21 @@ const BillingSchedules = lazy(pages.BillingSchedules)
 const TaxSettings = lazy(pages.TaxSettings)
 const TaxReports = lazy(pages.TaxReports)
 const DocumentCategories = lazy(pages.DocumentCategories)
+const Devices = lazy(pages.Devices)
+const DeviceDetail = lazy(pages.DeviceDetail)
+const StockLocations = lazy(pages.StockLocations)
+const PurchaseOrders = lazy(pages.PurchaseOrders)
+const PurchaseOrderCreate = lazy(pages.PurchaseOrderCreate)
+const PurchaseOrderDetail = lazy(pages.PurchaseOrderDetail)
+const DeviceCatalog = lazy(pages.DeviceCatalog)
+const Transfers = lazy(pages.Transfers)
+const TransferCreate = lazy(pages.TransferCreate)
+const TransferDetail = lazy(pages.TransferDetail)
+const Issues = lazy(pages.Issues)
+const IssueDetail = lazy(pages.IssueDetail)
+const Repairs = lazy(pages.Repairs)
+const Disposals = lazy(pages.Disposals)
+const InventoryReports = lazy(pages.InventoryReports)
 const Projects = lazy(pages.Projects)
 const ProjectCreate = lazy(pages.ProjectCreate)
 const ProjectDetail = lazy(pages.ProjectDetail)
@@ -133,6 +149,41 @@ export default function App() {
           <Route path="/billing-schedules" element={<RequireAccess rule={ACCESS.billingSchedules}><BillingSchedules /></RequireAccess>} />
           <Route path="/tax-setup" element={<RequireAccess rule={ACCESS.taxSetup}><TaxSettings /></RequireAccess>} />
           <Route path="/tax-reports" element={<RequireAccess rule={ACCESS.taxReports}><TaxReports /></RequireAccess>} />
+          {inventoryPageOn('devices') && (
+            <>
+              <Route path="/inventory/devices" element={<RequireAccess rule={ACCESS.devices}><Devices /></RequireAccess>} />
+              <Route path="/inventory/devices/:id" element={<RequireAccess rule={ACCESS.devices}><DeviceDetail /></RequireAccess>} />
+            </>
+          )}
+          {inventoryPageOn('stock') && (
+            <Route path="/inventory/stock" element={<RequireAccess rule={ACCESS.devices}><StockLocations /></RequireAccess>} />
+          )}
+          {inventoryPageOn('transfers') && (
+            <>
+              <Route path="/inventory/transfers" element={<RequireAccess rule={ACCESS.stockTransfers}><Transfers /></RequireAccess>} />
+              <Route path="/inventory/transfers/new" element={<RequireAccess rule={ACCESS.manageStockTransfers}><TransferCreate /></RequireAccess>} />
+              <Route path="/inventory/transfers/:id" element={<RequireAccess rule={ACCESS.stockTransfers}><TransferDetail /></RequireAccess>} />
+            </>
+          )}
+          {inventoryPageOn('service') && (
+            <>
+              <Route path="/inventory/issues" element={<RequireAccess rule={ACCESS.deviceIssues}><Issues /></RequireAccess>} />
+              <Route path="/inventory/issues/:id" element={<RequireAccess rule={ACCESS.deviceIssues}><IssueDetail /></RequireAccess>} />
+              <Route path="/inventory/repairs" element={<RequireAccess rule={ACCESS.repairOrders}><Repairs /></RequireAccess>} />
+              <Route path="/inventory/disposals" element={<RequireAccess rule={ACCESS.disposals}><Disposals /></RequireAccess>} />
+            </>
+          )}
+          {inventoryPageOn('reports') && (
+            <Route path="/inventory/reports" element={<RequireAccess rule={ACCESS.inventoryReports}><InventoryReports /></RequireAccess>} />
+          )}
+          {inventoryPageOn('purchasing') && (
+            <>
+              <Route path="/inventory/purchase-orders" element={<RequireAccess rule={ACCESS.purchaseOrders}><PurchaseOrders /></RequireAccess>} />
+              <Route path="/inventory/purchase-orders/new" element={<RequireAccess rule={ACCESS.managePurchaseOrders}><PurchaseOrderCreate /></RequireAccess>} />
+              <Route path="/inventory/purchase-orders/:id" element={<RequireAccess rule={ACCESS.purchaseOrders}><PurchaseOrderDetail /></RequireAccess>} />
+              <Route path="/inventory/catalog" element={<RequireAccess rule={ACCESS.deviceCatalog}><DeviceCatalog /></RequireAccess>} />
+            </>
+          )}
           <Route path="/projects" element={<RequireAccess rule={ACCESS.projects}><Projects /></RequireAccess>} />
           <Route path="/projects/new" element={<RequireAccess rule={ACCESS.manageProjects}><ProjectCreate /></RequireAccess>} />
           <Route path="/projects/:id" element={<RequireAccess rule={ACCESS.projects}><ProjectDetail /></RequireAccess>} />
