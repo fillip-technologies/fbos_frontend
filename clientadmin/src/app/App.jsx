@@ -1,66 +1,214 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
-import Layout from '@/app/layout/Layout.jsx'
+import Layout, { LayoutSkeleton } from '@/app/layout/Layout.jsx'
 import RequireAccess from '@/features/auth/components/RequireAccess.jsx'
 import { ACCESS } from '@/features/auth/access.js'
 import Login from '@/features/auth/pages/Login.jsx'
 import ForgotPassword from '@/features/auth/pages/ForgotPassword.jsx'
 import SetPassword from '@/features/auth/pages/SetPassword.jsx'
-import Dashboard from '@/features/dashboard/pages/Dashboard.jsx'
-import Organizations from '@/features/organizations/pages/Organizations.jsx'
-import OrganizationCreate from '@/features/organizations/pages/OrganizationCreate.jsx'
-import OrganizationDetail from '@/features/organizations/pages/OrganizationDetail.jsx'
-import Users from '@/features/users/pages/Users.jsx'
-import UserInvite from '@/features/users/pages/UserInvite.jsx'
-import UserDetail from '@/features/users/pages/UserDetail.jsx'
-import Roles from '@/features/access/pages/Roles.jsx'
-import OrgUnits from '@/features/org-units/pages/OrgUnits.jsx'
-import OrgUnitCreate from '@/features/org-units/pages/OrgUnitCreate.jsx'
-import OrgUnitDetail from '@/features/org-units/pages/OrgUnitDetail.jsx'
-import Calendars from '@/features/calendars/pages/Calendars.jsx'
-import Profile from '@/features/profile/pages/Profile.jsx'
 import { ActiveOrgProvider } from '@/features/organizations/ActiveOrg.jsx'
+import { pages } from '@/app/pages.js'
+import { inventoryPageOn } from '@/features/inventory/flags.js'
+import { PageSkeleton } from '@/shared/components/Skeleton.jsx'
+
+const Dashboard = lazy(pages.Dashboard)
+const Organizations = lazy(pages.Organizations)
+const OrganizationCreate = lazy(pages.OrganizationCreate)
+const OrganizationDetail = lazy(pages.OrganizationDetail)
+const Users = lazy(pages.Users)
+const UserInvite = lazy(pages.UserInvite)
+const UserDetail = lazy(pages.UserDetail)
+const Roles = lazy(pages.Roles)
+const OrgUnits = lazy(pages.OrgUnits)
+const OrgUnitCreate = lazy(pages.OrgUnitCreate)
+const OrgUnitDetail = lazy(pages.OrgUnitDetail)
+const Calendars = lazy(pages.Calendars)
+const CustomFields = lazy(pages.CustomFields)
+const FormFields = lazy(pages.FormFields)
+const Verticals = lazy(pages.Verticals)
+const AuditLog = lazy(pages.AuditLog)
+const Profile = lazy(pages.Profile)
+const Notifications = lazy(pages.Notifications)
+const Customers = lazy(pages.Customers)
+const CustomerCreate = lazy(pages.CustomerCreate)
+const CustomerDetail = lazy(pages.CustomerDetail)
+const ClientServices = lazy(pages.ClientServices)
+const ServiceProviders = lazy(pages.ServiceProviders)
+const Leads = lazy(pages.Leads)
+const LeadCreate = lazy(pages.LeadCreate)
+const LeadDetail = lazy(pages.LeadDetail)
+const Opportunities = lazy(pages.Opportunities)
+const OpportunityDetail = lazy(pages.OpportunityDetail)
+const OpportunityCreate = lazy(pages.OpportunityCreate)
+const QuotationDetail = lazy(pages.QuotationDetail)
+const Contracts = lazy(pages.Contracts)
+const ContractDetail = lazy(pages.ContractDetail)
+const Offerings = lazy(pages.Offerings)
+const Invoices = lazy(pages.Invoices)
+const InvoiceCreate = lazy(pages.InvoiceCreate)
+const InvoiceDetail = lazy(pages.InvoiceDetail)
+const Payments = lazy(pages.Payments)
+const PaymentCreate = lazy(pages.PaymentCreate)
+const PaymentDetail = lazy(pages.PaymentDetail)
+const Collections = lazy(pages.Collections)
+const BillingSchedules = lazy(pages.BillingSchedules)
+const TaxSettings = lazy(pages.TaxSettings)
+const TaxReports = lazy(pages.TaxReports)
+const DocumentCategories = lazy(pages.DocumentCategories)
+const Devices = lazy(pages.Devices)
+const DeviceDetail = lazy(pages.DeviceDetail)
+const StockLocations = lazy(pages.StockLocations)
+const PurchaseOrders = lazy(pages.PurchaseOrders)
+const PurchaseOrderCreate = lazy(pages.PurchaseOrderCreate)
+const PurchaseOrderDetail = lazy(pages.PurchaseOrderDetail)
+const DeviceCatalog = lazy(pages.DeviceCatalog)
+const Transfers = lazy(pages.Transfers)
+const TransferCreate = lazy(pages.TransferCreate)
+const TransferDetail = lazy(pages.TransferDetail)
+const Issues = lazy(pages.Issues)
+const IssueDetail = lazy(pages.IssueDetail)
+const Repairs = lazy(pages.Repairs)
+const Disposals = lazy(pages.Disposals)
+const InventoryReports = lazy(pages.InventoryReports)
+const Projects = lazy(pages.Projects)
+const ProjectCreate = lazy(pages.ProjectCreate)
+const ProjectDetail = lazy(pages.ProjectDetail)
+const ProjectTemplates = lazy(pages.ProjectTemplates)
+const ProjectTemplateBuilder = lazy(pages.ProjectTemplateBuilder)
+const Tasks = lazy(pages.Tasks)
+const TaskCreate = lazy(pages.TaskCreate)
+const TaskDetail = lazy(pages.TaskDetail)
+const TaskTypes = lazy(pages.TaskTypes)
+const WorkflowBuilder = lazy(pages.WorkflowBuilder)
+const Requests = lazy(pages.Requests)
+const RequestCreate = lazy(pages.RequestCreate)
 
 function RequireAuth({ children }) {
   const { isAuthenticated, loading } = useAuth()
   const location = useLocation()
-  if (loading) return <div className="center-note">Loading…</div>
+  if (loading) return <LayoutSkeleton />
   if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location }} />
   return children
 }
 
 export default function App() {
+  // Pages load on demand. Layout has its own boundary so the sidebar stays put while a
+  // page's code arrives; this one only covers a route rendered outside it.
   return (
-    <Routes>
-      {/* Public: sign-in and the pages the invitation / reset emails link to */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/accept-invitation" element={<SetPassword mode="invite" />} />
-      <Route path="/reset-password" element={<SetPassword mode="reset" />} />
-      <Route
-        element={
-          <RequireAuth>
-            <ActiveOrgProvider>
-              <Layout />
-            </ActiveOrgProvider>
-          </RequireAuth>
-        }
-      >
-        <Route path="/" element={<RequireAccess rule={ACCESS.dashboard}><Dashboard /></RequireAccess>} />
-        <Route path="/organizations" element={<RequireAccess rule={ACCESS.organizations}><Organizations /></RequireAccess>} />
-        <Route path="/organizations/new" element={<RequireAccess rule={ACCESS.organizations}><OrganizationCreate /></RequireAccess>} />
-        <Route path="/organizations/:id" element={<RequireAccess rule={ACCESS.organizations}><OrganizationDetail /></RequireAccess>} />
-        <Route path="/users" element={<RequireAccess rule={ACCESS.users}><Users /></RequireAccess>} />
-        <Route path="/users/new" element={<RequireAccess rule={ACCESS.inviteUsers}><UserInvite /></RequireAccess>} />
-        <Route path="/users/:id" element={<RequireAccess rule={ACCESS.users}><UserDetail /></RequireAccess>} />
-        <Route path="/roles" element={<RequireAccess rule={ACCESS.roles}><Roles /></RequireAccess>} />
-        <Route path="/org-units" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnits /></RequireAccess>} />
-        <Route path="/org-units/new" element={<RequireAccess rule={ACCESS.createOrgUnit}><OrgUnitCreate /></RequireAccess>} />
-        <Route path="/org-units/:id" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnitDetail /></RequireAccess>} />
-        <Route path="/calendars" element={<RequireAccess rule={ACCESS.calendars}><Calendars /></RequireAccess>} />
-        <Route path="/profile" element={<Profile />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<PageSkeleton />}>
+      <Routes>
+        {/* Public: sign-in and the pages the invitation / reset emails link to */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/accept-invitation" element={<SetPassword mode="invite" />} />
+        <Route path="/reset-password" element={<SetPassword mode="reset" />} />
+        <Route
+          element={
+            <RequireAuth>
+              <ActiveOrgProvider>
+                <Layout />
+              </ActiveOrgProvider>
+            </RequireAuth>
+          }
+        >
+          <Route path="/" element={<RequireAccess rule={ACCESS.dashboard}><Dashboard /></RequireAccess>} />
+          <Route path="/organizations" element={<RequireAccess rule={ACCESS.organizations}><Organizations /></RequireAccess>} />
+          <Route path="/organizations/new" element={<RequireAccess rule={ACCESS.organizations}><OrganizationCreate /></RequireAccess>} />
+          <Route path="/organizations/:id" element={<RequireAccess rule={ACCESS.organizations}><OrganizationDetail /></RequireAccess>} />
+          <Route path="/users" element={<RequireAccess rule={ACCESS.users}><Users /></RequireAccess>} />
+          <Route path="/users/new" element={<RequireAccess rule={ACCESS.inviteUsers}><UserInvite /></RequireAccess>} />
+          <Route path="/users/:id" element={<RequireAccess rule={ACCESS.users}><UserDetail /></RequireAccess>} />
+          <Route path="/roles" element={<RequireAccess rule={ACCESS.roles}><Roles /></RequireAccess>} />
+          <Route path="/org-units" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnits /></RequireAccess>} />
+          <Route path="/org-units/new" element={<RequireAccess rule={ACCESS.createOrgUnit}><OrgUnitCreate /></RequireAccess>} />
+          <Route path="/org-units/:id" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnitDetail /></RequireAccess>} />
+          <Route path="/calendars" element={<RequireAccess rule={ACCESS.calendars}><Calendars /></RequireAccess>} />
+          <Route path="/custom-fields" element={<RequireAccess rule={ACCESS.customFields}><CustomFields /></RequireAccess>} />
+          <Route path="/custom-fields/:form" element={<RequireAccess rule={ACCESS.customFields}><FormFields /></RequireAccess>} />
+          <Route path="/verticals" element={<RequireAccess rule={ACCESS.verticals}><Verticals /></RequireAccess>} />
+          {/* Vertical packs were replaced by per-form custom fields and the Verticals page. */}
+          <Route path="/vertical-packs/*" element={<Navigate to="/verticals" replace />} />
+          <Route path="/leads" element={<RequireAccess rule={ACCESS.leads}><Leads /></RequireAccess>} />
+          <Route path="/leads/new" element={<RequireAccess rule={ACCESS.manageLeads}><LeadCreate /></RequireAccess>} />
+          <Route path="/leads/:id" element={<RequireAccess rule={ACCESS.leads}><LeadDetail /></RequireAccess>} />
+          <Route path="/opportunities" element={<RequireAccess rule={ACCESS.opportunities}><Opportunities /></RequireAccess>} />
+          <Route path="/opportunities/new" element={<RequireAccess rule={ACCESS.manageOpportunities}><OpportunityCreate /></RequireAccess>} />
+          <Route path="/opportunities/:id" element={<RequireAccess rule={ACCESS.opportunities}><OpportunityDetail /></RequireAccess>} />
+          <Route path="/quotations/:id" element={<RequireAccess rule={ACCESS.opportunities}><QuotationDetail /></RequireAccess>} />
+          <Route path="/contracts" element={<RequireAccess rule={ACCESS.contracts}><Contracts /></RequireAccess>} />
+          <Route path="/contracts/:id" element={<RequireAccess rule={ACCESS.contracts}><ContractDetail /></RequireAccess>} />
+          <Route path="/offerings" element={<RequireAccess rule={ACCESS.offerings}><Offerings /></RequireAccess>} />
+          <Route path="/invoices" element={<RequireAccess rule={ACCESS.invoices}><Invoices /></RequireAccess>} />
+          <Route path="/invoices/new" element={<RequireAccess rule={ACCESS.manageInvoices}><InvoiceCreate /></RequireAccess>} />
+          <Route path="/invoices/:id" element={<RequireAccess rule={ACCESS.invoices}><InvoiceDetail /></RequireAccess>} />
+          <Route path="/payments" element={<RequireAccess rule={ACCESS.payments}><Payments /></RequireAccess>} />
+          <Route path="/payments/new" element={<RequireAccess rule={ACCESS.recordPayments}><PaymentCreate /></RequireAccess>} />
+          <Route path="/payments/:id" element={<RequireAccess rule={ACCESS.payments}><PaymentDetail /></RequireAccess>} />
+          <Route path="/collections" element={<RequireAccess rule={ACCESS.collections}><Collections /></RequireAccess>} />
+          <Route path="/billing-schedules" element={<RequireAccess rule={ACCESS.billingSchedules}><BillingSchedules /></RequireAccess>} />
+          <Route path="/tax-setup" element={<RequireAccess rule={ACCESS.taxSetup}><TaxSettings /></RequireAccess>} />
+          <Route path="/tax-reports" element={<RequireAccess rule={ACCESS.taxReports}><TaxReports /></RequireAccess>} />
+          {inventoryPageOn('devices') && (
+            <>
+              <Route path="/inventory/devices" element={<RequireAccess rule={ACCESS.devices}><Devices /></RequireAccess>} />
+              <Route path="/inventory/devices/:id" element={<RequireAccess rule={ACCESS.devices}><DeviceDetail /></RequireAccess>} />
+            </>
+          )}
+          {inventoryPageOn('stock') && (
+            <Route path="/inventory/stock" element={<RequireAccess rule={ACCESS.devices}><StockLocations /></RequireAccess>} />
+          )}
+          {inventoryPageOn('transfers') && (
+            <>
+              <Route path="/inventory/transfers" element={<RequireAccess rule={ACCESS.stockTransfers}><Transfers /></RequireAccess>} />
+              <Route path="/inventory/transfers/new" element={<RequireAccess rule={ACCESS.manageStockTransfers}><TransferCreate /></RequireAccess>} />
+              <Route path="/inventory/transfers/:id" element={<RequireAccess rule={ACCESS.stockTransfers}><TransferDetail /></RequireAccess>} />
+            </>
+          )}
+          {inventoryPageOn('service') && (
+            <>
+              <Route path="/inventory/issues" element={<RequireAccess rule={ACCESS.deviceIssues}><Issues /></RequireAccess>} />
+              <Route path="/inventory/issues/:id" element={<RequireAccess rule={ACCESS.deviceIssues}><IssueDetail /></RequireAccess>} />
+              <Route path="/inventory/repairs" element={<RequireAccess rule={ACCESS.repairOrders}><Repairs /></RequireAccess>} />
+              <Route path="/inventory/disposals" element={<RequireAccess rule={ACCESS.disposals}><Disposals /></RequireAccess>} />
+            </>
+          )}
+          {inventoryPageOn('reports') && (
+            <Route path="/inventory/reports" element={<RequireAccess rule={ACCESS.inventoryReports}><InventoryReports /></RequireAccess>} />
+          )}
+          {inventoryPageOn('purchasing') && (
+            <>
+              <Route path="/inventory/purchase-orders" element={<RequireAccess rule={ACCESS.purchaseOrders}><PurchaseOrders /></RequireAccess>} />
+              <Route path="/inventory/purchase-orders/new" element={<RequireAccess rule={ACCESS.managePurchaseOrders}><PurchaseOrderCreate /></RequireAccess>} />
+              <Route path="/inventory/purchase-orders/:id" element={<RequireAccess rule={ACCESS.purchaseOrders}><PurchaseOrderDetail /></RequireAccess>} />
+              <Route path="/inventory/catalog" element={<RequireAccess rule={ACCESS.deviceCatalog}><DeviceCatalog /></RequireAccess>} />
+            </>
+          )}
+          <Route path="/projects" element={<RequireAccess rule={ACCESS.projects}><Projects /></RequireAccess>} />
+          <Route path="/projects/new" element={<RequireAccess rule={ACCESS.manageProjects}><ProjectCreate /></RequireAccess>} />
+          <Route path="/projects/:id" element={<RequireAccess rule={ACCESS.projects}><ProjectDetail /></RequireAccess>} />
+          <Route path="/project-templates" element={<RequireAccess rule={ACCESS.projectTemplates}><ProjectTemplates /></RequireAccess>} />
+          <Route path="/project-templates/:code" element={<RequireAccess rule={ACCESS.projectTemplates}><ProjectTemplateBuilder /></RequireAccess>} />
+          <Route path="/project-workflows/:code" element={<RequireAccess rule={ACCESS.designWorkflows}><WorkflowBuilder subject="project" /></RequireAccess>} />
+          <Route path="/tasks" element={<RequireAccess rule={ACCESS.tasks}><Tasks /></RequireAccess>} />
+          <Route path="/tasks/new" element={<RequireAccess rule={ACCESS.manageTasks}><TaskCreate /></RequireAccess>} />
+          <Route path="/tasks/:id" element={<RequireAccess rule={ACCESS.tasks}><TaskDetail /></RequireAccess>} />
+          <Route path="/task-types" element={<RequireAccess rule={ACCESS.tasks}><TaskTypes /></RequireAccess>} />
+          <Route path="/task-workflows/:code" element={<RequireAccess rule={ACCESS.designWorkflows}><WorkflowBuilder /></RequireAccess>} />
+          <Route path="/requests" element={<RequireAccess rule={ACCESS.requestWork}><Requests /></RequireAccess>} />
+          <Route path="/requests/new" element={<RequireAccess rule={ACCESS.requestWork}><RequestCreate /></RequireAccess>} />
+          <Route path="/customers" element={<RequireAccess rule={ACCESS.customers}><Customers /></RequireAccess>} />
+          <Route path="/customers/new" element={<RequireAccess rule={ACCESS.manageCustomers}><CustomerCreate /></RequireAccess>} />
+          <Route path="/customers/:id" element={<RequireAccess rule={ACCESS.customers}><CustomerDetail /></RequireAccess>} />
+          <Route path="/client-services" element={<RequireAccess rule={ACCESS.clientServices}><ClientServices /></RequireAccess>} />
+          <Route path="/service-providers" element={<RequireAccess rule={ACCESS.clientServices}><ServiceProviders /></RequireAccess>} />
+          <Route path="/document-categories" element={<RequireAccess rule={ACCESS.documentCategories}><DocumentCategories /></RequireAccess>} />
+          <Route path="/audit-log" element={<RequireAccess rule={ACCESS.auditLog}><AuditLog /></RequireAccess>} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/notifications" element={<Notifications />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   )
 }

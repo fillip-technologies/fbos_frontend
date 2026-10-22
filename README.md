@@ -31,11 +31,13 @@ npm install
 npm run dev
 ```
 
-## Production Build
+### Production Build
+
+From either app directory, build optimized static assets into `dist/` and preview them locally:
 
 ```bash
-npm run build     # outputs static files to dist/
-npm run preview   # serves the built app locally for a final check
+npm run build
+npm run preview
 ```
 
 ## Backend Configuration

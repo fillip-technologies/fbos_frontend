@@ -1,0 +1,278 @@
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { contractsApi } from '@/features/sales/api.js'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
+import { formatMoney } from '@/features/customers/utils.js'
+import { invalidate, useQuery } from '@/shared/api/useQuery.js'
+import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
+import StatusBadge from '@/shared/components/StatusBadge.jsx'
+import { formatDate } from '@/shared/utils/format.js'
+import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
+import CustomerEmailForm, { contractEmailProps } from '@/features/sales/components/CustomerEmailForm.jsx'
+import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
+import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
+import { CONTRACT_EMAILABLE, CONTRACT_TYPES, PAYMENT_TRIGGERS, SUBJECTS, formatDateTime } from '@/features/sales/utils.js'
+
+function Detail({ label, children }) {
+  return (
+    <div>
+      <div className="detail-label">{label}</div>
+      <div className="detail-value">{children || <span className="muted">—</span>}</div>
+    </div>
+  )
+}
+
+export default function ContractDetail() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { user: me } = useAuth()
+  const { orgId } = useActiveOrg()
+  const {
+    data: contract,
+    error: loadError,
+    loading,
+    reload,
+    setData,
+  } = useQuery(['contract', orgId, id], ({ signal }) => contractsApi.get(orgId, id, { signal }), {
+    enabled: Boolean(orgId),
+  })
+  // Saves a changed contract into the cache; its list is refetched on the next visit.
+  const setContract = (next) => {
+    setData(next)
+    invalidate(['contracts', orgId])
+  }
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const [emailing, setEmailing] = useState(false)
+  const [emailed, setEmailed] = useState(null)
+  // Remounts the timeline: signing, activating and emailing each add a line to it.
+  const [timelineKey, setTimelineKey] = useState(0)
+
+  async function save(change) {
+    setError(null)
+    setBusy(true)
+    try {
+      setContract(await change())
+      setTimelineKey((k) => k + 1)
+    } catch (err) {
+      setError(err)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function activate() {
+    if (!window.confirm('Activate this contract? Delivery and billing start from it: its billing schedule is made from the payment terms.')) return
+    await save(() => contractsApi.activate(orgId, contract))
+  }
+
+  if (loading) return <DetailSkeleton />
+  if (!contract)
+    return (
+      <div>
+        <ErrorBanner error={loadError} onRetry={reload} />
+        <button className="btn secondary" onClick={() => navigate('/contracts')}>← Back</button>
+      </div>
+    )
+
+  const signable = ['draft', 'pending_signature'].includes(contract.status)
+  const canManage = hasAccess(me, ACCESS.manageContracts)
+  // What its offerings are delivered as: the next steps once it is active.
+  const fulfilment = contract.fulfilment || []
+  const canActivate = canManage && signable
+  const hasSignedCopy = Boolean(contract.signed_document_id)
+  // A finished contract keeps its files but takes no new ones (the backend enforces it too).
+  const canAttach =
+    canManage && hasAccess(me, ACCESS.uploadDocuments) && !['completed', 'terminated', 'expired'].includes(contract.status)
+
+  return (
+    <div>
+      <div className="page-head">
+        <div>
+          <h1>
+            <span className="mono">{contract.contract_no}</span> <StatusBadge status={contract.status} />
+          </h1>
+          <p className="muted small" style={{ margin: '4px 0 0' }}>
+            <Link to={`/customers/${contract.client.id}`}>{contract.client.name}</Link>
+            {contract.opportunity_id && (
+              <>
+                {' · '}
+                <Link to={`/opportunities/${contract.opportunity_id}`}>Opportunity</Link>
+              </>
+            )}
+            {contract.accepted_quotation_id && (
+              <>
+                {' · '}
+                <Link to={`/quotations/${contract.accepted_quotation_id}`}>Accepted quotation</Link>
+              </>
+            )}
+          </p>
+        </div>
+        <div className="row-actions">
+          {canActivate && (
+            <button
+              className="btn"
+              disabled={busy || !hasSignedCopy}
+              title={hasSignedCopy ? undefined : 'Attach the signed copy first'}
+              onClick={activate}
+            >
+              Activate
+            </button>
+          )}
+          {canManage && CONTRACT_EMAILABLE.includes(contract.status) && !emailing && (
+            <button
+              className="btn secondary"
+              onClick={() => {
+                setEmailed(null)
+                setEmailing(true)
+              }}
+            >
+              Email contract
+            </button>
+          )}
+          {/* Delivery, linked by route only: the project form reads the customer and contract. */}
+          {hasAccess(me, ACCESS.manageProjects) && ['active', 'pending_signature'].includes(contract.status) && (
+            <Link className="btn secondary" to={`/projects/new?customer=${contract.client.id}&contract=${contract.id}`}>
+              Start project
+            </Link>
+          )}
+          <button className="btn secondary" onClick={() => navigate('/contracts')}>← Back</button>
+        </div>
+      </div>
+
+      <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
+      {contract.status === 'active' && fulfilment.length > 0 && (
+        <div className="alert info">
+          <strong>Next:</strong>{' '}
+          {fulfilment.includes('project') && 'start the delivery project for it'}
+          {fulfilment.length > 1 && ', and '}
+          {fulfilment.includes('service') && 'record the service on the customer'}
+          {' (its offerings say so).'}
+          <div className="row-actions" style={{ marginTop: 8 }}>
+            {/* Delivery and customers, linked by route only. */}
+            {fulfilment.includes('project') && hasAccess(me, ACCESS.manageProjects) && (
+              <Link className="btn small-btn" to={`/projects/new?customer=${contract.client.id}&contract=${contract.id}`}>
+                Start project
+              </Link>
+            )}
+            {fulfilment.includes('service') && hasAccess(me, ACCESS.clientServices) && (
+              <Link className="btn small-btn" to={`/customers/${contract.client.id}?tab=services`}>
+                Customer’s services
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+      {emailed && (
+        <div className="alert success" role="status">
+          Emailed to {emailed.to.join(', ')}
+          {emailed.attachments.length > 0 && ` with ${emailed.attachments.map((f) => f.file_name).join(', ')}`}.
+        </div>
+      )}
+      {emailing && (
+        <CustomerEmailForm
+          orgId={orgId}
+          {...contractEmailProps(orgId, contract)}
+          canSeeFiles={hasAccess(me, ACCESS.documents)}
+          onSent={(sent) => {
+            setContract(sent.contract)
+            setEmailed(sent)
+            setEmailing(false)
+            setTimelineKey((k) => k + 1)
+          }}
+          onCancel={() => setEmailing(false)}
+        />
+      )}
+      <div className="panel">
+        <div className="details-grid">
+          <Detail label="Type">{CONTRACT_TYPES[contract.contract_type] || contract.contract_type}</Detail>
+          <Detail label="Value">{formatMoney(contract.total_value)}</Detail>
+          <Detail label="Starts">{formatDate(contract.start_date)}</Detail>
+          <Detail label="Ends">{contract.end_date && formatDate(contract.end_date)}</Detail>
+          <Detail label="Signed">{contract.signed_at && formatDateTime(contract.signed_at)}</Detail>
+        </div>
+        {canActivate && !hasSignedCopy && (
+          <p className="muted small" style={{ margin: '12px 0 0' }}>
+            Upload the signed contract below and mark it as the signed copy; then it can be activated.
+          </p>
+        )}
+      </div>
+
+      {hasAccess(me, ACCESS.documents) && (
+        <DocumentPanel
+          orgId={orgId}
+          subjectType={DOCUMENT_SUBJECTS.contract}
+          subjectId={contract.id}
+          canAttach={canAttach}
+          defaultCategory="contract"
+          linkRole={signable && !hasSignedCopy ? 'signed_copy' : 'attachment'}
+          rowAction={(doc) =>
+            doc.id === contract.signed_document_id ? (
+              <span className="chip">Signed copy</span>
+            ) : (
+              canManage &&
+              signable && (
+                <button
+                  type="button"
+                  className="btn secondary small-btn"
+                  disabled={busy}
+                  onClick={() => save(() => contractsApi.setSignedDocument(orgId, contract, doc.id))}
+                >
+                  Use as signed copy
+                </button>
+              )
+            )
+          }
+        />
+      )}
+
+      <div className="panel">
+        <h2 style={{ fontSize: 17, marginTop: 0 }}>Payment schedule</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>When</th>
+              <th>Share</th>
+              <th>Due</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contract.payment_terms.map((t) => (
+              <tr key={t.seq} style={{ cursor: 'default' }}>
+                <td>{t.seq}</td>
+                <td>
+                  {PAYMENT_TRIGGERS[t.trigger_type] || t.trigger_type}
+                  {t.milestone_code && <span className="muted"> · {t.milestone_code}</span>}
+                </td>
+                <td>{t.percent != null ? `${t.percent}%` : formatMoney(t.amount)}</td>
+                <td className="muted small">{t.due_offset_days} days after invoice</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {/* Billing, linked by route only: each term is invoiced from the schedule when it falls due. */}
+        <div className="row-actions" style={{ marginTop: 10 }}>
+          {hasAccess(me, ACCESS.billingSchedules) && contract.status === 'active' && (
+            <Link className="btn secondary small-btn" to={`/billing-schedules?contract=${contract.id}`}>Billing schedule</Link>
+          )}
+          {hasAccess(me, ACCESS.manageInvoices) && contract.status === 'active' && (
+            <Link className="btn secondary small-btn" to={`/invoices/new?customer=${contract.client.id}&contract=${contract.id}`}>
+              Invoice an extra charge
+            </Link>
+          )}
+        </div>
+        {contract.status === 'pending_signature' && (
+          <p className="muted small" style={{ margin: '10px 0 0' }}>Once activated, each term is billed from the contract’s billing schedule as it falls due.</p>
+        )}
+      </div>
+
+      {hasAccess(me, ACCESS.activities) && (
+        <ActivityTimeline key={timelineKey} orgId={orgId} subjectType={SUBJECTS.contract} subjectId={contract.id} />
+      )}
+    </div>
+  )
+}

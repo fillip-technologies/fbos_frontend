@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { calendarsApi } from '@/features/calendars/api.js'
 import { organizationsApi } from '@/features/organizations/api.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
+import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { useRecordForm } from '@/shared/utils/useRecordForm.js'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import OrganizationFields from '@/features/organizations/components/OrganizationForm.jsx'
 
@@ -24,34 +27,17 @@ export default function OrganizationDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { selectOrg, reload: reloadOrgs } = useActiveOrg()
-  const [org, setOrg] = useState(null)
-  const [form, setForm] = useState(null)
-  const [calendars, setCalendars] = useState(null) // null until loaded, or when they can't be read
-  const [loading, setLoading] = useState(true)
+  const { data: org, error: loadError, loading, reload, setData: setOrg } = useQuery(['organization', null, id], ({ signal }) =>
+    organizationsApi.get(id, { signal })
+  )
+  // null until loaded, or when they can't be read
+  const { data: calendars = null } = useLookup(['calendars', id], ({ signal }) => calendarsApi.list(id, { signal }))
+  const { form, setForm, base, rebase } = useRecordForm(org, toForm)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
   const fieldErrors = getFieldErrors(error)
 
-  useEffect(() => {
-    let cancelled = false
-    organizationsApi
-      .get(id)
-      .then((o) => {
-        if (cancelled) return
-        setOrg(o)
-        setForm(toForm(o))
-      })
-      .catch((e) => !cancelled && setError(e))
-      .finally(() => !cancelled && setLoading(false))
-    calendarsApi
-      .list(id)
-      .then((c) => !cancelled && setCalendars(c))
-      .catch(() => !cancelled && setCalendars(null))
-    return () => {
-      cancelled = true
-    }
-  }, [id])
 
   // Calendars are created on the Working calendars page, which works in the selected organization.
   function openCalendars() {
@@ -73,14 +59,15 @@ export default function OrganizationDetail() {
       // Send only what changed.
       const body = {}
       for (const k of ['name', 'email', 'base_currency', 'timezone', 'fiscal_year_start', 'status']) {
-        if (form[k].trim() !== (org[k] || '')) body[k] = form[k].trim()
+        if (form[k].trim() !== (base[k] || '')) body[k] = form[k].trim() // vs. what the form was taken from
       }
-      if (form.calendar_id && form.calendar_id !== (org.calendar_id || '')) body.calendar_id = form.calendar_id
+      if (form.calendar_id && form.calendar_id !== (base.calendar_id || '')) body.calendar_id = form.calendar_id
       if (Object.keys(body).length) {
         const updated = await organizationsApi.update(id, body)
         setOrg(updated)
-        setForm(toForm(updated))
+        rebase(updated)
         reloadOrgs() // the org switcher and calendar pages read these too
+        invalidate(['organizations'])
       }
       setSaved(true)
     } catch (err) {
@@ -90,11 +77,11 @@ export default function OrganizationDetail() {
     }
   }
 
-  if (loading) return <div className="center-note">Loading…</div>
+  if (loading || (org && !form)) return <DetailSkeleton />
   if (!org)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={() => navigate(0)} />
+        <ErrorBanner error={loadError} onRetry={reload} />
         <button className="btn secondary" onClick={() => navigate('/organizations')}>← Back</button>
       </div>
     )

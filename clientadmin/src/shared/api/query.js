@@ -3,7 +3,11 @@ import { api } from '@/shared/api/http.js'
 export function pageQuery({ limit = 25, cursor, ...rest } = {}) {
   const params = new URLSearchParams({ limit: String(limit) })
   if (cursor) params.set('cursor', cursor)
-  for (const [k, v] of Object.entries(rest)) if (v) params.set(k, v)
+  for (const [k, v] of Object.entries(rest)) {
+    // A list repeats the key (status=a&status=b), which is how the backends read many values.
+    if (Array.isArray(v)) v.forEach((item) => params.append(k, item))
+    else if (v) params.set(k, v)
+  }
   return params.toString()
 }
 
@@ -12,11 +16,11 @@ export function pageQuery({ limit = 25, cursor, ...rest } = {}) {
 export const inOrg = (orgId, headers = {}) => (orgId ? { ...headers, 'X-Organization-Id': orgId } : headers)
 
 // Walks cursor pagination for small catalogs (units, roles, permissions).
-export async function listAll(path, orgId, params = {}) {
+export async function listAll(path, orgId, params = {}, { signal } = {}) {
   const items = []
   let cursor
   do {
-    const page = await api.get(`${path}?${pageQuery({ limit: 100, cursor, ...params })}`, { headers: inOrg(orgId) })
+    const page = await api.get(`${path}?${pageQuery({ limit: 100, cursor, ...params })}`, { headers: inOrg(orgId), signal })
     items.push(...page.data)
     cursor = page.page?.has_more ? page.page.next_cursor : null
   } while (cursor)

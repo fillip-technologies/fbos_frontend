@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { actionLabel, entityLabel, groupCatalog, serviceLabel } from '@/features/access/permissions.js'
 import useAccessCatalog from '@/features/access/useAccessCatalog.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 
 // Roles are presets: applying one copies its permissions onto a user. Changing a role
@@ -50,7 +51,7 @@ export default function Roles() {
       )}
 
       {loading ? (
-        <div className="center-note">Loading…</div>
+        <PanelSkeleton panels={3} lines={3} />
       ) : (
         roles.map((role) =>
           editing?.id === role.id ? (

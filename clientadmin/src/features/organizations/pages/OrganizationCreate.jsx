@@ -5,6 +5,7 @@ import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { DEFAULT_FISCAL_YEAR_START } from '@/shared/utils/format.js'
 import OrganizationFields from '@/features/organizations/components/OrganizationForm.jsx'
+import { invalidate } from '@/shared/api/useQuery.js'
 
 export default function OrganizationCreate() {
   const navigate = useNavigate()
@@ -43,6 +44,7 @@ export default function OrganizationCreate() {
       if (form.admin_email.trim()) body.admin_email = form.admin_email.trim()
       if (form.admin_name.trim()) body.admin_name = form.admin_name.trim()
       const created = await organizationsApi.create(body)
+      invalidate(['organizations'])
       navigate(`/organizations/${created.id}`, { replace: true })
     } catch (err) {
       setError(err)

@@ -54,6 +54,7 @@ export const ACCESS = {
   updateUsers: { permissions: ['identity.user.update'] },
   deactivateUsers: { permissions: ['identity.user.deactivate'] },
   viewUserAccess: { permissions: ['identity.user_permission.read'] },
+  viewRolePresets: { permissions: ['identity.role_assignment.read'] },
   // Editing access needs the permission catalog too, which is part of role read access.
   manageUserAccess: { permissions: ['identity.user_permission.manage', 'identity.role.read'] },
   roles: { permissions: ['identity.role.read'] },
@@ -66,4 +67,111 @@ export const ACCESS = {
   calendars: { permissions: ['identity.calendar.read'] },
   createCalendar: { permissions: ['identity.calendar.create'] },
   updateCalendar: { permissions: ['identity.calendar.update'] },
+  customFields: { permissions: ['identity.field_definition.read'] },
+  // Saving a form's custom fields makes them live on the form at once.
+  editFormFields: { permissions: ['identity.field_definition.read', 'identity.field_definition.publish'] },
+  manageVerticals: { permissions: ['identity.vertical.manage'] },
+  // Anyone may read the verticals list; the page is for whoever keeps it or limits fields to it.
+  verticals: { anyPermissions: ['identity.vertical.manage', 'identity.field_definition.publish'] },
+  // Customers (revenue). Their outside services, providers and categories have their own pair.
+  customers: { permissions: ['revenue.client.read'] },
+  manageCustomers: { permissions: ['revenue.client.write'] },
+  clientServices: { permissions: ['revenue.client_service.read'] },
+  manageClientServices: { permissions: ['revenue.client_service.write'] },
+  // Sales: lead → opportunity → quotation → contract. Converting into a new customer also
+  // needs manageCustomers; quotations follow their opportunity's access.
+  leads: { permissions: ['revenue.lead.read'] },
+  manageLeads: { permissions: ['revenue.lead.write'] },
+  opportunities: { permissions: ['revenue.opportunity.read'] },
+  manageOpportunities: { permissions: ['revenue.opportunity.write'] },
+  approveQuotations: { permissions: ['revenue.quotation.approve'] },
+  contracts: { permissions: ['revenue.contract.read'] },
+  manageContracts: { permissions: ['revenue.contract.write'] },
+  offerings: { permissions: ['revenue.offering.read'] },
+  manageOfferings: { permissions: ['revenue.offering.write'] },
+  activities: { permissions: ['revenue.activity.read'] },
+  logActivities: { permissions: ['revenue.activity.write'] },
+  // Billing: invoices → payments → collections for overdue money.
+  invoices: { permissions: ['revenue.invoice.read'] },
+  manageInvoices: { permissions: ['revenue.invoice.write'] },
+  payments: { permissions: ['revenue.payment.read'] },
+  recordPayments: { permissions: ['revenue.payment.write'] },
+  collections: { permissions: ['revenue.collection.read'] },
+  manageCollections: { permissions: ['revenue.collection.write'] },
+  // Stop expecting part of an invoice (accounting only: the GST already due is unchanged).
+  writeOffInvoices: { permissions: ['revenue.invoice.write_off'] },
+  // Contract billing schedules: what is ready to bill, milestones reached, billing a line.
+  billingSchedules: { permissions: ['revenue.billing_schedule.read'] },
+  billScheduleLines: { permissions: ['revenue.billing_schedule.write'] },
+  // Tax setup: registrations, rates and rules, packs, numbering, billing settings.
+  taxSetup: { permissions: ['revenue.tax.read'] },
+  manageTax: { permissions: ['revenue.tax.manage'] },
+  // TDS customers withheld, until it shows in 26AS and is claimed.
+  tdsReceivables: { permissions: ['revenue.tds_receivable.read'] },
+  manageTdsReceivables: { permissions: ['revenue.tds_receivable.write'] },
+  // Tax reports: GST owed vs cash collected (tax setup), TDS withheld (TDS receivables).
+  taxReports: { anyPermissions: ['revenue.tax.read', 'revenue.tds_receivable.read'] },
+  // Documents attached to records. Seeing / attaching to a record also needs that record's
+  // own access (e.g. contracts / manageContracts); the documents service checks both.
+  documents: { permissions: ['document.read'] },
+  uploadDocuments: { permissions: ['document.upload'] },
+  documentCategories: { permissions: ['document.read', 'document.category.manage'] },
+  // Delivery: projects (milestones, team, risks, change requests), tasks, time, handovers and
+  // workflows. Working your own task (start, submit, tick its checklist, log your time) needs
+  // only `tasks`; the backend checks you are the assignee.
+  projects: { permissions: ['delivery.work_unit.read'] },
+  manageProjects: { permissions: ['delivery.work_unit.write'] },
+  decideChangeRequests: { permissions: ['delivery.change_request.approve'] },
+  tasks: { permissions: ['delivery.task.read'] },
+  manageTasks: { permissions: ['delivery.task.write'] },
+  // Ask another team for work it takes requests for, and follow your requests.
+  requestWork: { permissions: ['delivery.task.request'] },
+  reviewTasks: { permissions: ['delivery.task.review'] },
+  everyonesTime: { permissions: ['delivery.time_entry.read'] },
+  handovers: { permissions: ['delivery.handover.read'] },
+  manageHandovers: { permissions: ['delivery.handover.write'] },
+  deliverySetup: { permissions: ['delivery.template.manage'] },
+  // Project templates: the phases and milestones a new project starts with (reading them is a project read).
+  projectTemplates: { permissions: ['delivery.template.manage', 'delivery.work_unit.read'] },
+  workflows: { permissions: ['delivery.workflow.read'] },
+  designWorkflows: { permissions: ['delivery.workflow.manage'] },
+  operateWorkflows: { permissions: ['delivery.workflow.operate'] },
+  approveWorkflowSteps: { permissions: ['delivery.workflow.approve'] },
+  // Inventory (the Fixly backend): devices, stock, transfers, purchasing, service. Records are
+  // also limited by site for customer staff; the inventory service decides that.
+  devices: { permissions: ['inventory.device.read'] },
+  manageDevices: { permissions: ['inventory.device.write'] },
+  inventorySetup: { permissions: ['inventory.setup.manage'] },
+  inventoryCosts: { permissions: ['inventory.cost.read'] },
+  deviceCatalog: { permissions: ['inventory.catalog.read'] },
+  manageDeviceCatalog: { permissions: ['inventory.catalog.write'] },
+  purchaseOrders: { permissions: ['inventory.purchase_order.read'] },
+  managePurchaseOrders: { permissions: ['inventory.purchase_order.write'] },
+  approvePurchaseOrders: { permissions: ['inventory.purchase_order.approve'] },
+  receiveGoods: { permissions: ['inventory.goods_receipt.write'] },
+  stockTransfers: { permissions: ['inventory.stock_transfer.read'] },
+  manageStockTransfers: { permissions: ['inventory.stock_transfer.write'] },
+  approveStockTransfers: { permissions: ['inventory.stock_transfer.approve'] },
+  dispatchStockTransfers: { permissions: ['inventory.stock_transfer.dispatch'] },
+  receiveStockTransfers: { permissions: ['inventory.stock_transfer.receive'] },
+  warranties: { permissions: ['inventory.warranty.read'] },
+  manageWarranties: { permissions: ['inventory.warranty.write'] },
+  deviceIssues: { permissions: ['inventory.issue.read'] },
+  manageDeviceIssues: { permissions: ['inventory.issue.write'] },
+  assignDeviceIssues: { permissions: ['inventory.issue.assign'] },
+  requestReplacements: { permissions: ['inventory.replacement.write'] },
+  approveReplacements: { permissions: ['inventory.replacement.approve'] },
+  repairOrders: { permissions: ['inventory.repair_order.read'] },
+  manageRepairOrders: { permissions: ['inventory.repair_order.write'] },
+  approveRepairOrders: { permissions: ['inventory.repair_order.approve'] },
+  disposals: { permissions: ['inventory.disposal.read'] },
+  manageDisposals: { permissions: ['inventory.disposal.write'] },
+  approveDisposals: { permissions: ['inventory.disposal.approve'] },
+  maintenancePlans: { permissions: ['inventory.maintenance_plan.read'] },
+  manageMaintenancePlans: { permissions: ['inventory.maintenance_plan.write'] },
+  inventoryReports: { permissions: ['inventory.report.read'] },
+  // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
+  viewUserSessions: { permissions: ['identity.session.read'] },
+  revokeUserSessions: { permissions: ['identity.session.revoke'] },
+  auditLog: { permissions: ['identity.audit_log.read'] },
 }

@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { usersApi } from '@/features/users/api.js'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
-import { ACCESS, hasAccess } from '@/features/auth/access.js'
-import AccessEditor, { accessFromGrants } from '@/features/access/components/AccessEditor.jsx'
+import { ACCESS, hasAccess, isClientAdmin } from '@/features/auth/access.js'
+import UserSessions from '@/features/sessions/components/UserSessions.jsx'
+import AccessEditor, { loadAccess } from '@/features/access/components/AccessEditor.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
 import useAccessCatalog from '@/features/access/useAccessCatalog.js'
 import {
@@ -16,7 +17,9 @@ import {
   serviceLabel,
   toRequestAccess,
 } from '@/features/access/permissions.js'
+import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDateTime, USER_TYPE_LABELS } from '@/features/users/utils.js'
 
@@ -36,35 +39,46 @@ export default function UserDetail() {
   const { orgId } = useActiveOrg()
   const { catalog, roles, units } = useAccessCatalog(orgId)
 
-  const [user, setUser] = useState(null)
-  const [access, setAccess] = useState(null) // GET /users/{id}/permissions
-  const [presets, setPresets] = useState([])
-  const [managers, setManagers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const enabled = Boolean(orgId)
+  const userQuery = useQuery(['user', orgId, id], ({ signal }) => usersApi.get(orgId, id, { signal }), { enabled })
+  // The rest is optional: without the permission to read it the page still shows the person
+  // (and doesn't ask, so the console has no expected 403s).
+  const accessQuery = useQuery(['user-permissions', orgId, id], ({ signal }) =>
+    usersApi.permissions(orgId, id, { signal }).catch(() => null), { enabled: enabled && hasAccess(me, ACCESS.viewUserAccess) }
+  )
+  const presetsQuery = useQuery(['user-roles', orgId, id], () => usersApi.roleAssignments(orgId, id).catch(() => null), {
+    enabled: enabled && hasAccess(me, ACCESS.viewRolePresets),
+  })
+  // Same permission as reading the person (identity.user.read), so no extra gate.
+  const verticalsQuery = useQuery(['user-verticals', orgId, id], ({ signal }) =>
+    usersApi.verticals(orgId, id, { signal }).catch(() => null), { enabled }
+  )
+  const activesQuery = useLookup(
+    ['users', orgId, { status: 'active', limit: 100 }],
+    ({ signal }) => usersApi.list(orgId, { limit: 100, status: 'active' }, { signal }).catch(() => ({ data: null })),
+    { enabled }
+  )
+  const user = userQuery.data
+  const access = accessQuery.data ?? null // GET /users/{id}/permissions
+  const presets = presetsQuery.data ?? []
+  // Without the user's presets loaded, saving access must leave their presets alone.
+  const presetsKnown = Array.isArray(presetsQuery.data)
+  const userVerticals = verticalsQuery.data ?? null
+  const managers = useMemo(() => (activesQuery.data?.data ?? []).filter((m) => m.id !== id), [activesQuery.data, id])
+  const loading = userQuery.loading
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(location.state?.notice || '')
   const [mode, setMode] = useState(null) // 'edit' | 'deactivate' | 'access'
 
-  const load = useCallback(() => {
-    if (!orgId) return
-    setLoading(true)
+  // After a change: refetch this person and mark every user list stale.
+  const load = () => {
     setError(null)
-    Promise.all([
-      usersApi.get(orgId, id),
-      usersApi.permissions(orgId, id).catch(() => null),
-      usersApi.roleAssignments(orgId, id).catch(() => []),
-      usersApi.list(orgId, { limit: 100, status: 'active' }).catch(() => ({ data: [] })),
-    ])
-      .then(([u, perms, assignments, actives]) => {
-        setUser(u)
-        setAccess(perms)
-        setPresets(assignments)
-        setManagers(actives.data.filter((m) => m.id !== id))
-      })
-      .catch(setError)
-      .finally(() => setLoading(false))
-  }, [orgId, id])
-  useEffect(load, [load])
+    userQuery.reload()
+    accessQuery.reload()
+    presetsQuery.reload()
+    verticalsQuery.reload()
+    invalidate(['users', orgId])
+  }
 
   const unitsById = useMemo(() => Object.fromEntries(units.map((u) => [u.id, u])), [units])
   const describe = useMemo(() => Object.fromEntries(catalog.map((p) => [p.code, p.description])), [catalog])
@@ -86,11 +100,11 @@ export default function UserDetail() {
     load()
   }
 
-  if (loading && !user) return <div className="center-note">Loading…</div>
+  if (loading) return <DetailSkeleton />
   if (!user)
     return (
       <div>
-        <ErrorBanner error={error} onRetry={load} />
+        <ErrorBanner error={userQuery.error} onRetry={userQuery.reload} />
         <Link className="btn secondary" to="/users">← Back to users</Link>
       </div>
     )
@@ -103,6 +117,10 @@ export default function UserDetail() {
     edit: hasAccess(me, ACCESS.updateUsers),
     deactivate: hasAccess(me, ACCESS.deactivateUsers),
     editAccess: hasAccess(me, ACCESS.manageUserAccess),
+    viewSessions: hasAccess(me, ACCESS.viewUserSessions),
+    // Only a client admin can sign out a client admin (the backend enforces the same).
+    signOutSessions: hasAccess(me, ACCESS.revokeUserSessions) && (!isTenantAdmin || isClientAdmin(me)),
+    securityLog: hasAccess(me, ACCESS.auditLog),
   }
 
   return (
@@ -120,7 +138,7 @@ export default function UserDetail() {
       </div>
 
       {notice && <div className="alert success">{notice}</div>}
-      {mode === null && <ErrorBanner error={error} />}
+      {mode === null && <ErrorBanner error={error || userQuery.error} onRetry={error ? undefined : userQuery.reload} />}
 
       {user.status === 'invited' && (
         <div className="alert info invite-banner">
@@ -156,6 +174,33 @@ export default function UserDetail() {
             <Detail label="Employee code">{user.employee_code && <span className="mono">{user.employee_code}</span>}</Detail>
             <Detail label="User type">{USER_TYPE_LABELS[user.user_type] || user.user_type}</Detail>
             <Detail label="Works in">{user.home_unit && `${user.home_unit.name} (${user.home_unit.unit_type})`}</Detail>
+            <Detail label="Verticals">
+              {userVerticals?.effective?.length > 0 ? (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {userVerticals.effective.map((v) => (
+                    <span key={v.id} className="badge" style={{ background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe' }}>
+                      {v.name}
+                    </span>
+                  ))}
+                  {userVerticals.inherited_from && (
+                    <span className="muted small" style={{ marginLeft: 4 }}>
+                      (from {userVerticals.inherited_from.name})
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="muted">—</span>
+              )}
+            </Detail>
+            <Detail label="Also in teams">
+              {user.teams?.length > 0 &&
+                user.teams.map((team, i) => (
+                  <span key={team.id}>
+                    {i > 0 && ', '}
+                    <Link to={`/org-units/${team.id}`}>{team.name}</Link>
+                  </span>
+                ))}
+            </Detail>
             <Detail label="Reports to">{user.manager && <Link to={`/users/${user.manager.id}`}>{user.manager.name}</Link>}</Detail>
             <Detail label="Two-factor sign-in">{user.mfa_enabled ? 'Enabled' : 'Not set up'}</Detail>
             <Detail label="Last sign-in">{user.last_login_at && formatDateTime(user.last_login_at)}</Detail>
@@ -190,6 +235,8 @@ export default function UserDetail() {
             orgId={orgId}
             user={user}
             grants={access.permissions}
+            assignments={presets}
+            presetsKnown={presetsKnown}
             catalog={catalog}
             roles={roles}
             units={units}
@@ -215,6 +262,24 @@ export default function UserDetail() {
           </>
         )}
       </div>
+
+      {/* ---------------- Sessions ---------------- */}
+      {allowed.viewSessions && isSelf && (
+        <div className="panel form-section">
+          <h2>Sessions</h2>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Your own sessions are on <Link to="/profile">your profile</Link>.
+          </p>
+        </div>
+      )}
+      {allowed.viewSessions && !isSelf && (
+        <UserSessions
+          orgId={orgId}
+          user={user}
+          canSignOut={allowed.signOutSessions}
+          logLink={allowed.securityLog ? `/audit-log?user=${user.id}` : null}
+        />
+      )}
     </div>
   )
 }
@@ -289,11 +354,11 @@ function ProfileForm({ orgId, user, units, managers, onCancel, onSaved }) {
     e.preventDefault()
     setError(null)
     setSaving(true)
-    // Send only what changed; null clears phone / manager.
+    // Send only what changed; null clears phone / place / manager.
     const body = {}
     if (form.name.trim() !== user.name) body.name = form.name.trim()
     if ((form.phone.trim() || null) !== (user.phone || null)) body.phone = form.phone.trim() || null
-    if (form.home_unit_id && form.home_unit_id !== (user.home_unit?.id || null)) body.home_unit_id = form.home_unit_id
+    if ((form.home_unit_id || null) !== (user.home_unit?.id || null)) body.home_unit_id = form.home_unit_id || null
     if ((form.manager_user_id || null) !== (user.manager?.id || null)) body.manager_user_id = form.manager_user_id || null
     try {
       if (Object.keys(body).length) await usersApi.update(orgId, user.id, user.version, body)
@@ -322,7 +387,9 @@ function ProfileForm({ orgId, user, units, managers, onCancel, onSaved }) {
         <div className="field">
           <label htmlFor="e-unit">Works in</label>
           <UnitSelect id="e-unit" units={units} value={form.home_unit_id} emptyLabel="— Not placed yet —" onChange={(id) => set('home_unit_id', id)} />
-          <div className="hint">Moving someone needs access where they move to as well.</div>
+          <div className="hint">
+            Moving someone needs access where they move to as well; leaving them unplaced needs access across the whole company.
+          </div>
           {fieldErrors.home_unit_id && <div className="field-error">{fieldErrors.home_unit_id}</div>}
         </div>
         <div className="field">
@@ -400,18 +467,23 @@ function DeactivateForm({ orgId, user, candidates, onCancel, onDone }) {
   )
 }
 
-function AccessForm({ orgId, user, grants, catalog, roles, units, onCancel, onSaved }) {
-  const [value, setValue] = useState(() => accessFromGrants(grants))
+function AccessForm({ orgId, user, grants, assignments, presetsKnown, catalog, roles, units, onCancel, onSaved }) {
+  const [initial] = useState(() => loadAccess(grants, presetsKnown ? assignments : [], roles))
+  const [value, setValue] = useState(initial.value)
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const rolesById = useMemo(() => Object.fromEntries(roles.map((r) => [r.id, r])), [roles])
 
   async function submit(e) {
     e.preventDefault()
     setError(null)
     setSaving(true)
     try {
-      await usersApi.replacePermissions(orgId, user.id, { ...toRequestAccess(value), reason: reason.trim() })
+      await usersApi.replacePermissions(orgId, user.id, {
+        ...toRequestAccess(value, { includePresets: presetsKnown }),
+        reason: reason.trim(),
+      })
       onSaved()
     } catch (err) {
       setError(err)
@@ -423,7 +495,25 @@ function AccessForm({ orgId, user, grants, catalog, roles, units, onCancel, onSa
   return (
     <form onSubmit={submit}>
       {error && <ErrorBanner error={error} />}
-      <AccessEditor catalog={catalog} roles={roles} units={units} value={value} onChange={setValue} fieldErrors={getFieldErrors(error)} />
+      {initial.changes.length > 0 && (
+        <div className="alert info">
+          {initial.changes.map(({ preset, codes }) => (
+            <div key={preset.key}>
+              {rolesById[preset.role_id]?.name || 'A role'} gained {codes.length} permission{codes.length === 1 ? '' : 's'} since it
+              was applied; saving gives them to {user.name}: <span className="mono">{codes.join(', ')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <AccessEditor
+        catalog={catalog}
+        roles={roles}
+        units={units}
+        value={value}
+        onChange={setValue}
+        fieldErrors={getFieldErrors(error)}
+        presetsEditable={presetsKnown}
+      />
       <div className="field" style={{ maxWidth: 520 }}>
         <label htmlFor="a-reason">Reason for the change *</label>
         <input id="a-reason" value={reason} onChange={(e) => setReason(e.target.value)} required maxLength={500} placeholder="Promoted to team lead" />

@@ -48,7 +48,9 @@ const FRIENDLY = {
 // backend/exception message, else a generic fallback.
 export function friendlyMessage(err) {
   if (err instanceof ApiError) {
-    if (err.code && FRIENDLY[err.code]) return FRIENDLY[err.code]
+    const friendly = err.code ? FRIENDLY[err.code] : undefined
+    // An entry may be a function of the error, to use the facts the backend sent with it.
+    if (friendly) return typeof friendly === 'function' ? friendly(err) : friendly
     if (err.message && err.message !== 'Unable to reach the server.') return err.message
     return `Something went wrong${err.status ? ` (${err.status})` : ''}.`
   }
