@@ -39,16 +39,17 @@ export default function ProjectDetail() {
   const { user: me } = useAuth()
   const names = useDeliveryNames(orgId)
 
-  const canAttach =
-    hasAccess(me, ACCESS.manageProjects) &&
-    hasAccess(me, ACCESS.uploadDocuments) &&
-    !['completed', 'closed', 'cancelled'].includes(project?.status)
-
   const { data: project, error, loading, reload, setData } = useQuery(
     ['project', orgId, id],
     ({ signal }) => projectsApi.get(orgId, id, { signal }),
     { enabled: Boolean(orgId) }
   )
+
+  const canAttach =
+    hasAccess(me, ACCESS.manageProjects) &&
+    hasAccess(me, ACCESS.uploadDocuments) &&
+    !['completed', 'closed', 'cancelled'].includes(project?.status)
+
   // A changed project: shown at once, and lists and its summary refetch.
   const setProject = (saved) => {
     setData(saved)
