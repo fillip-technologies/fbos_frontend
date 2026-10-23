@@ -10,6 +10,10 @@ import ProjectWorkPackages from '@/features/delivery/components/ProjectWorkPacka
 import WorkflowPanel from '@/features/delivery/components/WorkflowPanel.jsx'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import { HEALTH_LABELS, PROJECT_STATUS_LABELS, SUBJECT_TYPES } from '@/features/delivery/utils.js'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
+import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
+import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -23,6 +27,7 @@ const TABS = [
   ['team', 'Team'],
   ['risks', 'Risks'],
   ['changes', 'Change requests'],
+  ['documents', 'Documents'],
 ]
 
 export default function ProjectDetail() {
@@ -31,7 +36,13 @@ export default function ProjectDetail() {
   const [params, setParams] = useSearchParams()
   const tab = TABS.some(([key]) => key === params.get('tab')) ? params.get('tab') : 'overview'
   const { orgId, activeOrg } = useActiveOrg()
+  const { user: me } = useAuth()
   const names = useDeliveryNames(orgId)
+
+  const canAttach =
+    hasAccess(me, ACCESS.manageProjects) &&
+    hasAccess(me, ACCESS.uploadDocuments) &&
+    !['completed', 'closed', 'cancelled'].includes(project?.status)
 
   const { data: project, error, loading, reload, setData } = useQuery(
     ['project', orgId, id],
@@ -102,6 +113,21 @@ export default function ProjectDetail() {
       {tab === 'team' && <ProjectTeam {...tabProps} />}
       {tab === 'risks' && <ProjectRisks {...tabProps} />}
       {tab === 'changes' && <ProjectChangeRequests {...tabProps} />}
+      {tab === 'documents' && (
+        hasAccess(me, ACCESS.documents) ? (
+          <DocumentPanel
+            orgId={orgId}
+            subjectType={DOCUMENT_SUBJECTS.project}
+            subjectId={project.id}
+            canAttach={canAttach}
+            defaultCategory="deliverable"
+            title="Project Documents"
+            emptyText="No documents attached to this project yet."
+          />
+        ) : (
+          <div className="panel muted">You do not have access to view documents.</div>
+        )
+      )}
     </div>
   )
 }
