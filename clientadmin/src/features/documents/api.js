@@ -8,6 +8,8 @@ export const DOCUMENT_SUBJECTS = {
   quotation: 'revenue.quotation',
   contract: 'revenue.contract',
   device: 'inventory.device',
+  project: 'delivery.project',
+  task: 'delivery.task',
 }
 
 export const documentsApi = {
