@@ -96,7 +96,10 @@ function WorkflowRun({ orgId, run, canOperate, onChanged }) {
   }
 
   const current = run.current_stages.map((s) => s.stage_name).join(' + ')
-  const passed = (history.data ?? []).map((h) => h.stage_code)
+  const currentCodes = new Set(run.current_stages.map((s) => s.stage_code))
+  const passed = (history.data ?? [])
+    .map((h) => h.stage_code)
+    .filter((code) => Boolean(code) && (!live || !currentCodes.has(code)))
 
   function confirm(e) {
     e.preventDefault()
@@ -120,9 +123,9 @@ function WorkflowRun({ orgId, run, canOperate, onChanged }) {
 
       <ol className="stage-path" aria-label="Stages">
         <li className="passed">Started</li>
-        {passed.map((code, i) => <li key={`${code}-${i}`} className="passed">{code.replace(/_/g, ' ')}</li>)}
+        {passed.map((code, i) => <li key={`${code}-${i}`} className="passed">{code ? code.replace(/_/g, ' ') : ''}</li>)}
         {current && live && <li className="current" aria-current="step">{current}</li>}
-        {live && (transitions.data ?? []).filter((t) => t.allowed).map((t) => <li key={t.code} className="next">{t.to_stage.replace(/_/g, ' ')}</li>)}
+        {live && (transitions.data ?? []).filter((t) => t.allowed).map((t) => <li key={t.code} className="next">{(t.to_stage || t.name || '').replace(/_/g, ' ')}</li>)}
       </ol>
 
       {notice && <div className="alert success" role="status">{notice}</div>}
