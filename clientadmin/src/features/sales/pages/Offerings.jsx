@@ -46,7 +46,7 @@ function OfferingForm({ orgId, verticals, defaultCurrency, onCreated, onCancel }
         code: form.code.trim(),
         name: form.name.trim(),
         vertical_id: form.vertical_id,
-        sac_code: form.sac_code.trim(),
+        ...(form.sac_code.trim() && { sac_code: form.sac_code.trim() }),
         tax_category_code: form.tax_category_code,
         unit: form.unit,
         billing_model: form.billing_model,
@@ -135,7 +135,7 @@ function OfferingForm({ orgId, verticals, defaultCurrency, onCreated, onCancel }
         </div>
       </div>
       <div className="grid-2">
-        {field('sac_code', 'SAC code *', { required: true, maxLength: 20, className: 'mono-input' }, 'GST services code, e.g. 998313.')}
+        {field('sac_code', 'SAC code', { maxLength: 20, className: 'mono-input' }, 'GST services code, e.g. 998313. Optional.')}
         <div className="field">
           <label htmlFor="off-category">Tax category *</label>
           <TaxCategorySelect id="off-category" required categories={categories} value={form.tax_category_code} onChange={(v) => set('tax_category_code', v)} />
@@ -240,7 +240,7 @@ export default function Offerings() {
                   <td>
                     {o.gst_rate != null ? `${o.gst_rate}%` : '—'}
                     {o.tax_category_code && <span className="muted small"> · {o.tax_category_code}</span>}
-                    <div className="muted small mono">SAC {o.sac_code}</div>
+                    {o.sac_code && <div className="muted small mono">SAC {o.sac_code}</div>}
                   </td>
                   <td>{BILLING_MODELS[o.billing_model] || o.billing_model}</td>
                   <td>
