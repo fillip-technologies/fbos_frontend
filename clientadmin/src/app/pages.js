@@ -73,12 +73,16 @@ export const pages = {
   Repairs: () => import('@/features/inventory/pages/Repairs.jsx'),
   Disposals: () => import('@/features/inventory/pages/Disposals.jsx'),
   InventoryReports: () => import('@/features/inventory/pages/InventoryReports.jsx'),
+  Assets: () => import('@/features/assets/pages/AssetList.jsx'),
+  AssetDetail: () => import('@/features/assets/pages/AssetDetail.jsx'),
+  AssetCreate: () => import('@/features/assets/pages/AssetCreate.jsx'),
 }
 
 // Sidebar path -> the pages of that section. Hovering an entry downloads the list page
 // and the pages reached from it (detail, create), so neither click waits for code.
 const NAV_PAGES = {
   '/': [pages.Dashboard],
+  '/assets': [pages.Assets, pages.AssetDetail, pages.AssetCreate],
   '/organizations': [pages.Organizations, pages.OrganizationDetail, pages.OrganizationCreate],
   '/org-units': [pages.OrgUnits, pages.OrgUnitDetail, pages.OrgUnitCreate],
   '/calendars': [pages.Calendars],

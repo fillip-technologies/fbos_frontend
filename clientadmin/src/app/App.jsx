@@ -83,6 +83,10 @@ const TaskTypes = lazy(pages.TaskTypes)
 const WorkflowBuilder = lazy(pages.WorkflowBuilder)
 const Requests = lazy(pages.Requests)
 const RequestCreate = lazy(pages.RequestCreate)
+const Assets = lazy(pages.Assets)
+const AssetDetail = lazy(pages.AssetDetail)
+const AssetCreate = lazy(pages.AssetCreate)
+
 
 function RequireAuth({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -123,6 +127,9 @@ export default function App() {
           <Route path="/org-units" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnits /></RequireAccess>} />
           <Route path="/org-units/new" element={<RequireAccess rule={ACCESS.createOrgUnit}><OrgUnitCreate /></RequireAccess>} />
           <Route path="/org-units/:id" element={<RequireAccess rule={ACCESS.orgUnits}><OrgUnitDetail /></RequireAccess>} />
+          <Route path="/assets" element={<RequireAccess rule={ACCESS.assets}><Assets /></RequireAccess>} />
+          <Route path="/assets/new" element={<RequireAccess rule={ACCESS.manageAssets}><AssetCreate /></RequireAccess>} />
+          <Route path="/assets/:id" element={<RequireAccess rule={ACCESS.assets}><AssetDetail /></RequireAccess>} />
           <Route path="/calendars" element={<RequireAccess rule={ACCESS.calendars}><Calendars /></RequireAccess>} />
           <Route path="/custom-fields" element={<RequireAccess rule={ACCESS.customFields}><CustomFields /></RequireAccess>} />
           <Route path="/custom-fields/:form" element={<RequireAccess rule={ACCESS.customFields}><FormFields /></RequireAccess>} />

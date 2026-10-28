@@ -29,6 +29,12 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="9" y="3" width="6" height="5" rx="1" /><rect x="3" y="16" width="6" height="5" rx="1" /><rect x="15" y="16" width="6" height="5" rx="1" /><path d="M12 8v4M6 16v-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2" /></>),
   },
   {
+    to: '/assets',
+    label: 'Assets',
+    access: ACCESS.assets,
+    icon: icon(<><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></>),
+  },
+  {
     to: '/calendars',
     label: 'Calendars',
     access: ACCESS.calendars,
