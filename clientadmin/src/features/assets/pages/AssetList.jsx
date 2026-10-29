@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { assetMasterApi, assetsApi } from '@/features/assets/api.js'
 import { AssetStatusBadge, CriticalityBadge } from '@/features/assets/components/AssetBadge.jsx'
+import CreateAssetTypeModal from '@/features/assets/components/CreateAssetTypeModal.jsx'
 import { ASSET_STATUS_LABELS, formatDate } from '@/features/assets/utils.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
@@ -22,6 +23,7 @@ export default function AssetList() {
   const filters = Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? '']))
   const [cursor, setCursor] = useState(undefined)
   const [stack, setStack] = useState([])
+  const [showTypeModal, setShowTypeModal] = useState(false)
 
   const { data, error, loading, refreshing, reload } = useQuery(
     ['assets', orgId, { cursor, filters }],
@@ -66,6 +68,7 @@ export default function AssetList() {
 
   const warm = (id) => prefetch(['asset', orgId, id], ({ signal }) => assetsApi.get(orgId, id, { signal }))
   const canRegister = hasAccess(me, ACCESS.manageAssets)
+  const canManageSetup = hasAccess(me, ACCESS.assetsSetup) || canRegister
 
   return (
     <div>
@@ -78,6 +81,11 @@ export default function AssetList() {
         </div>
         <div className="row-actions">
           <OrgSwitcher onChange={() => setCursor(undefined)} />
+          {canManageSetup && (
+            <button className="btn secondary" onClick={() => setShowTypeModal(true)}>
+              + Asset Type
+            </button>
+          )}
           {canRegister && (
             <button className="btn" onClick={() => navigate('/assets/new')}>
               + Register Asset
@@ -191,6 +199,17 @@ export default function AssetList() {
           Next →
         </button>
       </div>
+
+      {showTypeModal && (
+        <CreateAssetTypeModal
+          orgId={orgId}
+          onClose={() => setShowTypeModal(false)}
+          onCreated={(created) => {
+            setFilter('type_code', created.code)
+            setShowTypeModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }

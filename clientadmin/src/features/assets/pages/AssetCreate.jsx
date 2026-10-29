@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { assetMasterApi, assetsApi } from '@/features/assets/api.js'
+import CreateAssetTypeModal from '@/features/assets/components/CreateAssetTypeModal.jsx'
 import { CRITICALITY_LABELS } from '@/features/assets/utils.js'
 import { orgUnitsApi } from '@/features/org-units/api.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
@@ -13,6 +14,7 @@ export default function AssetCreate() {
 
   const [name, setName] = useState('')
   const [typeCode, setTypeCode] = useState('')
+  const [showCreateType, setShowCreateType] = useState(false)
   const [ownerUnitId, setOwnerUnitId] = useState('')
   const [criticality, setCriticality] = useState('medium')
   const [serialNo, setSerialNo] = useState('')
@@ -107,7 +109,17 @@ export default function AssetCreate() {
           </label>
 
           <label className="field">
-            <span>Asset Type *</span>
+            <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Asset Type *</span>
+              <button
+                type="button"
+                className="btn link small-btn"
+                style={{ padding: 0, fontSize: 13, textDecoration: 'underline' }}
+                onClick={() => setShowCreateType(true)}
+              >
+                + New Type
+              </button>
+            </span>
             <select required value={typeCode} onChange={(e) => setTypeCode(e.target.value)}>
               <option value="">Select asset type…</option>
               {(types.data || []).map((t) => (
@@ -242,6 +254,17 @@ export default function AssetCreate() {
           </button>
         </div>
       </form>
+
+      {showCreateType && (
+        <CreateAssetTypeModal
+          orgId={orgId}
+          onClose={() => setShowCreateType(false)}
+          onCreated={(created) => {
+            setTypeCode(created.code)
+            setShowCreateType(false)
+          }}
+        />
+      )}
     </div>
   )
 }
