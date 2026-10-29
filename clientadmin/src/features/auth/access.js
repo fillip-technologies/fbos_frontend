@@ -178,6 +178,18 @@ export const ACCESS = {
   disposeAssets: { permissions: ['assets.asset.dispose'] },
   assetsSetup: { permissions: ['assets.setup.manage'] },
   revealAssetCredentials: { permissions: ['assets.credential.reveal'] },
+  // People (HCM, ATS, employees, attendance, leaves, payroll)
+  people: { anyPermissions: ['people.employee.read', 'people.recruitment.read', 'people.attendance.read', 'people.leave.apply'] },
+  manageEmployees: { permissions: ['people.employee.manage'] },
+  recruitment: { permissions: ['people.recruitment.read'] },
+  manageRecruitment: { permissions: ['people.recruitment.manage'] },
+  attendance: { permissions: ['people.attendance.read'] },
+  manageAttendance: { permissions: ['people.attendance.manage'] },
+  leaves: { permissions: ['people.leave.apply'] },
+  approveLeaves: { permissions: ['people.leave.approve'] },
+  compensation: { permissions: ['people.compensation.read'] },
+  manageCompensation: { permissions: ['people.compensation.manage'] },
+  manageSeparation: { permissions: ['people.separation.manage'] },
   // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
   viewUserSessions: { permissions: ['identity.session.read'] },
   revokeUserSessions: { permissions: ['identity.session.revoke'] },
