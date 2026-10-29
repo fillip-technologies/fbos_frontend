@@ -25,6 +25,7 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   build: {
+    assetsDir: 'static',
     rollupOptions: {
       output: {
         // React and the router change rarely: keep them in their own long-cached chunk so
