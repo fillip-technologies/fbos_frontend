@@ -90,57 +90,8 @@ export default function CreateVendorAccountModal({ orgId, onClose, onCreated }) 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Vendor selection & inline creation */}
           <div className="field">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span>Supplier / Vendor *</span>
-              <button
-                type="button"
-                className="btn link small-btn"
-                style={{ padding: 0, fontSize: 13, textDecoration: 'underline' }}
-                onClick={() => {
-                  setShowAddVendor(!showAddVendor)
-                  setVendorError(null)
-                }}
-              >
-                {showAddVendor ? '✕ Cancel' : '+ New Vendor'}
-              </button>
-            </div>
-
-            {showAddVendor ? (
-              <div style={{ background: '#f8fafc', padding: 10, borderRadius: 8, border: '1px solid var(--border)' }}>
-                <ErrorBanner error={vendorError} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <input
-                    type="text"
-                    placeholder="Vendor Name (e.g. Dell, Apple, Amazon Web Services)"
-                    value={newVendorName}
-                    onChange={(e) => setNewVendorName(e.target.value)}
-                    disabled={creatingVendor}
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <select
-                      value={newVendorType}
-                      onChange={(e) => setNewVendorType(e.target.value)}
-                      disabled={creatingVendor}
-                      style={{ flex: 1 }}
-                    >
-                      {VENDOR_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className="btn small-btn"
-                      onClick={handleCreateVendor}
-                      disabled={creatingVendor || !newVendorName.trim()}
-                    >
-                      {creatingVendor ? 'Saving…' : 'Save Vendor'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
+            <span>Supplier / Vendor *</span>
+            <div className="field-action-group">
               <select
                 required
                 value={vendorId}
@@ -154,6 +105,53 @@ export default function CreateVendorAccountModal({ orgId, onClose, onCreated }) 
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => {
+                  setShowAddVendor(!showAddVendor)
+                  setVendorError(null)
+                }}
+              >
+                {showAddVendor ? 'Close' : '+ New Vendor'}
+              </button>
+            </div>
+
+            {showAddVendor && (
+              <div style={{ marginTop: 10, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Add New Supplier / Vendor</div>
+                <ErrorBanner error={vendorError} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="Vendor Name (e.g. Dell, Apple, Amazon Web Services)"
+                    value={newVendorName}
+                    onChange={(e) => setNewVendorName(e.target.value)}
+                    disabled={creatingVendor}
+                  />
+                  <div className="field-action-group">
+                    <select
+                      value={newVendorType}
+                      onChange={(e) => setNewVendorType(e.target.value)}
+                      disabled={creatingVendor}
+                    >
+                      {VENDOR_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={handleCreateVendor}
+                      disabled={creatingVendor || !newVendorName.trim()}
+                    >
+                      {creatingVendor ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 

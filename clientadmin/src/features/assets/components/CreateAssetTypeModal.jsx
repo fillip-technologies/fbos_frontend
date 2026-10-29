@@ -118,44 +118,8 @@ export default function CreateAssetTypeModal({ orgId, onClose, onCreated }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Category selection & inline creation */}
           <div className="field">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span>Category *</span>
-              <button
-                type="button"
-                className="btn link small-btn"
-                style={{ padding: 0, fontSize: 13, textDecoration: 'underline' }}
-                onClick={() => {
-                  setShowAddCategory(!showAddCategory)
-                  setCatError(null)
-                }}
-              >
-                {showAddCategory ? '✕ Cancel' : '+ New Category'}
-              </button>
-            </div>
-
-            {showAddCategory ? (
-              <div style={{ background: '#f8fafc', padding: 10, borderRadius: 8, border: '1px solid var(--border)' }}>
-                <ErrorBanner error={catError} />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="text"
-                    placeholder="e.g. Heavy Machinery, Tools, Lab Equipment"
-                    value={newCatName}
-                    onChange={(e) => setNewCatName(e.target.value)}
-                    disabled={creatingCat}
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    type="button"
-                    className="btn small-btn"
-                    onClick={handleCreateCategory}
-                    disabled={creatingCat || !newCatName.trim()}
-                  >
-                    {creatingCat ? 'Adding…' : 'Add Category'}
-                  </button>
-                </div>
-              </div>
-            ) : (
+            <span>Category *</span>
+            <div className="field-action-group">
               <select
                 required
                 value={categoryId}
@@ -169,6 +133,40 @@ export default function CreateAssetTypeModal({ orgId, onClose, onCreated }) {
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => {
+                  setShowAddCategory(!showAddCategory)
+                  setCatError(null)
+                }}
+              >
+                {showAddCategory ? 'Close' : '+ New Category'}
+              </button>
+            </div>
+
+            {showAddCategory && (
+              <div style={{ marginTop: 10, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Create New Category</div>
+                <ErrorBanner error={catError} />
+                <div className="field-action-group">
+                  <input
+                    type="text"
+                    placeholder="e.g. Heavy Machinery, Fleet Vehicles"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    disabled={creatingCat}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handleCreateCategory}
+                    disabled={creatingCat || !newCatName.trim()}
+                  >
+                    {creatingCat ? 'Adding…' : 'Save'}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
