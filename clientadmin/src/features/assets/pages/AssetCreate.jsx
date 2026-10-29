@@ -110,27 +110,26 @@ export default function AssetCreate() {
             />
           </label>
 
-          <label className="field">
-            <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Asset Type *</span>
+          <div className="field">
+            <span>Asset Type *</span>
+            <div className="field-action-group">
+              <select required value={typeCode} onChange={(e) => setTypeCode(e.target.value)}>
+                <option value="">Select asset type…</option>
+                {(types.data || []).map((t) => (
+                  <option key={t.code} value={t.code}>
+                    {t.name} ({t.family})
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
-                className="btn link small-btn"
-                style={{ padding: 0, fontSize: 13, textDecoration: 'underline' }}
+                className="btn secondary"
                 onClick={() => setShowCreateType(true)}
               >
                 + New Type
               </button>
-            </span>
-            <select required value={typeCode} onChange={(e) => setTypeCode(e.target.value)}>
-              <option value="">Select asset type…</option>
-              {(types.data || []).map((t) => (
-                <option key={t.code} value={t.code}>
-                  {t.name} ({t.family})
-                </option>
-              ))}
-            </select>
-          </label>
+            </div>
+          </div>
 
           <label className="field">
             <span>Owning Department / Unit *</span>
@@ -176,27 +175,26 @@ export default function AssetCreate() {
             />
           </label>
 
-          <label className="field">
-            <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Vendor Account (Optional)</span>
+          <div className="field">
+            <span>Vendor Account (Optional)</span>
+            <div className="field-action-group">
+              <select value={vendorAccountId} onChange={(e) => setVendorAccountId(e.target.value)}>
+                <option value="">None / Not linked</option>
+                {(accounts.data || []).map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.account_identifier}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
-                className="btn link small-btn"
-                style={{ padding: 0, fontSize: 13, textDecoration: 'underline' }}
+                className="btn secondary"
                 onClick={() => setShowVendorAccountModal(true)}
               >
                 + New Account
               </button>
-            </span>
-            <select value={vendorAccountId} onChange={(e) => setVendorAccountId(e.target.value)}>
-              <option value="">None / Not linked</option>
-              {(accounts.data || []).map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.account_identifier}
-                </option>
-              ))}
-            </select>
-          </label>
+            </div>
+          </div>
         </div>
 
         <h3 style={{ margin: '24px 0 12px' }}>Financials & Expiration</h3>
