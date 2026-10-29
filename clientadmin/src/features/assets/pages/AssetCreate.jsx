@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { assetMasterApi, assetsApi } from '@/features/assets/api.js'
 import CreateAssetTypeModal from '@/features/assets/components/CreateAssetTypeModal.jsx'
+import CreateVendorAccountModal from '@/features/assets/components/CreateVendorAccountModal.jsx'
 import { CRITICALITY_LABELS } from '@/features/assets/utils.js'
 import { orgUnitsApi } from '@/features/org-units/api.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
@@ -15,6 +16,7 @@ export default function AssetCreate() {
   const [name, setName] = useState('')
   const [typeCode, setTypeCode] = useState('')
   const [showCreateType, setShowCreateType] = useState(false)
+  const [showVendorAccountModal, setShowVendorAccountModal] = useState(false)
   const [ownerUnitId, setOwnerUnitId] = useState('')
   const [criticality, setCriticality] = useState('medium')
   const [serialNo, setSerialNo] = useState('')
@@ -175,7 +177,17 @@ export default function AssetCreate() {
           </label>
 
           <label className="field">
-            <span>Vendor Account (Optional)</span>
+            <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Vendor Account (Optional)</span>
+              <button
+                type="button"
+                className="btn link small-btn"
+                style={{ padding: 0, fontSize: 13, textDecoration: 'underline' }}
+                onClick={() => setShowVendorAccountModal(true)}
+              >
+                + New Account
+              </button>
+            </span>
             <select value={vendorAccountId} onChange={(e) => setVendorAccountId(e.target.value)}>
               <option value="">None / Not linked</option>
               {(accounts.data || []).map((acc) => (
@@ -262,6 +274,17 @@ export default function AssetCreate() {
           onCreated={(created) => {
             setTypeCode(created.code)
             setShowCreateType(false)
+          }}
+        />
+      )}
+
+      {showVendorAccountModal && (
+        <CreateVendorAccountModal
+          orgId={orgId}
+          onClose={() => setShowVendorAccountModal(false)}
+          onCreated={(created) => {
+            setVendorAccountId(created.id)
+            setShowVendorAccountModal(false)
           }}
         />
       )}
