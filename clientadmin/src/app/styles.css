@@ -332,6 +332,7 @@ table.compact tbody tr.clickable:hover { cursor: pointer; background: #f8fafc; }
 .badge.p4 { background: #f1f5f9; color: #475569; }
 /* Asset service statuses and criticalities */
 .badge.in_stock { background: #dcfce7; color: #166534; }
+.badge.in_use, .badge.assigned { background: #dbeafe; color: #1e40af; }
 .badge.in_maintenance { background: #fef3c7; color: #92400e; }
 .badge.disposed { background: #f1f5f9; color: #475569; }
 .badge.critical { background: #fee2e2; color: #991b1b; }

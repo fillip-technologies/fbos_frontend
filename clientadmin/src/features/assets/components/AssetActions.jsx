@@ -44,8 +44,8 @@ export default function AssetActions({ orgId, asset, onChanged }) {
   const canDispose = hasAccess(me, ACCESS.disposeAssets)
   const canReveal = hasAccess(me, ACCESS.revealAssetCredentials)
 
-  const isAssigned = asset.status === 'assigned'
-  const isInStock = asset.status === 'in_stock'
+  const isAssigned = asset.status === 'assigned' || asset.status === 'in_use'
+  const isInStock = asset.status === 'in_stock' || asset.status === 'available'
   const isInMaintenance = asset.status === 'in_maintenance'
   const isDisposed = asset.status === 'disposed'
   const isCredential = asset.type?.family === 'credential'
@@ -61,7 +61,7 @@ export default function AssetActions({ orgId, asset, onChanged }) {
         {canAssign && isAssigned && (
           <>
             <button className="btn secondary" onClick={() => setMode('transfer')}>
-              Transfer custody
+              Transfer / Reassign
             </button>
             <button className="btn secondary" onClick={() => setMode('return')}>
               Return to stock

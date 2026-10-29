@@ -1,8 +1,10 @@
 export const ASSET_STATUS_LABELS = {
   in_stock: 'In Stock',
-  assigned: 'Assigned',
+  in_use: 'In Use',
+  assigned: 'In Use',
   in_maintenance: 'In Maintenance',
   disposed: 'Disposed',
+  reserved: 'Reserved',
 }
 
 export const CRITICALITY_LABELS = {
