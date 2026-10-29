@@ -16,6 +16,8 @@ const COMMUNICATION_URL = process.env.COMMUNICATION_URL || process.env.API_URL |
 const DELIVERY_URL = process.env.DELIVERY_URL || process.env.API_URL || 'http://localhost:8003'
 // Inventory (devices, stock, transfers, service) is the Fixly backend (Node) on :3000.
 const INVENTORY_URL = process.env.INVENTORY_URL || process.env.API_URL || 'http://localhost:3000'
+// Assets (fixed assets, equipment, licenses, custody, lifecycle) is on :8009.
+const ASSETS_URL = process.env.ASSETS_URL || process.env.API_URL || 'http://localhost:8009'
 
 export default defineConfig({
   plugins: [react()],
@@ -56,6 +58,10 @@ export default defineConfig({
       },
       '/api/inventory': {
         target: INVENTORY_URL,
+        changeOrigin: true,
+      },
+      '/api/assets': {
+        target: ASSETS_URL,
         changeOrigin: true,
       },
       '/api': {

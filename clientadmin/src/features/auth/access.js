@@ -170,6 +170,14 @@ export const ACCESS = {
   maintenancePlans: { permissions: ['inventory.maintenance_plan.read'] },
   manageMaintenancePlans: { permissions: ['inventory.maintenance_plan.write'] },
   inventoryReports: { permissions: ['inventory.report.read'] },
+  // Assets (internal fixed assets, hardware, licenses, custody, maintenance, lifecycle)
+  assets: { permissions: ['assets.asset.read'] },
+  manageAssets: { permissions: ['assets.asset.write'] },
+  assignAssets: { permissions: ['assets.asset.assign'] },
+  maintainAssets: { permissions: ['assets.asset.maintain'] },
+  disposeAssets: { permissions: ['assets.asset.dispose'] },
+  assetsSetup: { permissions: ['assets.setup.manage'] },
+  revealAssetCredentials: { permissions: ['assets.credential.reveal'] },
   // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
   viewUserSessions: { permissions: ['identity.session.read'] },
   revokeUserSessions: { permissions: ['identity.session.revoke'] },
