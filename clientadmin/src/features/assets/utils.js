@@ -85,3 +85,51 @@ export function formatDateTime(val) {
     minute: '2-digit',
   })
 }
+
+export function resolveUserName(userId, users = []) {
+  if (!userId) return null
+  const u = (users || []).find((x) => x.id === userId)
+  if (!u) return null
+  return u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || userId
+}
+
+export function resolveUser(userId, users = []) {
+  if (!userId) return null
+  return (users || []).find((x) => x.id === userId) || null
+}
+
+export function resolveUnitName(unitId, units = []) {
+  if (!unitId) return null
+  const un = (units || []).find((x) => x.id === unitId)
+  if (!un) return null
+  return un.name ? `${un.name}${un.unit_type ? ` (${un.unit_type})` : ''}` : unitId
+}
+
+export function resolveUnit(unitId, units = []) {
+  if (!unitId) return null
+  return (units || []).find((x) => x.id === unitId) || null
+}
+
+export function resolveAssignee(assignee, users = [], units = []) {
+  if (!assignee) return { name: null, subtext: null, typeLabel: null, isUser: false }
+  const id = typeof assignee === 'object' ? assignee.id : assignee
+  const type = typeof assignee === 'object' ? assignee.type : 'identity.user'
+  const typeLabel = ASSIGNEE_TYPE_LABELS[type] || type || 'Assignee'
+
+  if (type === 'identity.user' || !type) {
+    const user = resolveUser(id, users)
+    if (user) {
+      const name = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || id
+      return { name, subtext: user.email, typeLabel, user, unit: null, isUser: true }
+    }
+  }
+
+  if (type === 'identity.org_unit') {
+    const unit = resolveUnit(id, units)
+    if (unit) {
+      return { name: unit.name, subtext: unit.unit_type, typeLabel, user: null, unit, isUser: false }
+    }
+  }
+
+  return { name: assignee.label || id, subtext: null, typeLabel, user: null, unit: null, isUser: false }
+}

@@ -3,10 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { assetMasterApi, assetsApi } from '@/features/assets/api.js'
 import { AssetStatusBadge, CriticalityBadge } from '@/features/assets/components/AssetBadge.jsx'
 import CreateAssetTypeModal from '@/features/assets/components/CreateAssetTypeModal.jsx'
-import { ASSET_STATUS_LABELS, formatDate } from '@/features/assets/utils.js'
+import { ASSET_STATUS_LABELS, formatDate, resolveAssignee, resolveUnitName } from '@/features/assets/utils.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { orgUnitsApi } from '@/features/org-units/api.js'
+import { usersApi } from '@/features/users/api.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { prefetch, useLookup, useQuery } from '@/shared/api/useQuery.js'
@@ -51,6 +52,12 @@ export default function AssetList() {
   const units = useLookup(
     ['org-units', orgId, 'all'],
     ({ signal }) => orgUnitsApi.listAll(orgId, { signal }),
+    { enabled: Boolean(orgId) }
+  )
+
+  const users = useLookup(
+    ['users', orgId, 'all'],
+    ({ signal }) => usersApi.list(orgId, { limit: 100 }, { signal }).then((r) => r.data || []),
     { enabled: Boolean(orgId) }
   )
 
@@ -159,16 +166,19 @@ export default function AssetList() {
                     <AssetStatusBadge status={a.status} /> <CriticalityBadge criticality={a.criticality} />
                   </td>
                   <td>
-                    {a.custody ? (
-                      <div>
-                        <div>{a.custody.label || a.custody.id}</div>
-                        {a.custodian && <div className="muted small">Custodian: {a.custodian.name}</div>}
-                      </div>
-                    ) : (
+                    {a.custody ? (() => {
+                      const res = resolveAssignee(a.custody, users.data, units.data)
+                      return (
+                        <div>
+                          <div><strong>{res.name}</strong></div>
+                          <div className="muted small">{res.typeLabel}</div>
+                        </div>
+                      )
+                    })() : (
                       <span className="muted">In Stock</span>
                     )}
                   </td>
-                  <td>{a.owner_unit ? a.owner_unit.name : <span className="muted">—</span>}</td>
+                  <td>{resolveUnitName(a.owner_unit_id || a.owner_unit?.id, units.data) || a.owner_unit?.name || <span className="muted">—</span>}</td>
                   <td>{a.expires_at ? formatDate(a.expires_at) : <span className="muted">—</span>}</td>
                 </tr>
               ))

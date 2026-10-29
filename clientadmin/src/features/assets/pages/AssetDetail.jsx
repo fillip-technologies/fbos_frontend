@@ -121,7 +121,7 @@ export default function AssetDetail() {
         ))}
       </div>
 
-      {tab === 'overview' && <AssetOverview asset={asset} />}
+      {tab === 'overview' && <AssetOverview orgId={orgId} asset={asset} />}
       {tab === 'history' && <AssetCustodyHistory orgId={orgId} assetId={asset.id} />}
       {tab === 'maintenance' && <AssetMaintenance orgId={orgId} assetId={asset.id} onAssetChanged={reload} />}
       {tab === 'renewals' && <AssetRenewals orgId={orgId} assetId={asset.id} onAssetChanged={reload} />}
