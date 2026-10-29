@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getPayrollRuns, createPayrollRun, disbursePayrollRun, getReimbursements, approveReimbursement } from '../api.js'
-import { formatCurrency, formatDate } from '../utils.js'
+import { formatCurrency, formatDate, toList } from '../utils.js'
 
 export default function PayrollHub() {
   const [runs, setRuns] = useState([])
@@ -16,9 +16,9 @@ export default function PayrollHub() {
     try {
       setLoading(true)
       const rRes = await getPayrollRuns()
-      setRuns(rRes.data || [])
+      setRuns(toList(rRes))
       const eRes = await getReimbursements()
-      setReimbursements(eRes.data || [])
+      setReimbursements(toList(eRes))
     } catch (err) {
       console.error(err)
     } finally {

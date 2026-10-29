@@ -1,16 +1,24 @@
 export function formatCurrency(amount, currency = 'USD') {
-  if (amount == null) return '-'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency || 'USD',
-    maximumFractionDigits: 2,
-  }).format(Number(amount))
+  if (amount == null || amount === '') return '-'
+  const num = Number(amount)
+  if (Number.isNaN(num)) return '-'
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+      maximumFractionDigits: 2,
+    }).format(num)
+  } catch {
+    return `${currency || '$'} ${num.toFixed(2)}`
+  }
 }
 
 export function formatDate(val) {
   if (!val) return '-'
   try {
-    return new Date(val).toLocaleDateString('en-US', {
+    const d = new Date(val)
+    if (Number.isNaN(d.getTime())) return String(val)
+    return d.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -23,7 +31,9 @@ export function formatDate(val) {
 export function formatDateTime(val) {
   if (!val) return '-'
   try {
-    return new Date(val).toLocaleString('en-US', {
+    const d = new Date(val)
+    if (Number.isNaN(d.getTime())) return String(val)
+    return d.toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -33,6 +43,18 @@ export function formatDateTime(val) {
   } catch {
     return String(val)
   }
+}
+
+export function toList(res) {
+  if (Array.isArray(res)) return res
+  if (Array.isArray(res?.data)) return res.data
+  return []
+}
+
+export function toItem(res) {
+  if (!res) return null
+  if (res.data && typeof res.data === 'object' && !Array.isArray(res.data)) return res.data
+  return res
 }
 
 export const WORKER_STATUS_BADGES = {

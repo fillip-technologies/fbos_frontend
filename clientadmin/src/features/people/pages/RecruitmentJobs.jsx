@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getRequisitions, createRequisition, getPositions } from '../api.js'
-import { REQUISITION_STATUS_BADGES, formatDate } from '../utils.js'
+import { REQUISITION_STATUS_BADGES, formatDate, toList } from '../utils.js'
 
 export default function RecruitmentJobs() {
   const [requisitions, setRequisitions] = useState([])
@@ -19,9 +19,9 @@ export default function RecruitmentJobs() {
     try {
       setLoading(true)
       const res = await getRequisitions()
-      setRequisitions(res.data || [])
+      setRequisitions(toList(res))
       const posRes = await getPositions()
-      setPositions(posRes.data?.data || [])
+      setPositions(toList(posRes))
     } catch (err) {
       console.error(err)
     } finally {

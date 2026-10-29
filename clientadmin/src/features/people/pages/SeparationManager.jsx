@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getSeparations, updateClearance, calculateSettlement, finalizeExit } from '../api.js'
-import { formatCurrency, formatDate } from '../utils.js'
+import { formatCurrency, formatDate, toList } from '../utils.js'
 
 export default function SeparationManager() {
   const [separations, setSeparations] = useState([])
@@ -10,7 +10,7 @@ export default function SeparationManager() {
     try {
       setLoading(true)
       const res = await getSeparations()
-      setSeparations(res.data || [])
+      setSeparations(toList(res))
     } catch (err) {
       console.error(err)
     } finally {

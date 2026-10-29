@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getAttendance, recordAttendance, getWorkers } from '../api.js'
-import { ATTENDANCE_STATUS_BADGES, formatDateTime } from '../utils.js'
+import { ATTENDANCE_STATUS_BADGES, formatDateTime, toList } from '../utils.js'
 
 export default function AttendanceBoard() {
   const [records, setRecords] = useState([])
@@ -20,9 +20,9 @@ export default function AttendanceBoard() {
     try {
       setLoading(true)
       const res = await getAttendance()
-      setRecords(res.data || [])
+      setRecords(toList(res))
       const wRes = await getWorkers()
-      setWorkers(wRes.data?.data || [])
+      setWorkers(toList(wRes))
     } catch (err) {
       console.error(err)
     } finally {

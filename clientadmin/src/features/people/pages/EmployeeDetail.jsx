@@ -24,6 +24,8 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
+  toItem,
+  toList,
 } from '../utils.js'
 
 export default function EmployeeDetail() {
@@ -82,7 +84,7 @@ export default function EmployeeDetail() {
     try {
       setLoading(true)
       const res = await getWorker(id)
-      setWorker(res.data)
+      setWorker(toItem(res))
     } catch (err) {
       setError(err?.response?.data?.message || err.message)
     } finally {
@@ -95,22 +97,22 @@ export default function EmployeeDetail() {
     try {
       if (activeTab === 'leaves') {
         const balRes = await getWorkerBalances(id)
-        setBalances(balRes.data || [])
+        setBalances(toList(balRes))
       } else if (activeTab === 'compensation') {
         const structRes = await getSalaryStructure(id)
-        setSalaryStruct(structRes.data)
+        setSalaryStruct(toItem(structRes))
         const revRes = await getCompensationRevisions(id)
-        setRevisions(revRes.data || [])
+        setRevisions(toList(revRes))
         const promoRes = await getPromotions(id)
-        setPromotions(promoRes.data || [])
+        setPromotions(toList(promoRes))
         const bonRes = await getBonuses(id)
-        setBonuses(bonRes.data || [])
+        setBonuses(toList(bonRes))
       } else if (activeTab === 'separation') {
         const sepRes = await getSeparations({ worker_id: id })
-        setSeparations(sepRes.data || [])
+        setSeparations(toList(sepRes))
       } else if (activeTab === 'attendance') {
         const attRes = await getAttendance({ worker_id: id })
-        setAttendance(attRes.data || [])
+        setAttendance(toList(attRes))
       }
     } catch (err) {
       console.error('Error loading tab data', err)

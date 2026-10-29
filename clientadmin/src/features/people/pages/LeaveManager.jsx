@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getLeavePlans, createLeavePlan, getLeaveRequests, approveLeaveRequest } from '../api.js'
-import { formatDate } from '../utils.js'
+import { formatDate, toList } from '../utils.js'
 
 export default function LeaveManager() {
   const [plans, setPlans] = useState([])
@@ -20,9 +20,9 @@ export default function LeaveManager() {
     try {
       setLoading(true)
       const pRes = await getLeavePlans()
-      setPlans(pRes.data || [])
+      setPlans(toList(pRes))
       const rRes = await getLeaveRequests()
-      setRequests(rRes.data || [])
+      setRequests(toList(rRes))
     } catch (err) {
       console.error(err)
     } finally {

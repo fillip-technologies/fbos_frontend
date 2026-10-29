@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { getWorkers, createWorker } from '../api.js'
-import { WORKER_STATUS_BADGES, formatDate } from '../utils.js'
+import { WORKER_STATUS_BADGES, formatDate, toList } from '../utils.js'
 
 export default function EmployeeDirectory() {
   const [workers, setWorkers] = useState([])
@@ -35,7 +35,7 @@ export default function EmployeeDirectory() {
       if (search) params.search = search
       if (statusFilter) params.status = statusFilter
       const res = await getWorkers(params)
-      setWorkers(res.data?.data || [])
+      setWorkers(toList(res))
     } catch (err) {
       setError(err?.response?.data?.message || err.message)
     } finally {
