@@ -7,9 +7,14 @@ import {
   formatMoney,
   MAINTENANCE_TYPE_LABELS,
   RELATION_TYPE_LABELS,
+  resolveAssignee,
+  resolveUnitName,
+  resolveUserName,
 } from '@/features/assets/utils.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { orgUnitsApi } from '@/features/org-units/api.js'
+import { usersApi } from '@/features/users/api.js'
 import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
@@ -24,7 +29,22 @@ function Detail({ label, children }) {
 }
 
 // ---------- Tab 1: Overview ----------
-export function AssetOverview({ asset }) {
+export function AssetOverview({ orgId, asset }) {
+  const users = useLookup(
+    ['users', orgId, 'all'],
+    ({ signal }) => usersApi.list(orgId, { limit: 100 }, { signal }).then((r) => r.data || []),
+    { enabled: Boolean(orgId) }
+  )
+  const units = useLookup(
+    ['org-units', orgId, 'all'],
+    ({ signal }) => orgUnitsApi.listAll(orgId, { signal }),
+    { enabled: Boolean(orgId) }
+  )
+
+  const custodyRes = asset.custody ? resolveAssignee(asset.custody, users.data, units.data) : null
+  const custodianName = resolveUserName(asset.custodian_user_id || asset.custodian?.id, users.data)
+  const ownerUnitName = resolveUnitName(asset.owner_unit_id || asset.owner_unit?.id, units.data)
+
   return (
     <div className="panel" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
       <Detail label="Asset Tag">
@@ -40,18 +60,19 @@ export function AssetOverview({ asset }) {
       <Detail label="Current Custody">
         {asset.custody ? (
           <div>
-            <strong>{asset.custody.label || asset.custody.id}</strong>
-            <div className="muted small">{asset.custody.type}</div>
+            <strong style={{ fontSize: 14 }}>{custodyRes?.name}</strong>
+            {custodyRes?.subtext && <div className="muted small">{custodyRes.subtext}</div>}
+            <div className="muted small">{custodyRes?.typeLabel}</div>
           </div>
         ) : (
           <span className="muted">In Stock / Unassigned</span>
         )}
       </Detail>
       <Detail label="Designated Custodian (Human)">
-        {asset.custodian?.name || <span className="muted">—</span>}
+        {custodianName || asset.custodian?.name || <span className="muted">—</span>}
       </Detail>
       <Detail label="Owning Department / Unit">
-        {asset.owner_unit ? `${asset.owner_unit.name} (${asset.owner_unit.unit_type})` : <span className="muted">—</span>}
+        {ownerUnitName || (asset.owner_unit?.name ? `${asset.owner_unit.name} (${asset.owner_unit.unit_type || ''})` : <span className="muted">—</span>)}
       </Detail>
       <Detail label="Location Details">
         {asset.location_details || <span className="muted">—</span>}
@@ -103,6 +124,16 @@ export function AssetCustodyHistory({ orgId, assetId }) {
     ({ signal }) => assetsApi.history(orgId, assetId, { signal }),
     { enabled: Boolean(orgId && assetId) }
   )
+  const users = useLookup(
+    ['users', orgId, 'all'],
+    ({ signal }) => usersApi.list(orgId, { limit: 100 }, { signal }).then((r) => r.data || []),
+    { enabled: Boolean(orgId) }
+  )
+  const units = useLookup(
+    ['org-units', orgId, 'all'],
+    ({ signal }) => orgUnitsApi.listAll(orgId, { signal }),
+    { enabled: Boolean(orgId) }
+  )
 
   const records = data || []
 
@@ -132,19 +163,34 @@ export function AssetCustodyHistory({ orgId, assetId }) {
           ) : records.length === 0 ? (
             <tr><td colSpan={6} className="center-note">No custody assignment history on file.</td></tr>
           ) : (
-            records.map((r) => (
-              <tr key={r.id}>
-                <td>
-                  <strong>{r.assignee?.label || r.assignee?.id}</strong>
-                  {r.custodian_user_id && <div className="muted small">Custodian: {r.custodian_user_id}</div>}
-                </td>
-                <td><span className="mono small">{r.assignee?.type}</span></td>
-                <td>{formatDateTime(r.assigned_at)}</td>
-                <td>{r.returned_at ? formatDateTime(r.returned_at) : <span className="badge active">Currently Held</span>}</td>
-                <td>{r.condition_out || <span className="muted">—</span>}</td>
-                <td>{r.condition_in || <span className="muted">—</span>}</td>
-              </tr>
-            ))
+            records.map((r) => {
+              const res = resolveAssignee(r.assignee, users.data, units.data)
+              const custodianName = resolveUserName(r.custodian_user_id, users.data)
+              return (
+                <tr key={r.id}>
+                  <td>
+                    <div>
+                      <strong style={{ fontSize: 14 }}>{res.name}</strong>
+                      {res.subtext && <div className="muted small">{res.subtext}</div>}
+                    </div>
+                    {custodianName && custodianName !== res.name && (
+                      <div className="muted small" style={{ marginTop: 2 }}>
+                        Custodian: {custodianName}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <span className="badge draft" style={{ fontSize: 12 }}>
+                      {res.typeLabel}
+                    </span>
+                  </td>
+                  <td>{formatDateTime(r.assigned_at)}</td>
+                  <td>{r.returned_at ? formatDateTime(r.returned_at) : <span className="badge active">Currently Held</span>}</td>
+                  <td>{r.condition_out || <span className="muted">—</span>}</td>
+                  <td>{r.condition_in || <span className="muted">—</span>}</td>
+                </tr>
+              )
+            })
           )}
         </tbody>
       </table>
