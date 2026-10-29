@@ -4,12 +4,13 @@ import { invalidate, useLookup } from '@/shared/api/useQuery.js'
 import Dialog from '@/shared/components/Dialog.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 
-const ASSET_FAMILIES = [
+const STANDARD_FAMILIES = [
   { value: 'hardware', label: 'Hardware (laptops, phones, servers, equipment)' },
   { value: 'software', label: 'Software (licenses, SaaS subscriptions, cloud seats)' },
   { value: 'facility', label: 'Facility (furniture, tools, office appliances)' },
   { value: 'credential', label: 'Credential (API keys, root passwords, access tokens)' },
   { value: 'vehicle', label: 'Vehicle (fleet cars, bikes, delivery vans)' },
+  { value: 'other', label: 'Custom / Other Family…' },
 ]
 
 export default function CreateAssetTypeModal({ orgId, onClose, onCreated }) {
@@ -17,11 +18,18 @@ export default function CreateAssetTypeModal({ orgId, onClose, onCreated }) {
   const [code, setCode] = useState('')
   const [codeManuallyEdited, setCodeManuallyEdited] = useState(false)
   const [categoryId, setCategoryId] = useState('')
-  const [family, setFamily] = useState('hardware')
+  const [familyChoice, setFamilyChoice] = useState('hardware')
+  const [customFamily, setCustomFamily] = useState('')
   const [tracksExpiry, setTracksExpiry] = useState(false)
   const [singleCustodian, setSingleCustodian] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+
+  // New Category inline creation state
+  const [showAddCategory, setShowAddCategory] = useState(false)
+  const [newCatName, setNewCatName] = useState('')
+  const [creatingCat, setCreatingCat] = useState(false)
+  const [catError, setCatError] = useState(null)
 
   const categories = useLookup(
     ['asset-categories', orgId],
@@ -46,6 +54,37 @@ export default function CreateAssetTypeModal({ orgId, onClose, onCreated }) {
     }
   }
 
+  const handleCreateCategory = async (e) => {
+    e.preventDefault()
+    if (!newCatName.trim()) return
+
+    setCreatingCat(true)
+    setCatError(null)
+    try {
+      const catCode = newCatName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+      const created = await assetMasterApi.createCategory(orgId, {
+        name: newCatName.trim(),
+        code: catCode,
+      })
+      await invalidate(['asset-categories', orgId])
+      setCategoryId(created.id)
+      setNewCatName('')
+      setShowAddCategory(false)
+    } catch (err) {
+      setCatError(err)
+    } finally {
+      setCreatingCat(false)
+    }
+  }
+
+  const effectiveFamily = familyChoice === 'other'
+    ? (customFamily.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_') || 'general')
+    : familyChoice
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim() || !code.trim() || !categoryId) return
@@ -57,7 +96,7 @@ export default function CreateAssetTypeModal({ orgId, onClose, onCreated }) {
         category_id: categoryId,
         code: code.trim().toLowerCase(),
         name: name.trim(),
-        family,
+        family: effectiveFamily,
         tracks_expiry: tracksExpiry,
         single_custodian: singleCustodian,
       })
@@ -77,29 +116,68 @@ export default function CreateAssetTypeModal({ orgId, onClose, onCreated }) {
         <ErrorBanner error={error} />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <label className="field">
-            <span>Category *</span>
-            <select
-              required
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              disabled={categories.isLoading || busy}
-            >
-              <option value="">Select category…</option>
-              {(categories.data || []).map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name} ({cat.code})
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* Category selection & inline creation */}
+          <div className="field">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <span>Category *</span>
+              <button
+                type="button"
+                className="btn link small-btn"
+                style={{ padding: 0, fontSize: 13, textDecoration: 'underline' }}
+                onClick={() => {
+                  setShowAddCategory(!showAddCategory)
+                  setCatError(null)
+                }}
+              >
+                {showAddCategory ? '✕ Cancel' : '+ New Category'}
+              </button>
+            </div>
+
+            {showAddCategory ? (
+              <div style={{ background: '#f8fafc', padding: 10, borderRadius: 8, border: '1px solid var(--border)' }}>
+                <ErrorBanner error={catError} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. Heavy Machinery, Tools, Lab Equipment"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    disabled={creatingCat}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn small-btn"
+                    onClick={handleCreateCategory}
+                    disabled={creatingCat || !newCatName.trim()}
+                  >
+                    {creatingCat ? 'Adding…' : 'Add Category'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <select
+                required
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                disabled={categories.isLoading || busy}
+              >
+                <option value="">Select category…</option>
+                {(categories.data || []).map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name} ({cat.code})
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
           <label className="field">
             <span>Asset Type Name *</span>
             <input
               type="text"
               required
-              placeholder="e.g. Drone, Electric Vehicle, SSL Certificate"
+              placeholder="e.g. Drone, Electric Vehicle, SSL Certificate, Forklift"
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
               disabled={busy}
@@ -111,7 +189,7 @@ export default function CreateAssetTypeModal({ orgId, onClose, onCreated }) {
             <input
               type="text"
               required
-              placeholder="e.g. drone, electric_vehicle, ssl_certificate"
+              placeholder="e.g. drone, electric_vehicle, ssl_certificate, forklift"
               value={code}
               onChange={(e) => {
                 setCode(e.target.value)
@@ -121,26 +199,41 @@ export default function CreateAssetTypeModal({ orgId, onClose, onCreated }) {
             />
           </label>
 
+          {/* Family selection with custom option */}
           <label className="field">
             <span>Asset Family *</span>
             <select
-              value={family}
+              value={familyChoice}
               onChange={(e) => {
-                const fam = e.target.value
-                setFamily(fam)
-                if (fam === 'software' || fam === 'credential') {
+                const choice = e.target.value
+                setFamilyChoice(choice)
+                if (choice === 'software' || choice === 'credential') {
                   setTracksExpiry(true)
                 }
               }}
               disabled={busy}
             >
-              {ASSET_FAMILIES.map((f) => (
+              {STANDARD_FAMILIES.map((f) => (
                 <option key={f.value} value={f.value}>
                   {f.label}
                 </option>
               ))}
             </select>
           </label>
+
+          {familyChoice === 'other' && (
+            <label className="field" style={{ marginTop: -4 }}>
+              <span>Custom Family Identifier *</span>
+              <input
+                type="text"
+                required
+                placeholder="e.g. machinery, tools, intellectual_property"
+                value={customFamily}
+                onChange={(e) => setCustomFamily(e.target.value)}
+                disabled={busy}
+              />
+            </label>
+          )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
@@ -169,7 +262,11 @@ export default function CreateAssetTypeModal({ orgId, onClose, onCreated }) {
           <button type="button" className="btn secondary" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button type="submit" className="btn" disabled={busy || !name.trim() || !code.trim() || !categoryId}>
+          <button
+            type="submit"
+            className="btn"
+            disabled={busy || !name.trim() || !code.trim() || !categoryId || (familyChoice === 'other' && !customFamily.trim())}
+          >
             {busy ? 'Creating…' : 'Create Asset Type'}
           </button>
         </div>
