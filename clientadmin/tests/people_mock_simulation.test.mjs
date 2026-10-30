@@ -10,9 +10,7 @@ import {
   formatDateTime,
   toList,
   toItem,
-  WORKER_STATUS_BADGES,
-  ATTENDANCE_STATUS_BADGES,
-  REQUISITION_STATUS_BADGES,
+  statusLabel,
 } from '../src/features/people/utils.js'
 
 import { ACCESS } from '../src/features/auth/access.js'
@@ -69,16 +67,22 @@ describe('People Utils & Defensive Formatting Logic', () => {
     assert.strictEqual(toItem(undefined), null)
   })
 
-  it('contains badge styles for all standard worker and attendance statuses', () => {
-    for (const status of ['active', 'probation', 'on_leave', 'noticed', 'exited']) {
-      assert.ok(typeof WORKER_STATUS_BADGES[status] === 'string' && WORKER_STATUS_BADGES[status].length > 0)
+  it('has a badge style in styles.css for every worker, attendance and requisition status', () => {
+    const css = fs.readFileSync(path.join(rootDir, 'src', 'app', 'styles.css'), 'utf-8')
+    const statuses = [
+      'active', 'probation', 'on_leave', 'noticed', 'exited',
+      'present', 'half_day', 'absent', 'holiday', 'regularized',
+      'open', 'draft', 'paused', 'filled', 'cancelled',
+    ]
+    for (const status of statuses) {
+      assert.ok(new RegExp(`\\.badge\\.${status}\\b`).test(css), `styles.css has no .badge.${status}`)
     }
-    for (const status of ['present', 'half_day', 'absent', 'holiday', 'on_leave', 'regularized']) {
-      assert.ok(typeof ATTENDANCE_STATUS_BADGES[status] === 'string' && ATTENDANCE_STATUS_BADGES[status].length > 0)
-    }
-    for (const status of ['open', 'draft', 'paused', 'filled', 'cancelled']) {
-      assert.ok(typeof REQUISITION_STATUS_BADGES[status] === 'string' && REQUISITION_STATUS_BADGES[status].length > 0)
-    }
+  })
+
+  it('statusLabel turns a status code into words', () => {
+    assert.strictEqual(statusLabel('on_leave'), 'on leave')
+    assert.strictEqual(statusLabel('clearance_pending'), 'clearance pending')
+    assert.strictEqual(statusLabel(null), '')
   })
 })
 
