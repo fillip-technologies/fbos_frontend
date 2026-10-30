@@ -6,6 +6,7 @@ import {
   getLeavePlans,
   adjustLeaveBalance,
   getSalaryStructure,
+  createSalaryStructure,
   getCompensationRevisions,
   createCompensationRevision,
   getPromotions,
@@ -34,6 +35,25 @@ const NOTICE_DAYS = 30
 
 const addDays = (days) => new Date(Date.now() + days * 86400000).toISOString().split('T')[0]
 
+const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'AED']
+const MONTHS_IN_YEAR = 12
+const amount = (v) => Number(v) || 0
+const newSalaryForm = (current) => ({
+  currency: current?.currency || 'INR',
+  basic_salary: current?.basic_salary ?? '',
+  hra: current?.hra ?? '',
+  special_allowance: current?.special_allowance ?? '',
+  pf_deduction: current?.pf_deduction ?? '',
+  pt_deduction: current?.pt_deduction ?? '',
+  tds_tax: current?.tds_tax ?? '',
+  effective_from: todayISO(),
+})
+// What a salary form's amounts add up to: monthly gross, monthly take-home and the yearly package.
+const salaryTotals = (f) => {
+  const gross = amount(f.basic_salary) + amount(f.hra) + amount(f.special_allowance)
+  const deductions = amount(f.pf_deduction) + amount(f.pt_deduction) + amount(f.tds_tax)
+  return { gross, deductions, net: gross - deductions, annual: gross * MONTHS_IN_YEAR }
+}
 const newHikeForm = () => ({ revision_type: 'annual_hike', increment_pct: 10, effective_date: todayISO(), notes: '' })
 const newBonusForm = () => ({
   bonus_type: 'spot_award',
@@ -57,6 +77,47 @@ const newExitForm = () => ({
   reason: '',
 })
 
+function SalaryBreakdown({ salary }) {
+  const c = salary.currency
+  const money = (v) => formatCurrency(v, c)
+  const net = amount(salary.gross_monthly) - amount(salary.pf_deduction) - amount(salary.pt_deduction) - amount(salary.tds_tax)
+  const rows = [
+    ['Basic', salary.basic_salary],
+    ['House rent allowance (HRA)', salary.hra],
+    ['Special allowance', salary.special_allowance],
+  ]
+  const cuts = [
+    ['Provident fund (PF)', salary.pf_deduction],
+    ['Professional tax', salary.pt_deduction],
+    ['Income tax (TDS)', salary.tds_tax],
+  ]
+  return (
+    <div>
+      <div className="cards">
+        <div className="panel"><div className="stat-label">Annual package (CTC)</div><div className="stat-value">{money(salary.annual_ctc)}</div></div>
+        <div className="panel"><div className="stat-label">Gross per month</div><div className="stat-value">{money(salary.gross_monthly)}</div></div>
+        <div className="panel"><div className="stat-label">Take-home per month</div><div className="stat-value">{money(net)}</div></div>
+        <div className="panel"><div className="stat-label">Effective from</div><div className="stat-value">{formatDate(salary.effective_from)}</div></div>
+      </div>
+      <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+        <table className="table-plain">
+          <thead><tr><th>Component</th><th className="right">Per month</th><th className="right">Per year</th></tr></thead>
+          <tbody>
+            {rows.map(([label, value]) => (
+              <tr key={label}><td>{label}</td><td className="right">{money(value)}</td><td className="right">{money(amount(value) * MONTHS_IN_YEAR)}</td></tr>
+            ))}
+            <tr><td><strong>Gross earnings</strong></td><td className="right"><strong>{money(salary.gross_monthly)}</strong></td><td className="right"><strong>{money(amount(salary.gross_monthly) * MONTHS_IN_YEAR)}</strong></td></tr>
+            {cuts.map(([label, value]) => (
+              <tr key={label}><td>{label}</td><td className="right amount-neg">-{money(value)}</td><td className="right amount-neg">-{money(amount(value) * MONTHS_IN_YEAR)}</td></tr>
+            ))}
+            <tr><td><strong>Take-home</strong></td><td className="right"><strong>{money(net)}</strong></td><td className="right"><strong>{money(net * MONTHS_IN_YEAR)}</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 const Detail = ({ label, children }) => (
   <div>
     <dt>{label}</dt>
@@ -71,6 +132,8 @@ export default function EmployeeDetail() {
   const canManage = hasAccess(user, ACCESS.manageEmployees)
   const canSeeBank = canManage || hasAccess(user, ACCESS.compensation)
   const canReveal = hasAccess(user, ACCESS.compensation)
+  const canSeePay = canReveal
+  const canManagePay = hasAccess(user, ACCESS.manageCompensation)
   const [onboarding, setOnboarding] = useState(null)
   const [editOpen, setEditOpen] = useState(false)
   const [worker, setWorker] = useState(null)
@@ -96,6 +159,7 @@ export default function EmployeeDetail() {
     bonus: newBonusForm(),
     leave: newLeaveForm(),
     exit: newExitForm(),
+    salary: newSalaryForm(),
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -110,6 +174,7 @@ export default function EmployeeDetail() {
       bonus: newBonusForm(),
       leave: newLeaveForm(),
       exit: newExitForm(),
+      salary: newSalaryForm(salaryStruct),
     }))
     setError(null)
     setDialog(name)
@@ -210,6 +275,28 @@ export default function EmployeeDetail() {
     )(e)
   }
 
+  const handleSetSalary = submit(
+    () => {
+      const f = forms.salary
+      const totals = salaryTotals(f)
+      return createSalaryStructure({
+        worker_id: id,
+        currency: f.currency,
+        basic_salary: amount(f.basic_salary),
+        hra: amount(f.hra),
+        special_allowance: amount(f.special_allowance),
+        pf_deduction: amount(f.pf_deduction),
+        pt_deduction: amount(f.pt_deduction),
+        tds_tax: amount(f.tds_tax),
+        gross_monthly: totals.gross,
+        annual_ctc: totals.annual,
+        effective_from: f.effective_from,
+        is_current: true,
+      })
+    },
+    { reloadWorker: true },
+  )
+
   const handleAwardBonus = submit(() =>
     awardBonus(id, {
       ...forms.bonus,
@@ -290,14 +377,14 @@ export default function EmployeeDetail() {
         </div>
         <div className="row-actions wrap">
           {canManage && <button type="button" className="btn secondary" onClick={() => setEditOpen(true)}>Edit</button>}
-          <button type="button" className="btn secondary" onClick={() => openDialog('hike')}>Record hike</button>
-          <button type="button" className="btn secondary" onClick={() => openDialog('bonus')}>Award bonus</button>
+          {canManagePay && <button type="button" className="btn secondary" onClick={() => openDialog('hike')}>Record hike</button>}
+          {canManagePay && <button type="button" className="btn secondary" onClick={() => openDialog('bonus')}>Award bonus</button>}
           <button type="button" className="btn danger-outline" onClick={() => openDialog('exit')}>Start exit</button>
         </div>
       </div>
 
       <div className="tab-bar" role="tablist">
-        {TABS.filter((tab) => tab !== 'bank' || canSeeBank).map((tab) => (
+        {TABS.filter((tab) => (tab !== 'bank' || canSeeBank) && (tab !== 'compensation' || canSeePay)).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -434,16 +521,16 @@ export default function EmployeeDetail() {
       {activeTab === 'compensation' && (
         <div>
           <div className="people-section">
-            <h2>Current compensation</h2>
-            {salaryStruct ? (
-              <div className="cards">
-                <div className="panel"><div className="stat-label">Annual CTC</div><div className="stat-value">{formatCurrency(salaryStruct.annual_ctc, salaryStruct.currency)}</div></div>
-                <div className="panel"><div className="stat-label">Monthly basic</div><div className="stat-value">{formatCurrency(salaryStruct.basic_salary, salaryStruct.currency)}</div></div>
-                <div className="panel"><div className="stat-label">HRA</div><div className="stat-value">{formatCurrency(salaryStruct.hra, salaryStruct.currency)}</div></div>
-                <div className="panel"><div className="stat-label">Effective from</div><div className="stat-value">{formatDate(salaryStruct.effective_from)}</div></div>
-              </div>
-            ) : (
-              <div className="panel center-note">No salary structure defined yet.</div>
+            <div className="page-head" style={{ marginBottom: 10 }}>
+              <h2 style={{ margin: 0 }}>Salary and package</h2>
+              {canManagePay && (
+                <button type="button" className="btn" onClick={() => openDialog('salary')}>
+                  {salaryStruct ? 'Revise salary' : 'Set salary'}
+                </button>
+              )}
+            </div>
+            {salaryStruct ? <SalaryBreakdown salary={salaryStruct} /> : (
+              <div className="panel center-note">No salary has been set for this employee yet.</div>
             )}
           </div>
 
@@ -551,6 +638,59 @@ export default function EmployeeDetail() {
           }}
         />
       )}
+
+      {dialog === 'salary' && (() => {
+        const f = forms.salary
+        const totals = salaryTotals(f)
+        const money = (v) => formatCurrency(v, f.currency)
+        const num = (name, label, required = false) => (
+          <Field label={label} required={required} error={fieldErrors[name]}>
+            <input type="number" min="0" step="0.01" value={f[name]} onChange={(e) => setForm('salary', { [name]: e.target.value })} />
+          </Field>
+        )
+        return (
+          <FormDialog
+            wide
+            title={salaryStruct ? 'Revise salary' : 'Set salary'}
+            intro="Enter the monthly amounts. Gross, take-home and the yearly package are worked out for you. Saving makes this the current salary; the earlier one stays on record."
+            onClose={() => setDialog(null)}
+            onSubmit={handleSetSalary}
+            submitLabel="Save salary"
+            saving={saving}
+            error={error}
+          >
+            <div className="grid-2">
+              <Field label="Currency" error={fieldErrors.currency}>
+                <select value={f.currency} onChange={(e) => setForm('salary', { currency: e.target.value })}>
+                  {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </Field>
+              <Field label="Effective from" required hint="Past dates are fine." error={fieldErrors.effective_from}>
+                <input type="date" value={f.effective_from} onChange={(e) => setForm('salary', { effective_from: e.target.value })} />
+              </Field>
+            </div>
+            <h3 className="section-title" style={{ margin: '4px 0 10px' }}>Earnings (per month)</h3>
+            <div className="grid-2">
+              {num('basic_salary', 'Basic', true)}
+              {num('hra', 'House rent allowance (HRA)')}
+              {num('special_allowance', 'Special allowance')}
+            </div>
+            <h3 className="section-title" style={{ margin: '4px 0 10px' }}>Deductions (per month)</h3>
+            <div className="grid-2">
+              {num('pf_deduction', 'Provident fund (PF)')}
+              {num('pt_deduction', 'Professional tax')}
+              {num('tds_tax', 'Income tax (TDS)')}
+            </div>
+            <div className="settlement-box">
+              <div className="settlement-grid">
+                <div><span className="stat-label">Gross per month</span><strong>{money(totals.gross)}</strong></div>
+                <div><span className="stat-label">Take-home per month</span><strong>{money(totals.net)}</strong></div>
+                <div><span className="stat-label">Annual package (CTC)</span><strong className="stat-value">{money(totals.annual)}</strong></div>
+              </div>
+            </div>
+          </FormDialog>
+        )
+      })()}
 
       {dialog === 'hike' && (
         <FormDialog
