@@ -190,6 +190,9 @@ export const ACCESS = {
   compensation: { permissions: ['people.compensation.read'] },
   manageCompensation: { permissions: ['people.compensation.manage'] },
   manageSeparation: { permissions: ['people.separation.manage'] },
+  approveRoleChanges: { permissions: ['people.role_change.approve'] },
+  // Promotions, demotions and transfers: anyone who may request or approve one sees the list.
+  roleChanges: { anyPermissions: ['people.employee.manage', 'people.role_change.approve'] },
   // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
   viewUserSessions: { permissions: ['identity.session.read'] },
   revokeUserSessions: { permissions: ['identity.session.revoke'] },

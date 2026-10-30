@@ -16,6 +16,7 @@ import {
   getSeparations,
   getAttendance,
   getOnboarding,
+  getWorkerRoleChanges,
 } from '../api.js'
 import { formatCurrency, formatDate, formatDateTime, statusLabel, toItem, toList, todayISO } from '../utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
@@ -26,11 +27,14 @@ import Field from '../components/Field.jsx'
 import EmployeeBank from '../components/EmployeeBank.jsx'
 import EmployeeDocuments from '../components/EmployeeDocuments.jsx'
 import EmployeeEditDialog from '../components/EmployeeEditDialog.jsx'
+import RoleChangeDialog from '../components/RoleChangeDialog.jsx'
+import RoleChangeList from '../components/RoleChangeList.jsx'
+import useAccessCatalog from '@/features/access/useAccessCatalog.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 
-const TABS = ['overview', 'documents', 'bank', 'timeline', 'attendance', 'leaves', 'compensation', 'separation']
+const TABS = ['overview', 'documents', 'bank', 'role changes', 'timeline', 'attendance', 'leaves', 'compensation', 'separation']
 const NOTICE_DAYS = 30
 
 const addDays = (days) => new Date(Date.now() + days * 86400000).toISOString().split('T')[0]
@@ -136,6 +140,12 @@ export default function EmployeeDetail() {
   const canManagePay = hasAccess(user, ACCESS.manageCompensation)
   const [onboarding, setOnboarding] = useState(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false)
+  const [roleChanges, setRoleChanges] = useState([])
+  const [roleChangesLoading, setRoleChangesLoading] = useState(true)
+  const canApproveRoleChanges = hasAccess(user, ACCESS.approveRoleChanges)
+  const { units } = useAccessCatalog(orgId)
+  const unitNames = Object.fromEntries((units || []).map((u) => [u.id, u.name]))
   const [worker, setWorker] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
@@ -221,9 +231,18 @@ export default function EmployeeDetail() {
 
   const loadOnboarding = () => getOnboarding(id).then(setOnboarding).catch(() => setOnboarding(null))
 
+  const loadRoleChanges = () => {
+    setRoleChangesLoading(true)
+    return getWorkerRoleChanges(id)
+      .then((res) => setRoleChanges(toList(res)))
+      .catch(() => setRoleChanges([]))
+      .finally(() => setRoleChangesLoading(false))
+  }
+
   useEffect(() => {
     loadWorker()
     loadOnboarding()
+    loadRoleChanges()
   }, [id])
 
   useEffect(() => {
@@ -231,6 +250,12 @@ export default function EmployeeDetail() {
   }, [id, activeTab])
 
   // A form may be opened from any tab, so fetch what it needs when it opens.
+  useEffect(() => {
+    if (roleDialogOpen && canSeePay && !salaryStruct) {
+      getSalaryStructure(id).then((res) => setSalaryStruct(toItem(res))).catch(() => {})
+    }
+  }, [roleDialogOpen])
+
   useEffect(() => {
     if (dialog === 'leave' && leavePlans.length === 0) {
       getLeavePlans().then((res) => setLeavePlans(toList(res))).catch(setError)
@@ -377,6 +402,7 @@ export default function EmployeeDetail() {
         </div>
         <div className="row-actions wrap">
           {canManage && <button type="button" className="btn secondary" onClick={() => setEditOpen(true)}>Edit</button>}
+          {canManage && <button type="button" className="btn secondary" onClick={() => setRoleDialogOpen(true)}>Change role</button>}
           {canManagePay && <button type="button" className="btn secondary" onClick={() => openDialog('hike')}>Record hike</button>}
           {canManagePay && <button type="button" className="btn secondary" onClick={() => openDialog('bonus')}>Award bonus</button>}
           <button type="button" className="btn danger-outline" onClick={() => openDialog('exit')}>Start exit</button>
@@ -449,6 +475,23 @@ export default function EmployeeDetail() {
           canManage={canManage}
           canReveal={canReveal}
           onChanged={loadOnboarding}
+        />
+      )}
+
+      {activeTab === 'role changes' && (
+        <RoleChangeList
+          changes={roleChanges}
+          loading={roleChangesLoading}
+          me={user}
+          canApprove={canApproveRoleChanges}
+          canRequest={canManage}
+          unitName={(unitId) => unitNames[unitId] || 'another department'}
+          onChanged={() => {
+            loadRoleChanges()
+            loadWorker()
+            loadOnboarding()
+            if (canSeePay) getSalaryStructure(id).then((res) => setSalaryStruct(toItem(res))).catch(() => {})
+          }}
         />
       )}
 
@@ -626,6 +669,20 @@ export default function EmployeeDetail() {
             ))
           )}
         </div>
+      )}
+
+      {roleDialogOpen && (
+        <RoleChangeDialog
+          worker={worker}
+          salary={canSeePay ? salaryStruct : null}
+          units={units}
+          onClose={() => setRoleDialogOpen(false)}
+          onSaved={() => {
+            setRoleDialogOpen(false)
+            setActiveTab('role changes')
+            loadRoleChanges()
+          }}
+        />
       )}
 
       {editOpen && (

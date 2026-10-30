@@ -677,3 +677,12 @@ th.right, td.right { text-align: right; }
 .id-number { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.5px; }
 .row-actions.wrap { flex-wrap: wrap; }
 .section-title { font-size: 16px; margin: 0; }
+.badge.applied { background: #dcfce7; color: #166534; }
+.badge.failed { background: #fee2e2; color: #991b1b; }
+.badge.promotion { background: #dcfce7; color: #166534; }
+.badge.demotion { background: #fee2e2; color: #991b1b; }
+.badge.transfer { background: #dbeafe; color: #1e40af; }
+.badge.correction { background: #f1f5f9; color: #475569; }
+.change-lines { margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.change-lines li { margin: 2px 0; }
+.change-lines .arrow { color: var(--muted); margin: 0 4px; }
