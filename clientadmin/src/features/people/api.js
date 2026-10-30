@@ -20,7 +20,6 @@ export const getWorkers = (params = {}) => api.get(`${PEOPLE}/workers${toQuery(p
 export const getWorker = (id) => api.get(`${PEOPLE}/workers/${id}`)
 export const createWorker = (data) => api.post(`${PEOPLE}/workers`, data)
 export const updateWorker = (id, data) => api.patch(`${PEOPLE}/workers/${id}`, data)
-export const getWorkerTimeline = (id) => api.get(`${PEOPLE}/workers/${id}/timeline`)
 export const addTimelineEvent = (id, data) => api.post(`${PEOPLE}/workers/${id}/timeline`, data)
 
 export const getPositions = (params = {}) => api.get(`${PEOPLE}/positions${toQuery(params)}`)

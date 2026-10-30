@@ -179,7 +179,7 @@ export const ACCESS = {
   assetsSetup: { permissions: ['assets.setup.manage'] },
   revealAssetCredentials: { permissions: ['assets.credential.reveal'] },
   // People (HCM, ATS, employees, attendance, leaves, payroll)
-  people: { anyPermissions: ['people.employee.read', 'people.recruitment.read', 'people.attendance.read', 'people.leave.apply'] },
+  people: { permissions: ['people.employee.read'] },
   manageEmployees: { permissions: ['people.employee.manage'] },
   recruitment: { permissions: ['people.recruitment.read'] },
   manageRecruitment: { permissions: ['people.recruitment.manage'] },

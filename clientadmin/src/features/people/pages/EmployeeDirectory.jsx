@@ -3,8 +3,12 @@ import { Link } from 'react-router-dom'
 import { getWorkers, createWorker } from '../api.js'
 import { WORKER_STATUS_BADGES, formatDate, toList } from '../utils.js'
 
+const PAGE_SIZE = 50
+
 export default function EmployeeDirectory() {
   const [workers, setWorkers] = useState([])
+  const [nextCursor, setNextCursor] = useState(null)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -28,18 +32,21 @@ export default function EmployeeDirectory() {
     tax_id: '',
   })
 
-  const loadData = async () => {
+  const loadData = async (cursor = null) => {
+    const append = Boolean(cursor)
     try {
-      setLoading(true)
-      const params = {}
+      append ? setLoadingMore(true) : setLoading(true)
+      const params = { limit: PAGE_SIZE }
       if (search) params.search = search
       if (statusFilter) params.status = statusFilter
+      if (cursor) params.cursor = cursor
       const res = await getWorkers(params)
-      setWorkers(toList(res))
+      setWorkers((prev) => (append ? [...prev, ...toList(res)] : toList(res)))
+      setNextCursor(res?.page?.has_more ? res.page.next_cursor : null)
     } catch (err) {
       setError(err?.response?.data?.message || err.message)
     } finally {
-      setLoading(false)
+      append ? setLoadingMore(false) : setLoading(false)
     }
   }
 
@@ -184,6 +191,18 @@ export default function EmployeeDirectory() {
           </tbody>
         </table>
       </div>
+
+      {nextCursor && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => loadData(nextCursor)}
+            disabled={loadingMore}
+            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-sm disabled:opacity-50"
+          >
+            {loadingMore ? 'Loading...' : 'Load more'}
+          </button>
+        </div>
+      )}
 
       {/* Add Employee Modal */}
       {modalOpen && (

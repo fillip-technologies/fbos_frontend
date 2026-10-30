@@ -21,7 +21,7 @@ export default function AttendanceBoard() {
       setLoading(true)
       const res = await getAttendance()
       setRecords(toList(res))
-      const wRes = await getWorkers()
+      const wRes = await getWorkers({ limit: 100 })
       setWorkers(toList(wRes))
     } catch (err) {
       console.error(err)

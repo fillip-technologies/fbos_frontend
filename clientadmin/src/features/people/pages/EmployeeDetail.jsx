@@ -129,10 +129,14 @@ export default function EmployeeDetail() {
 
   const handleRecordHike = async (e) => {
     e.preventDefault()
+    if (!salaryStruct?.annual_ctc) {
+      alert('This employee has no active salary structure, so a revision cannot be recorded yet.')
+      return
+    }
     try {
       await createCompensationRevision(id, {
         ...hikeForm,
-        previous_annual_ctc: salaryStruct?.annual_ctc || 100000.0,
+        previous_annual_ctc: salaryStruct.annual_ctc,
       })
       setHikeModal(false)
       loadTabData()

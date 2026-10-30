@@ -84,7 +84,7 @@ describe('People Utils & Defensive Formatting Logic', () => {
 
 describe('People Permissions & Access Rules', () => {
   it('defines RBAC access permissions for all People modules', () => {
-    assert.ok(ACCESS.people.anyPermissions.includes('people.employee.read'))
+    assert.ok(ACCESS.people.permissions.includes('people.employee.read'))
     assert.ok(ACCESS.manageEmployees.permissions.includes('people.employee.manage'))
     assert.ok(ACCESS.recruitment.permissions.includes('people.recruitment.read'))
     assert.ok(ACCESS.attendance.permissions.includes('people.attendance.read'))
