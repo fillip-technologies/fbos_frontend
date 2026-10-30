@@ -12,4 +12,7 @@ export const DELIVERY = '/api/delivery/v1'
 export const INVENTORY = '/api/inventory/v1'
 // Base path of the Assets service: company fixed assets, hardware, licenses, custody, lifecycle.
 export const ASSETS = '/api/assets/v1'
+// Base path of the People service: HCM, ATS, employees, attendance, leaves, payroll.
+export const PEOPLE = '/api/people/v1'
+
 

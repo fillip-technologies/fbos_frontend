@@ -86,6 +86,13 @@ const RequestCreate = lazy(pages.RequestCreate)
 const Assets = lazy(pages.Assets)
 const AssetDetail = lazy(pages.AssetDetail)
 const AssetCreate = lazy(pages.AssetCreate)
+const Employees = lazy(pages.Employees)
+const EmployeeDetail = lazy(pages.EmployeeDetail)
+const RecruitmentJobs = lazy(pages.RecruitmentJobs)
+const AttendanceBoard = lazy(pages.AttendanceBoard)
+const LeaveManager = lazy(pages.LeaveManager)
+const PayrollHub = lazy(pages.PayrollHub)
+const SeparationManager = lazy(pages.SeparationManager)
 
 
 function RequireAuth({ children }) {
@@ -210,6 +217,13 @@ export default function App() {
           <Route path="/client-services" element={<RequireAccess rule={ACCESS.clientServices}><ClientServices /></RequireAccess>} />
           <Route path="/service-providers" element={<RequireAccess rule={ACCESS.clientServices}><ServiceProviders /></RequireAccess>} />
           <Route path="/document-categories" element={<RequireAccess rule={ACCESS.documentCategories}><DocumentCategories /></RequireAccess>} />
+          <Route path="/people/employees" element={<RequireAccess rule={ACCESS.people}><Employees /></RequireAccess>} />
+          <Route path="/people/employees/:id" element={<RequireAccess rule={ACCESS.people}><EmployeeDetail /></RequireAccess>} />
+          <Route path="/people/jobs" element={<RequireAccess rule={ACCESS.recruitment}><RecruitmentJobs /></RequireAccess>} />
+          <Route path="/people/attendance" element={<RequireAccess rule={ACCESS.attendance}><AttendanceBoard /></RequireAccess>} />
+          <Route path="/people/leaves" element={<RequireAccess rule={ACCESS.leaves}><LeaveManager /></RequireAccess>} />
+          <Route path="/people/payroll" element={<RequireAccess rule={ACCESS.compensation}><PayrollHub /></RequireAccess>} />
+          <Route path="/people/offboarding" element={<RequireAccess rule={ACCESS.manageSeparation}><SeparationManager /></RequireAccess>} />
           <Route path="/audit-log" element={<RequireAccess rule={ACCESS.auditLog}><AuditLog /></RequireAccess>} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />

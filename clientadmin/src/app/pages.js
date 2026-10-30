@@ -76,6 +76,13 @@ export const pages = {
   Assets: () => import('@/features/assets/pages/AssetList.jsx'),
   AssetDetail: () => import('@/features/assets/pages/AssetDetail.jsx'),
   AssetCreate: () => import('@/features/assets/pages/AssetCreate.jsx'),
+  Employees: () => import('@/features/people/pages/EmployeeDirectory.jsx'),
+  EmployeeDetail: () => import('@/features/people/pages/EmployeeDetail.jsx'),
+  RecruitmentJobs: () => import('@/features/people/pages/RecruitmentJobs.jsx'),
+  AttendanceBoard: () => import('@/features/people/pages/AttendanceBoard.jsx'),
+  LeaveManager: () => import('@/features/people/pages/LeaveManager.jsx'),
+  PayrollHub: () => import('@/features/people/pages/PayrollHub.jsx'),
+  SeparationManager: () => import('@/features/people/pages/SeparationManager.jsx'),
 }
 
 // Sidebar path -> the pages of that section. Hovering an entry downloads the list page
@@ -120,6 +127,12 @@ const NAV_PAGES = {
   '/inventory/repairs': [pages.Repairs],
   '/inventory/disposals': [pages.Disposals],
   '/inventory/reports': [pages.InventoryReports],
+  '/people/employees': [pages.Employees, pages.EmployeeDetail],
+  '/people/jobs': [pages.RecruitmentJobs],
+  '/people/attendance': [pages.AttendanceBoard],
+  '/people/leaves': [pages.LeaveManager],
+  '/people/payroll': [pages.PayrollHub],
+  '/people/offboarding': [pages.SeparationManager],
 }
 
 // Starts downloading a section's code; a failed preload is ignored (the click retries it).
