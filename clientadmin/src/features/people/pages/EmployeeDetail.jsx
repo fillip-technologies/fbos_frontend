@@ -14,6 +14,7 @@ import {
   initiateSeparation,
   getSeparations,
   getAttendance,
+  getOnboarding,
 } from '../api.js'
 import { formatCurrency, formatDate, formatDateTime, statusLabel, toItem, toList, todayISO } from '../utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
@@ -21,8 +22,14 @@ import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import FormDialog from '../components/FormDialog.jsx'
 import Field from '../components/Field.jsx'
+import EmployeeBank from '../components/EmployeeBank.jsx'
+import EmployeeDocuments from '../components/EmployeeDocuments.jsx'
+import EmployeeEditDialog from '../components/EmployeeEditDialog.jsx'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 
-const TABS = ['overview', 'timeline', 'attendance', 'leaves', 'compensation', 'separation']
+const TABS = ['overview', 'documents', 'bank', 'timeline', 'attendance', 'leaves', 'compensation', 'separation']
 const NOTICE_DAYS = 30
 
 const addDays = (days) => new Date(Date.now() + days * 86400000).toISOString().split('T')[0]
@@ -59,6 +66,13 @@ const Detail = ({ label, children }) => (
 
 export default function EmployeeDetail() {
   const { id } = useParams()
+  const { user } = useAuth()
+  const { orgId } = useActiveOrg()
+  const canManage = hasAccess(user, ACCESS.manageEmployees)
+  const canSeeBank = canManage || hasAccess(user, ACCESS.compensation)
+  const canReveal = hasAccess(user, ACCESS.compensation)
+  const [onboarding, setOnboarding] = useState(null)
+  const [editOpen, setEditOpen] = useState(false)
   const [worker, setWorker] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
@@ -140,8 +154,11 @@ export default function EmployeeDetail() {
     }
   }
 
+  const loadOnboarding = () => getOnboarding(id).then(setOnboarding).catch(() => setOnboarding(null))
+
   useEffect(() => {
     loadWorker()
+    loadOnboarding()
   }, [id])
 
   useEffect(() => {
@@ -264,9 +281,15 @@ export default function EmployeeDetail() {
               {worker.worker_code && <span className="mono">{worker.worker_code} · </span>}
               {worker.work_email} · Joined {formatDate(worker.date_of_joining)}
             </div>
+            {onboarding && (
+              <div className="small" style={{ marginTop: 4 }}>
+                Onboarding {onboarding.required_done} of {onboarding.required_total} verified
+              </div>
+            )}
           </div>
         </div>
-        <div className="row-actions">
+        <div className="row-actions wrap">
+          {canManage && <button type="button" className="btn secondary" onClick={() => setEditOpen(true)}>Edit</button>}
           <button type="button" className="btn secondary" onClick={() => openDialog('hike')}>Record hike</button>
           <button type="button" className="btn secondary" onClick={() => openDialog('bonus')}>Award bonus</button>
           <button type="button" className="btn danger-outline" onClick={() => openDialog('exit')}>Start exit</button>
@@ -274,7 +297,7 @@ export default function EmployeeDetail() {
       </div>
 
       <div className="tab-bar" role="tablist">
-        {TABS.map((tab) => (
+        {TABS.filter((tab) => tab !== 'bank' || canSeeBank).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -304,16 +327,42 @@ export default function EmployeeDetail() {
             </dl>
           </div>
           <div className="panel">
-            <h2 className="form-section" style={{ fontSize: 16 }}>Emergency contact and banking</h2>
+            <h2 className="form-section" style={{ fontSize: 16 }}>Personal and emergency contact</h2>
             <dl className="detail-list">
-              <Detail label="Emergency contact">{worker.emergency_contact_name}</Detail>
+              <Detail label="Personal email">{worker.personal_email}</Detail>
+              <Detail label="Phone">{worker.phone}</Detail>
+              <Detail label="Date of birth">{worker.date_of_birth && formatDate(worker.date_of_birth)}</Detail>
+              <Detail label="Gender"><span style={{ textTransform: 'capitalize' }}>{worker.gender}</span></Detail>
+              <Detail label="Blood group">{worker.blood_group}</Detail>
+              <Detail label="Address">{worker.residential_address}</Detail>
+              <Detail label="Emergency contact">
+                {worker.emergency_contact_name &&
+                  `${worker.emergency_contact_name}${worker.emergency_contact_relation ? ` (${worker.emergency_contact_relation})` : ''}`}
+              </Detail>
               <Detail label="Emergency phone">{worker.emergency_contact_phone}</Detail>
-              <Detail label="Bank">{worker.bank_name}</Detail>
-              <Detail label="Account number">{worker.bank_account_no && `•••• ${worker.bank_account_no.slice(-4)}`}</Detail>
-              <Detail label="Tax ID / PAN">{worker.tax_id}</Detail>
             </dl>
           </div>
         </div>
+      )}
+
+      {activeTab === 'documents' && (
+        <EmployeeDocuments
+          orgId={orgId}
+          workerId={id}
+          canManage={canManage}
+          canReveal={canReveal}
+          onOpenBank={() => setActiveTab('bank')}
+        />
+      )}
+
+      {activeTab === 'bank' && canSeeBank && (
+        <EmployeeBank
+          workerId={id}
+          workerName={displayName}
+          canManage={canManage}
+          canReveal={canReveal}
+          onChanged={loadOnboarding}
+        />
       )}
 
       {activeTab === 'timeline' && (
@@ -490,6 +539,17 @@ export default function EmployeeDetail() {
             ))
           )}
         </div>
+      )}
+
+      {editOpen && (
+        <EmployeeEditDialog
+          worker={worker}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => {
+            setEditOpen(false)
+            loadWorker()
+          }}
+        />
       )}
 
       {dialog === 'hike' && (

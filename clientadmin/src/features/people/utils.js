@@ -61,3 +61,9 @@ export function toItem(res) {
 export const statusLabel = (status) => (status ? String(status).replace(/_/g, ' ') : '')
 
 export const todayISO = () => new Date().toISOString().split('T')[0]
+
+// Where a document stands in verification; the badge colour comes from `.badge.<status>`.
+export const DOC_STATUS_LABELS = { pending: 'missing', uploaded: 'to verify', verified: 'verified', rejected: 'rejected' }
+
+// An error from the API as one line, for places that show it outside a form.
+export const errorText = (err) => err?.message || 'Something went wrong.'
