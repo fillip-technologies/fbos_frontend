@@ -25,6 +25,25 @@ export const getImportableUsers = (params = {}) => api.get(`${PEOPLE}/workers/im
 export const importWorkersFromUsers = (users) => api.post(`${PEOPLE}/workers/import-from-users`, { users })
 export const addTimelineEvent = (id, data) => api.post(`${PEOPLE}/workers/${id}/timeline`, data)
 
+// ID documents and the onboarding checklist. Numbers come back masked; `reveal*` returns the full value and is logged.
+export const getOnboarding = (id) => api.get(`${PEOPLE}/workers/${id}/onboarding`)
+export const saveWorkerDocument = (id, type, data) => api.put(`${PEOPLE}/workers/${id}/documents/${type}`, data)
+export const verifyWorkerDocument = (id, type) => api.post(`${PEOPLE}/workers/${id}/documents/${type}/verify`)
+export const rejectWorkerDocument = (id, type, reason) =>
+  api.post(`${PEOPLE}/workers/${id}/documents/${type}/reject`, { reason })
+export const revealDocumentNumber = (id, type) => api.get(`${PEOPLE}/workers/${id}/documents/${type}/number`)
+export const getOnboardingRequirements = () => api.get(`${PEOPLE}/onboarding/requirements`)
+export const saveOnboardingRequirements = (required) => api.put(`${PEOPLE}/onboarding/requirements`, { required })
+
+// Bank accounts
+export const getBankAccounts = (id) => api.get(`${PEOPLE}/workers/${id}/bank-accounts`)
+export const createBankAccount = (id, data) => api.post(`${PEOPLE}/workers/${id}/bank-accounts`, data)
+export const updateBankAccount = (id, accountId, data) => api.patch(`${PEOPLE}/workers/${id}/bank-accounts/${accountId}`, data)
+export const makePrimaryBankAccount = (id, accountId) => api.post(`${PEOPLE}/workers/${id}/bank-accounts/${accountId}/primary`)
+export const verifyBankAccount = (id, accountId) => api.post(`${PEOPLE}/workers/${id}/bank-accounts/${accountId}/verify`)
+export const deactivateBankAccount = (id, accountId) => api.post(`${PEOPLE}/workers/${id}/bank-accounts/${accountId}/deactivate`)
+export const revealBankAccountNumber = (id, accountId) => api.get(`${PEOPLE}/workers/${id}/bank-accounts/${accountId}/number`)
+
 export const getPositions = (params = {}) => api.get(`${PEOPLE}/positions${toQuery(params)}`)
 export const createPosition = (data) => api.post(`${PEOPLE}/positions`, data)
 export const getJobProfiles = () => api.get(`${PEOPLE}/job-profiles`)

@@ -8,6 +8,7 @@ export const DOCUMENT_SUBJECTS = {
   quotation: 'revenue.quotation',
   contract: 'revenue.contract',
   device: 'inventory.device',
+  employee: 'people.employee',
   project: 'delivery.project',
   task: 'delivery.task',
 }
