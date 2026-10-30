@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { getWorkers, createWorker } from '../api.js'
 import { WORKER_STATUS_BADGES, formatDate, toList } from '../utils.js'
+import ImportFromUsersModal from '../components/ImportFromUsersModal.jsx'
 
 const PAGE_SIZE = 50
 
@@ -13,6 +14,7 @@ export default function EmployeeDirectory() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
@@ -91,12 +93,20 @@ export default function EmployeeDirectory() {
           <h1 className="text-2xl font-semibold text-zinc-100">Employee Directory</h1>
           <p className="text-sm text-zinc-400">360° Workforce Directory with Position Architecture</p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition"
-        >
-          Add Employee
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="inline-flex items-center justify-center px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 rounded-lg text-sm font-medium transition"
+          >
+            Add from users
+          </button>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition"
+          >
+            Add Employee
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -160,7 +170,7 @@ export default function EmployeeDirectory() {
               workers.map((w) => (
                 <tr key={w.id} className="hover:bg-zinc-800/30 transition">
                   <td className="px-4 py-3 font-mono text-xs text-zinc-400">
-                    {w.worker_code}
+                    {w.worker_code || '—'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-zinc-200">{w.name || `${w.first_name} ${w.last_name}`}</div>
@@ -202,6 +212,10 @@ export default function EmployeeDirectory() {
             {loadingMore ? 'Loading...' : 'Load more'}
           </button>
         </div>
+      )}
+
+      {importOpen && (
+        <ImportFromUsersModal onClose={() => setImportOpen(false)} onImported={() => loadData()} />
       )}
 
       {/* Add Employee Modal */}

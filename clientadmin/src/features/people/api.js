@@ -20,6 +20,9 @@ export const getWorkers = (params = {}) => api.get(`${PEOPLE}/workers${toQuery(p
 export const getWorker = (id) => api.get(`${PEOPLE}/workers/${id}`)
 export const createWorker = (data) => api.post(`${PEOPLE}/workers`, data)
 export const updateWorker = (id, data) => api.patch(`${PEOPLE}/workers/${id}`, data)
+// Active employee users of identity that have no employee record yet, and creating records from them.
+export const getImportableUsers = (params = {}) => api.get(`${PEOPLE}/workers/importable-users${toQuery(params)}`)
+export const importWorkersFromUsers = (users) => api.post(`${PEOPLE}/workers/import-from-users`, { users })
 export const addTimelineEvent = (id, data) => api.post(`${PEOPLE}/workers/${id}/timeline`, data)
 
 export const getPositions = (params = {}) => api.get(`${PEOPLE}/positions${toQuery(params)}`)

@@ -137,7 +137,7 @@ export default function AttendanceBoard() {
                   <option value="">Select Employee</option>
                   {workers.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.worker_code} - {w.first_name} {w.last_name}
+                      {w.worker_code ? `${w.worker_code} - ` : ''}{w.first_name} {w.last_name}
                     </option>
                   ))}
                 </select>

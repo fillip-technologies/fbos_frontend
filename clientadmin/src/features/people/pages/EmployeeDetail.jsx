@@ -219,9 +219,11 @@ export default function EmployeeDetail() {
             </div>
             <p className="text-zinc-400 text-sm mt-0.5">{worker.designation}</p>
             <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-500 mt-2">
-              <span className="font-mono bg-zinc-800 px-2 py-0.5 rounded text-zinc-300">
-                {worker.worker_code}
-              </span>
+              {worker.worker_code && (
+                <span className="font-mono bg-zinc-800 px-2 py-0.5 rounded text-zinc-300">
+                  {worker.worker_code}
+                </span>
+              )}
               <span>{worker.work_email}</span>
               <span>Joined: {formatDate(worker.date_of_joining)}</span>
             </div>
