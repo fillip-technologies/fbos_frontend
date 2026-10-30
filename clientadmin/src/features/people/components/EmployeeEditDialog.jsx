@@ -7,7 +7,7 @@ import Field from './Field.jsx'
 const FIELDS = [
   'first_name', 'last_name', 'work_email', 'personal_email', 'phone', 'date_of_birth', 'gender', 'blood_group',
   'residential_address', 'emergency_contact_name', 'emergency_contact_relation', 'emergency_contact_phone',
-  'designation', 'job_title', 'employment_type', 'date_of_joining', 'probation_end_date', 'confirmation_date',
+  'job_title', 'employment_type', 'date_of_joining', 'probation_end_date', 'confirmation_date',
   'worker_code',
 ]
 
@@ -86,7 +86,7 @@ export default function EmployeeEditDialog({ worker, onClose, onSaved }) {
 
       <h3 className="section-title" style={{ margin: '8px 0 10px' }}>Employment</h3>
       <div className="grid-2">
-        {input('designation', 'Designation', {}, { required: true })}
+        {input('designation', 'Designation', { disabled: true, value: worker.designation }, { hint: 'Change it with Change role, so it is approved and recorded.' })}
         {input('job_title', 'Job title')}
         {input('worker_code', 'Employee code', {}, { hint: 'Optional. Must be unique.' })}
         <Field label="Employment type" error={fieldErrors.employment_type}>

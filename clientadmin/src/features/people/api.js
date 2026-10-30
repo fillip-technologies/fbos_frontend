@@ -23,6 +23,13 @@ export const updateWorker = (id, data) => api.patch(`${PEOPLE}/workers/${id}`, d
 // Active employee users of identity that have no employee record yet, and creating records from them.
 export const getImportableUsers = (params = {}) => api.get(`${PEOPLE}/workers/importable-users${toQuery(params)}`)
 export const importWorkersFromUsers = (users) => api.post(`${PEOPLE}/workers/import-from-users`, { users })
+// Promotions, demotions and transfers: requested by one person, approved by another.
+export const requestRoleChange = (workerId, data) => api.post(`${PEOPLE}/workers/${workerId}/role-changes`, data)
+export const getWorkerRoleChanges = (workerId) => api.get(`${PEOPLE}/workers/${workerId}/role-changes`)
+export const getRoleChanges = (params = {}) => api.get(`${PEOPLE}/role-changes${toQuery(params)}`)
+export const approveRoleChange = (id, note) => api.post(`${PEOPLE}/role-changes/${id}/approve`, { note: note || null })
+export const rejectRoleChange = (id, note) => api.post(`${PEOPLE}/role-changes/${id}/reject`, { note })
+export const cancelRoleChange = (id) => api.post(`${PEOPLE}/role-changes/${id}/cancel`)
 export const addTimelineEvent = (id, data) => api.post(`${PEOPLE}/workers/${id}/timeline`, data)
 
 // ID documents and the onboarding checklist. Numbers come back masked; `reveal*` returns the full value and is logged.

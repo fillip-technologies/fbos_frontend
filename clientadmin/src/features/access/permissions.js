@@ -10,6 +10,7 @@ export const SERVICE_LABELS = {
   control: 'Approvals & SLAs',
   documents: 'Documents',
   inventory: 'Inventory',
+  people: 'People (HR)',
 }
 
 export const ENTITY_LABELS = {
@@ -23,6 +24,14 @@ export const ENTITY_LABELS = {
   vertical_pack: 'Vertical packs',
   session: 'Sign-in sessions',
   audit_log: 'Security audit log',
+  // People (HR)
+  employee: 'Employees',
+  recruitment: 'Recruitment',
+  attendance: 'Attendance',
+  leave: 'Leaves',
+  compensation: 'Pay and compensation',
+  role_change: 'Promotions, demotions and transfers',
+  separation: 'Offboarding',
   // Revenue, named as in the sidebar.
   client: 'Customers',
   client_service: 'Client services',

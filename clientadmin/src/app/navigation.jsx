@@ -65,6 +65,12 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /><path d="M6 15h2M12 15h6" /></>),
   },
   {
+    to: '/people/role-changes',
+    label: 'Role changes',
+    access: ACCESS.roleChanges,
+    icon: icon(<><polyline points="17 11 12 6 7 11" /><polyline points="17 18 12 13 7 18" /></>),
+  },
+  {
     to: '/people/offboarding',
     label: 'Offboarding',
     access: ACCESS.manageSeparation,
