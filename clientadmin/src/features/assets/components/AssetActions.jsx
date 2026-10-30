@@ -45,7 +45,7 @@ export default function AssetActions({ orgId, asset, onChanged }) {
   const canReveal = hasAccess(me, ACCESS.revealAssetCredentials)
 
   const isAssigned = asset.status === 'assigned' || asset.status === 'in_use'
-  const isInStock = asset.status === 'in_stock' || asset.status === 'available'
+  const isInStock = ['in_stock', 'available', 'reserved'].includes(asset.status)
   const isInMaintenance = asset.status === 'in_maintenance'
   const isDisposed = asset.status === 'disposed'
   const isCredential = asset.type?.family === 'credential'
@@ -68,7 +68,7 @@ export default function AssetActions({ orgId, asset, onChanged }) {
             </button>
           </>
         )}
-        {canMaintain && !isDisposed && !isInMaintenance && (
+        {canMaintain && !isDisposed && !isInMaintenance && !isAssigned && (
           <button className="btn secondary" onClick={() => setMode('maintenance')}>
             Schedule maintenance
           </button>
