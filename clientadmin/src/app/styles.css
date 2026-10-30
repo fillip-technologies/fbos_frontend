@@ -623,3 +623,50 @@ td.skeleton-wait { border-bottom: 0; }
 .quotation-history li { padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px; }
 .quotation-history li:first-child { border-top: 0; }
 .main-star { color: #d97706; font-size: 15px; }
+
+/* ---------- People (HRMS) ---------- */
+.dialog-intro { margin: 6px 0 16px; font-size: 13px; color: var(--muted); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.grid-2 > .full { grid-column: 1 / -1; }
+.field .req { color: var(--danger); margin-left: 2px; }
+.field.check-field label { display: flex; align-items: center; gap: 8px; font-weight: 500; margin: 0; }
+.field input[type='time'], .field input[type='date'], .field input[type='month'], .field input[type='number'] { min-height: 40px; }
+.field input.upper { text-transform: uppercase; }
+.table-plain tbody tr { cursor: default; }
+.table-actions { display: flex; gap: 6px; justify-content: flex-end; }
+th.right, td.right { text-align: right; }
+.people-section { margin-bottom: 24px; }
+.people-section > h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+.amount-neg { color: var(--danger); }
+.amount-pos { color: var(--ok); font-weight: 600; }
+.case-card { margin-bottom: 16px; }
+.case-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.case-head h3 { margin: 0 0 4px; font-size: 15px; }
+.clearance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 8px; }
+.clearance-item { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: #f8fafc; }
+.clearance-item .row-actions { margin-top: 8px; }
+.settlement-box { margin-top: 16px; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; }
+.settlement-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 8px; }
+.settlement-grid .stat-label { display: block; margin-bottom: 2px; }
+.badge.probation, .badge.half_day, .badge.paused, .badge.calculated, .badge.clearance_pending, .badge.noticed { background: #fef3c7; color: #92400e; }
+.badge.on_leave, .badge.filled, .badge.regularized, .badge.settled, .badge.clearance_completed { background: #dbeafe; color: #1e40af; }
+.badge.exited, .badge.holiday, .badge.exit_finalized { background: #f1f5f9; color: #475569; }
+.badge.present, .badge.cleared, .badge.disbursed { background: #dcfce7; color: #166534; }
+.badge.absent, .badge.blocked { background: #fee2e2; color: #991b1b; }
+.tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
+.tab-bar button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; text-transform: capitalize; white-space: nowrap; }
+.tab-bar button:hover { color: var(--text); }
+.tab-bar button.active { color: var(--primary); border-bottom-color: var(--primary); }
+.profile-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.profile-id { display: flex; gap: 14px; align-items: center; }
+.avatar { width: 56px; height: 56px; border-radius: 12px; background: #dbeafe; color: #1e40af; display: grid; place-items: center; font-weight: 700; font-size: 18px; text-transform: uppercase; }
+.profile-id h1 { margin: 0 0 2px; font-size: 20px; }
+.detail-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; }
+.detail-list dt { font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
+.detail-list dd { margin: 0; font-size: 14px; }
+.timeline { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--border); }
+.timeline li { position: relative; padding: 0 0 18px 18px; }
+.timeline li::before { content: ''; position: absolute; left: -22px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
+.timeline .when { font-size: 12px; color: var(--muted); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .two-col, .grid-2 { grid-template-columns: 1fr; } }

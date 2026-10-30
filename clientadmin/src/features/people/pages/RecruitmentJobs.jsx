@@ -1,29 +1,39 @@
 import { useState, useEffect } from 'react'
 import { getRequisitions, createRequisition, getPositions } from '../api.js'
-import { REQUISITION_STATUS_BADGES, formatDate, toList } from '../utils.js'
+import { formatDate, statusLabel, toList } from '../utils.js'
+import { getFieldErrors } from '@/shared/api/errors.js'
+import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import StatusBadge from '@/shared/components/StatusBadge.jsx'
+import FormDialog from '../components/FormDialog.jsx'
+import Field from '../components/Field.jsx'
+
+const EMPTY_FORM = {
+  title: '',
+  department: '',
+  position_id: '',
+  openings_count: 1,
+}
 
 export default function RecruitmentJobs() {
   const [requisitions, setRequisitions] = useState([])
   const [positions, setPositions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState({
-    title: '',
-    department: 'Engineering',
-    position_id: '',
-    openings_count: 1,
-    employment_type: 'full_time',
-  })
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const fieldErrors = getFieldErrors(error)
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const res = await getRequisitions()
-      setRequisitions(toList(res))
-      const posRes = await getPositions()
+      setLoadError(null)
+      const [reqRes, posRes] = await Promise.all([getRequisitions(), getPositions()])
+      setRequisitions(toList(reqRes))
       setPositions(toList(posRes))
     } catch (err) {
-      console.error(err)
+      setLoadError(err)
     } finally {
       setLoading(false)
     }
@@ -33,79 +43,77 @@ export default function RecruitmentJobs() {
     loadData()
   }, [])
 
+  const openForm = () => {
+    setForm(EMPTY_FORM)
+    setError(null)
+    setModalOpen(true)
+  }
+
   const handleCreate = async (e) => {
     e.preventDefault()
     try {
+      setSaving(true)
+      setError(null)
       await createRequisition({
         ...form,
+        title: form.title.trim(),
+        department: form.department.trim() || null,
         position_id: form.position_id || null,
+        openings_count: Number(form.openings_count),
       })
       setModalOpen(false)
       loadData()
     } catch (err) {
-      alert(err?.response?.data?.message || err.message)
+      setError(err)
+    } finally {
+      setSaving(false)
     }
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <div className="page-head">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-100">Talent Acquisition & ATS</h1>
-          <p className="text-sm text-zinc-400">Job Requisitions, Position Budgets, and Candidate Pipeline</p>
+          <h1>Recruitment</h1>
+          <p className="muted small" style={{ margin: '4px 0 0' }}>
+            Job requisitions and the positions they fill.
+          </p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition"
-        >
-          Open Requisition
+        <button type="button" className="btn" onClick={openForm}>
+          + Open requisition
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/50">
-        <table className="w-full text-left text-sm text-zinc-300">
-          <thead className="bg-zinc-800/60 text-xs uppercase text-zinc-400 border-b border-zinc-800">
+      <ErrorBanner error={loadError} onRetry={loadData} />
+
+      <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+        <table className="table-plain">
+          <thead>
             <tr>
-              <th className="px-4 py-3">Code</th>
-              <th className="px-4 py-3">Job Title</th>
-              <th className="px-4 py-3">Department</th>
-              <th className="px-4 py-3">Openings</th>
-              <th className="px-4 py-3">Filled</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Date</th>
+              <th>Code</th>
+              <th>Job title</th>
+              <th>Department</th>
+              <th>Openings</th>
+              <th>Filled</th>
+              <th>Status</th>
+              <th>Opened</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800/60">
+          <tbody>
             {loading ? (
-              <tr>
-                <td colSpan="7" className="px-4 py-8 text-center text-zinc-500">
-                  Loading requisitions...
-                </td>
-              </tr>
+              <tr><td colSpan={7} className="center-note">Loading requisitions...</td></tr>
             ) : requisitions.length === 0 ? (
-              <tr>
-                <td colSpan="7" className="px-4 py-8 text-center text-zinc-500">
-                  No active job requisitions found.
-                </td>
-              </tr>
+              <tr><td colSpan={7} className="center-note">No job requisitions yet.</td></tr>
             ) : (
               requisitions.map((req) => (
-                <tr key={req.id} className="hover:bg-zinc-800/30 transition">
-                  <td className="px-4 py-3 font-mono text-xs text-zinc-400">{req.requisition_code}</td>
-                  <td className="px-4 py-3 font-medium text-zinc-200">{req.title}</td>
-                  <td className="px-4 py-3 text-zinc-400">{req.department || '-'}</td>
-                  <td className="px-4 py-3">{req.openings_count}</td>
-                  <td className="px-4 py-3 text-emerald-400 font-medium">{req.filled_count}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${
-                        REQUISITION_STATUS_BADGES[req.status] || 'bg-zinc-800 text-zinc-400'
-                      }`}
-                    >
-                      {req.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">{formatDate(req.created_at)}</td>
+                <tr key={req.id}>
+                  <td className="mono">{req.requisition_code}</td>
+                  <td><strong>{req.title}</strong></td>
+                  <td>{req.department || <span className="muted">—</span>}</td>
+                  <td>{req.openings_count}</td>
+                  <td>{req.filled_count}</td>
+                  <td><StatusBadge status={req.status} label={statusLabel(req.status)} /></td>
+                  <td className="muted small">{formatDate(req.created_at)}</td>
                 </tr>
               ))
             )}
@@ -114,74 +122,58 @@ export default function RecruitmentJobs() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-w-lg w-full space-y-4">
-            <h3 className="text-base font-semibold text-zinc-100">Create Job Requisition</h3>
-            <form onSubmit={handleCreate} className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Requisition Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="e.g. Senior Backend Engineer"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Department</label>
-                <input
-                  type="text"
-                  value={form.department}
-                  onChange={(e) => setForm({ ...form, department: e.target.value })}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Link to Position Seat (Optional)</label>
-                <select
-                  value={form.position_id}
-                  onChange={(e) => setForm({ ...form, position_id: e.target.value })}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100"
-                >
-                  <option value="">No position seat (Draft)</option>
-                  {positions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.position_code} - {p.title} ({p.hiring_status})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Openings Count</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={form.openings_count}
-                  onChange={(e) => setForm({ ...form, openings_count: parseInt(e.target.value) })}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-3 py-1.5 bg-zinc-800 text-zinc-300 rounded-lg text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium"
-                >
-                  Publish Requisition
-                </button>
-              </div>
-            </form>
+        <FormDialog
+          title="Open a requisition"
+          intro="Describe the role you are hiring for. Link it to a position seat so the seat is marked filled when someone is hired."
+          onClose={() => setModalOpen(false)}
+          onSubmit={handleCreate}
+          submitLabel="Open requisition"
+          savingLabel="Opening..."
+          saving={saving}
+          error={error}
+        >
+          <Field label="Job title" required error={fieldErrors.title}>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="e.g. Senior Backend Engineer"
+              autoFocus
+            />
+          </Field>
+          <div className="grid-2">
+            <Field label="Department" error={fieldErrors.department}>
+              <input
+                type="text"
+                value={form.department}
+                onChange={(e) => setForm({ ...form, department: e.target.value })}
+                placeholder="e.g. Engineering"
+              />
+            </Field>
+            <Field label="Openings" required error={fieldErrors.openings_count}>
+              <input
+                type="number"
+                min="1"
+                value={form.openings_count}
+                onChange={(e) => setForm({ ...form, openings_count: e.target.value })}
+              />
+            </Field>
           </div>
-        </div>
+          <Field
+            label="Position seat"
+            hint="Optional. Leave empty to keep the requisition as a draft without a seat."
+            error={fieldErrors.position_id}
+          >
+            <select value={form.position_id} onChange={(e) => setForm({ ...form, position_id: e.target.value })}>
+              <option value="">No position seat</option>
+              {positions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.position_code} - {p.title} ({statusLabel(p.hiring_status)})
+                </option>
+              ))}
+            </select>
+          </Field>
+        </FormDialog>
       )}
     </div>
   )

@@ -57,27 +57,7 @@ export function toItem(res) {
   return res
 }
 
-export const WORKER_STATUS_BADGES = {
-  active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  probation: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  on_leave: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-  noticed: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  exited: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-}
+// "on_leave" -> "on leave": the words a status badge shows (colour comes from `.badge.<status>`).
+export const statusLabel = (status) => (status ? String(status).replace(/_/g, ' ') : '')
 
-export const ATTENDANCE_STATUS_BADGES = {
-  present: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  half_day: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  absent: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-  holiday: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  on_leave: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-  regularized: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-}
-
-export const REQUISITION_STATUS_BADGES = {
-  open: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  draft: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-  paused: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  filled: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-  cancelled: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-}
+export const todayISO = () => new Date().toISOString().split('T')[0]
