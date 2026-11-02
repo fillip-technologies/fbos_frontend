@@ -78,6 +78,8 @@ export const applyCandidate = (data) => api.post(`${PEOPLE}/applications`, data)
 export const transitionApplicationStage = (id, data) => api.post(`${PEOPLE}/applications/${id}/stage`, data)
 export const getScorecards = (id) => api.get(`${PEOPLE}/applications/${id}/scorecards`)
 export const submitScorecard = (id, data) => api.post(`${PEOPLE}/applications/${id}/scorecards`, data)
+export const getOffers = (applicationId) => api.get(`${PEOPLE}/applications/${applicationId}/offers`)
+export const updateRequisition = (id, data) => api.patch(`${PEOPLE}/requisitions/${id}`, data)
 export const createOffer = (id, data) => api.post(`${PEOPLE}/applications/${id}/offers`, data)
 export const acceptAndOnboardCandidate = (id, data) => api.post(`${PEOPLE}/offers/${id}/accept-and-onboard`, data)
 
