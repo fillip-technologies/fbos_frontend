@@ -67,3 +67,22 @@ export const DOC_STATUS_LABELS = { pending: 'missing', uploaded: 'to verify', ve
 
 // An error from the API as one line, for places that show it outside a form.
 export const errorText = (err) => err?.message || 'Something went wrong.'
+
+// The kinds of post a person can hold, and what a role change does to one.
+export const POST_TYPE_LABELS = {
+  primary: 'Primary',
+  concurrent: 'Concurrent',
+  additional_charge: 'Additional charge',
+  acting: 'Acting',
+}
+export const CHANGE_LABELS = {
+  promotion: 'Promotion',
+  demotion: 'Demotion',
+  transfer: 'Transfer',
+  correction: 'Correction',
+  add_post: 'New post',
+  end_post: 'End post',
+  make_primary: 'Make primary',
+}
+// A share of working time as the screens show it: 40 -> "40%"; empty for posts that carry none.
+export const formatShare = (share) => (share == null || share === '' ? '' : `${Number(share)}%`)

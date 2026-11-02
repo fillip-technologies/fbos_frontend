@@ -96,6 +96,9 @@ const LeaveManager = lazy(pages.LeaveManager)
 const PayrollHub = lazy(pages.PayrollHub)
 const SeparationManager = lazy(pages.SeparationManager)
 const RoleChanges = lazy(pages.RoleChanges)
+const RoleChangeSetup = lazy(pages.RoleChangeSetup)
+const OrgChart = lazy(pages.OrgChart)
+const PostsReport = lazy(pages.PostsReport)
 
 
 function RequireAuth({ children }) {
@@ -230,6 +233,9 @@ export default function App() {
           <Route path="/people/payroll" element={<RequireAccess rule={ACCESS.compensation}><PayrollHub /></RequireAccess>} />
           <Route path="/people/offboarding" element={<RequireAccess rule={ACCESS.manageSeparation}><SeparationManager /></RequireAccess>} />
           <Route path="/people/role-changes" element={<RequireAccess rule={ACCESS.roleChanges}><RoleChanges /></RequireAccess>} />
+          <Route path="/people/approvals" element={<RequireAccess rule={ACCESS.roleChangeSetup}><RoleChangeSetup /></RequireAccess>} />
+          <Route path="/people/org-chart" element={<RequireAccess rule={ACCESS.people}><OrgChart /></RequireAccess>} />
+          <Route path="/people/post-report" element={<RequireAccess rule={ACCESS.people}><PostsReport /></RequireAccess>} />
           <Route path="/audit-log" element={<RequireAccess rule={ACCESS.auditLog}><AuditLog /></RequireAccess>} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />

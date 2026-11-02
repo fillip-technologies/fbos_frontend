@@ -77,6 +77,24 @@ export const NAV_ITEMS = [
     icon: icon(<><polyline points="17 11 12 6 7 11" /><polyline points="17 18 12 13 7 18" /></>),
   },
   {
+    to: '/people/approvals',
+    label: 'Approvals & access',
+    access: ACCESS.roleChangeSetup,
+    icon: icon(<><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z" /><path d="M9 12l2 2 4-4" /></>),
+  },
+  {
+    to: '/people/org-chart',
+    label: 'Org chart',
+    access: ACCESS.people,
+    icon: icon(<><rect x="9" y="3" width="6" height="5" rx="1" /><rect x="3" y="16" width="6" height="5" rx="1" /><rect x="15" y="16" width="6" height="5" rx="1" /><path d="M12 8v4M6 16v-4h12v4" /></>),
+  },
+  {
+    to: '/people/post-report',
+    label: 'Posts & FTE',
+    access: ACCESS.people,
+    icon: icon(<><line x1="4" y1="20" x2="20" y2="20" /><rect x="5" y="11" width="3" height="9" /><rect x="10.5" y="6" width="3" height="14" /><rect x="16" y="14" width="3" height="6" /></>),
+  },
+  {
     to: '/people/offboarding',
     label: 'Offboarding',
     access: ACCESS.manageSeparation,

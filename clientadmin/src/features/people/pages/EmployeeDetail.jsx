@@ -29,12 +29,15 @@ import EmployeeDocuments from '../components/EmployeeDocuments.jsx'
 import EmployeeEditDialog from '../components/EmployeeEditDialog.jsx'
 import RoleChangeDialog from '../components/RoleChangeDialog.jsx'
 import RoleChangeList from '../components/RoleChangeList.jsx'
+import PostsTab from '../components/PostsTab.jsx'
+import IdentitySyncPanel from '../components/IdentitySyncPanel.jsx'
+import { invalidate } from '@/shared/api/useQuery.js'
 import useAccessCatalog from '@/features/access/useAccessCatalog.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 
-const TABS = ['overview', 'documents', 'bank', 'role changes', 'timeline', 'attendance', 'leaves', 'compensation', 'separation']
+const TABS = ['overview', 'posts', 'documents', 'bank', 'role changes', 'timeline', 'attendance', 'leaves', 'compensation', 'separation']
 const NOTICE_DAYS = 30
 
 const addDays = (days) => new Date(Date.now() + days * 86400000).toISOString().split('T')[0]
@@ -141,6 +144,8 @@ export default function EmployeeDetail() {
   const [onboarding, setOnboarding] = useState(null)
   const [editOpen, setEditOpen] = useState(false)
   const [roleDialogOpen, setRoleDialogOpen] = useState(false)
+  // What the Change role form opens on: from the Posts tab it is already set to that post and action.
+  const [rolePreset, setRolePreset] = useState(null)
   const [roleChanges, setRoleChanges] = useState([])
   const [roleChangesLoading, setRoleChangesLoading] = useState(true)
   const canApproveRoleChanges = hasAccess(user, ACCESS.approveRoleChanges)
@@ -402,7 +407,7 @@ export default function EmployeeDetail() {
         </div>
         <div className="row-actions wrap">
           {canManage && <button type="button" className="btn secondary" onClick={() => setEditOpen(true)}>Edit</button>}
-          {canManage && <button type="button" className="btn secondary" onClick={() => setRoleDialogOpen(true)}>Change role</button>}
+          {canManage && <button type="button" className="btn secondary" onClick={() => { setRolePreset(null); setRoleDialogOpen(true) }}>Change role</button>}
           {canManagePay && <button type="button" className="btn secondary" onClick={() => openDialog('hike')}>Record hike</button>}
           {canManagePay && <button type="button" className="btn secondary" onClick={() => openDialog('bonus')}>Award bonus</button>}
           <button type="button" className="btn danger-outline" onClick={() => openDialog('exit')}>Start exit</button>
@@ -435,6 +440,9 @@ export default function EmployeeDetail() {
               <Detail label="Job title">{worker.job_title || worker.designation}</Detail>
               <Detail label="Manager">{worker.manager?.name || 'Top level'}</Detail>
               <Detail label="Direct reports">{String(worker.direct_reports_count || 0)}</Detail>
+              <Detail label="Other posts">{worker.extra_post_count > 0 ? (
+                <button type="button" className="link-btn" onClick={() => setActiveTab('posts')}>{worker.extra_post_count} more</button>
+              ) : 'None'}</Detail>
               <Detail label="Date of joining">{formatDate(worker.date_of_joining)}</Detail>
               <Detail label="Last working day">{worker.last_working_date && formatDate(worker.last_working_date)}</Detail>
             </dl>
@@ -456,6 +464,23 @@ export default function EmployeeDetail() {
             </dl>
           </div>
         </div>
+      )}
+
+      {activeTab === 'overview' && (
+        <IdentitySyncPanel worker={worker} canManage={canManage} unitName={(unitId) => unitNames[unitId] || 'another department'} />
+      )}
+
+      {activeTab === 'posts' && (
+        <PostsTab
+          workerId={id}
+          canManage={canManage}
+          canSeePay={canSeePay || canApproveRoleChanges}
+          unitName={(unitId) => unitNames[unitId] || 'another department'}
+          onChange={(preset) => {
+            setRolePreset(preset)
+            setRoleDialogOpen(true)
+          }}
+        />
       )}
 
       {activeTab === 'documents' && (
@@ -487,6 +512,8 @@ export default function EmployeeDetail() {
           canRequest={canManage}
           unitName={(unitId) => unitNames[unitId] || 'another department'}
           onChanged={() => {
+            invalidate(['worker-posts', orgId, id])
+            invalidate(['identity-sync', orgId, id])
             loadRoleChanges()
             loadWorker()
             loadOnboarding()
@@ -676,6 +703,7 @@ export default function EmployeeDetail() {
           worker={worker}
           salary={canSeePay ? salaryStruct : null}
           units={units}
+          preset={rolePreset}
           onClose={() => setRoleDialogOpen(false)}
           onSaved={() => {
             setRoleDialogOpen(false)
