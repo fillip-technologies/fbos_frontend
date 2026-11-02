@@ -17,6 +17,10 @@ function toQuery(params = {}) {
 // Workers & Position Management
 // -------------------------------------------------------------
 export const getWorkers = (params = {}) => api.get(`${PEOPLE}/workers${toQuery(params)}`)
+// The signed-in user's own record (view only).
+export const getMyWorker = () => api.get(`${PEOPLE}/workers/me`)
+export const getMyOnboarding = () => api.get(`${PEOPLE}/workers/me/onboarding`)
+export const getMyBankAccounts = () => api.get(`${PEOPLE}/workers/me/bank-accounts`)
 export const getWorker = (id) => api.get(`${PEOPLE}/workers/${id}`)
 export const createWorker = (data) => api.post(`${PEOPLE}/workers`, data)
 export const updateWorker = (id, data) => api.patch(`${PEOPLE}/workers/${id}`, data)
