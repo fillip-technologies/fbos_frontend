@@ -241,6 +241,7 @@ export function toRequestAccess({ presets, permissions }, { includePresets = tru
             role_id: p.role_id,
             scope_unit_id: p.scope_unit_id || null,
             self_only: p.self_only,
+            ...(p.valid_to ? { valid_to: p.valid_to } : {}),
           })),
         }
       : {}),
@@ -248,7 +249,30 @@ export function toRequestAccess({ presets, permissions }, { includePresets = tru
       code: p.code,
       scope_unit_id: p.scope_unit_id || null,
       self_only: p.self_only,
+      ...(p.valid_to ? { valid_to: p.valid_to } : {}),
       ...(p.source_role ? { source_role_code: p.source_role } : {}),
     })),
+  }
+}
+
+// For someone People manages, what this save adds or changes is extra access: it ends on `endsOn`. What was
+// there and is sent back unchanged keeps its own end date (job access has none), as Identity checks.
+export function withExtraAccessEnd(body, grants, assignments, endsOn) {
+  const validTo = new Date(`${endsOn}T23:59:00`).toISOString()
+  const held = new Map(grants.map((g) => [`${g.code}|${g.scope_unit?.id || ''}`, g]))
+  const applied = assignments.map((a) => `${a.role.id}|${a.scope_unit?.id || ''}|${a.self_only}`)
+  return {
+    ...body,
+    permissions: body.permissions.map((p) => {
+      const before = held.get(`${p.code}|${p.scope_unit_id || ''}`)
+      return before && before.self_only === p.self_only ? p : { ...p, valid_to: validTo }
+    }),
+    ...(body.role_assignments
+      ? {
+          role_assignments: body.role_assignments.map((r) =>
+            applied.includes(`${r.role_id}|${r.scope_unit_id || ''}|${r.self_only}`) ? r : { ...r, valid_to: validTo },
+          ),
+        }
+      : {}),
   }
 }

@@ -18,6 +18,7 @@ import {
   scopeLabel,
   serviceLabel,
   toRequestAccess,
+  withExtraAccessEnd,
 } from '@/features/access/permissions.js'
 import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -86,6 +87,8 @@ export default function UserDetail() {
   const canSeeEmployee = hasAccess(me, ACCESS.people)
   const tab = canSeeEmployee && searchParams.get('tab') === 'employee' ? 'employee' : 'account'
   const openTab = (next) => setSearchParams(next === 'employee' ? { tab: 'employee' } : {}, { replace: true })
+  // Roles of someone People manages change with a role change: open it on the Employee tab.
+  const openRoleChange = () => setSearchParams({ tab: 'employee', change: 'role' }, { replace: true })
 
   // After a change: refetch this person and mark every user list stale.
   const load = () => {
@@ -144,6 +147,11 @@ export default function UserDetail() {
   const isSelf = me?.id === user.id
   const isDeactivated = user.status === 'deactivated'
   const isTenantAdmin = user.user_type === 'client_admin'
+  // Their roles come from their posts in People; access given here is extra access with an end date.
+  const managedByPeople = Boolean(user.managed_by_people) && !isTenantAdmin
+  const jobPresets = presets.filter((a) => a.source === 'people')
+  const extraPresets = presets.filter((a) => a.source !== 'people')
+  const jobRoleCodes = new Set(jobPresets.map((a) => a.role.code))
   const allowed = {
     resend: hasAccess(me, ACCESS.inviteUsers),
     edit: hasAccess(me, ACCESS.updateUsers),
@@ -190,6 +198,8 @@ export default function UserDetail() {
           loading={employeeQuery.loading}
           canMake={hasAccess(me, ACCESS.manageEmployees)}
           onMake={() => setMakingEmployee(true)}
+          openRoleChange={searchParams.get('change') === 'role'}
+          onRoleChangeOpened={() => openTab('employee')}
         />
       )}
       {makingEmployee && (
@@ -303,7 +313,7 @@ export default function UserDetail() {
           </div>
           <p className="muted small" style={{ margin: '10px 0 0' }}>
             Kept by People: name, phone, employee code, where they work and who they report to. Change them in the Employee tab and they follow here.
-            Roles you grant by hand below stay as they are; the ones their job brings are added and removed from People.
+            Their roles come from their posts and change with a role change, which is approved. Access given by hand below is extra access with an end date.
           </p>
         </div>
       )}
@@ -314,12 +324,19 @@ export default function UserDetail() {
           <div>
             <h2>Access</h2>
             <p className="muted small" style={{ margin: '2px 0 0' }}>
-              What this user can do. Every action is checked against these permissions on the server.
+              {managedByPeople
+                ? 'Their roles come from their job: change them with a role change, which is approved. Extra access given here must end.'
+                : 'What this user can do. Every action is checked against these permissions on the server.'}
             </p>
           </div>
-          {allowed.editAccess && !isTenantAdmin && !isDeactivated && !isSelf && mode !== 'access' && access && (
-            <button className="btn secondary" onClick={() => setMode('access')}>Edit access</button>
-          )}
+          <div className="row-actions">
+            {managedByPeople && employee && hasAccess(me, ACCESS.manageEmployees) && !isDeactivated && (
+              <button className="btn secondary" onClick={openRoleChange}>Change role</button>
+            )}
+            {allowed.editAccess && !isTenantAdmin && !isDeactivated && !isSelf && mode !== 'access' && access && (
+              <button className="btn secondary" onClick={() => setMode('access')}>{managedByPeople ? 'Add extra access' : 'Edit access'}</button>
+            )}
+          </div>
         </div>
 
         {isTenantAdmin ? (
@@ -336,25 +353,26 @@ export default function UserDetail() {
             catalog={catalog}
             roles={roles}
             units={units}
+            managedByPeople={managedByPeople}
             onCancel={() => setMode(null)}
             onSaved={() => done('Access updated. It applies to their very next request.')}
           />
         ) : (
           <>
-            {presets.length > 0 && (
-              <div style={{ marginBottom: 14 }}>
-                <div className="detail-label">Role presets applied</div>
-                <div className="chips">
-                  {presets.map((a) => (
-                    <span key={a.id} className="chip" title={a.granted_by ? `Applied by ${a.granted_by.name}` : undefined}>
-                      {a.role.name} · {a.scope_unit ? `${a.scope_unit.name} and below` : 'whole company'}
-                      {a.self_only ? ' · own records' : ''}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            {managedByPeople ? (
+              <>
+                <PresetChips label="From their job" presets={jobPresets} empty="Their posts give no roles." />
+                <PresetChips label="Extra access, not from their job" presets={extraPresets} empty="None." showEnd />
+              </>
+            ) : (
+              presets.length > 0 && <PresetChips label="Role presets applied" presets={presets} />
             )}
-            <GrantsTable grants={access.permissions} unitsById={unitsById} describe={describe} />
+            <GrantsTable
+              grants={access.permissions}
+              unitsById={unitsById}
+              describe={describe}
+              jobRoleCodes={managedByPeople ? jobRoleCodes : null}
+            />
           </>
         )}
       </div>
@@ -381,12 +399,12 @@ export default function UserDetail() {
   )
 }
 
-function EmployeeTab({ user, employee, loading, canMake, onMake }) {
+function EmployeeTab({ user, employee, loading, canMake, onMake, openRoleChange, onRoleChangeOpened }) {
   if (loading) return <PanelSkeleton lines={4} />
   if (employee) {
     return (
       <Suspense fallback={<PanelSkeleton lines={4} />}>
-        <EmployeeDetail workerId={employee.id} embedded />
+        <EmployeeDetail workerId={employee.id} embedded openRoleChange={openRoleChange} onRoleChangeOpened={onRoleChangeOpened} />
       </Suspense>
     )
   }
@@ -405,7 +423,31 @@ function EmployeeTab({ user, employee, loading, canMake, onMake }) {
   )
 }
 
-function GrantsTable({ grants, unitsById, describe }) {
+// Role presets as chips; `showEnd` marks extra access with its end date (or the lack of one).
+function PresetChips({ label, presets, empty, showEnd = false }) {
+  if (presets.length === 0 && !empty) return null
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div className="detail-label">{label}</div>
+      {presets.length === 0 ? (
+        <span className="muted small">{empty}</span>
+      ) : (
+        <div className="chips">
+          {presets.map((a) => (
+            <span key={a.id} className="chip" title={a.granted_by ? `Applied by ${a.granted_by.name}` : undefined}>
+              {a.role.name} · {a.scope_unit ? `${a.scope_unit.name} and below` : 'whole company'}
+              {a.self_only ? ' · own records' : ''}
+              {showEnd && (a.valid_to ? ` · until ${formatDateTime(a.valid_to)}` : ' · no end date')}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// `jobRoleCodes` (someone People manages): which roles come from their job, so each row says job or extra.
+function GrantsTable({ grants, unitsById, describe, jobRoleCodes = null }) {
   if (grants.length === 0) {
     return <p className="muted">No permissions yet. This user can sign in but can't open anything.</p>
   }
@@ -445,7 +487,14 @@ function GrantsTable({ grants, unitsById, describe }) {
                 {scopeLabel(g.scope_unit?.id, { ...unitsById, ...(g.scope_unit ? { [g.scope_unit.id]: g.scope_unit } : {}) }, g.self_only)}
                 {g.valid_to && <div className="muted small">until {formatDateTime(g.valid_to)}</div>}
               </td>
-              <td>{g.source_role ? <span className="chip subtle">{g.source_role} role</span> : 'Direct'}</td>
+              <td>
+                {g.source_role ? <span className="chip subtle">{g.source_role} role</span> : 'Direct'}
+                {jobRoleCodes && (
+                  jobRoleCodes.has(g.source_role)
+                    ? <div className="muted small">From their job</div>
+                    : <div className="small">Extra access{!g.valid_to && <span className="muted"> · no end date</span>}</div>
+                )}
+              </td>
               <td className="muted small">
                 {formatDateTime(g.granted_at)}
                 {g.granted_by && <div>by {g.granted_by.name}</div>}
@@ -588,10 +637,19 @@ function DeactivateForm({ orgId, user, candidates, onCancel, onDone }) {
   )
 }
 
-function AccessForm({ orgId, user, grants, assignments, presetsKnown, catalog, roles, units, onCancel, onSaved }) {
+// Identity's limit (EXTRA_ACCESS_MAX_DAYS, 90): the last day offered stays inside it.
+const EXTRA_ACCESS_DAYS = { default: 30, max: 89 }
+const dayFromToday = (days) => {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function AccessForm({ orgId, user, grants, assignments, presetsKnown, catalog, roles, units, managedByPeople = false, onCancel, onSaved }) {
   const [initial] = useState(() => loadAccess(grants, presetsKnown ? assignments : [], roles))
   const [value, setValue] = useState(initial.value)
   const [reason, setReason] = useState('')
+  const [endsOn, setEndsOn] = useState(() => dayFromToday(EXTRA_ACCESS_DAYS.default))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const rolesById = useMemo(() => Object.fromEntries(roles.map((r) => [r.id, r])), [roles])
@@ -601,8 +659,9 @@ function AccessForm({ orgId, user, grants, assignments, presetsKnown, catalog, r
     setError(null)
     setSaving(true)
     try {
+      const body = toRequestAccess(value, { includePresets: presetsKnown })
       await usersApi.replacePermissions(orgId, user.id, {
-        ...toRequestAccess(value, { includePresets: presetsKnown }),
+        ...(managedByPeople ? withExtraAccessEnd(body, grants, presetsKnown ? assignments : [], endsOn) : body),
         reason: reason.trim(),
       })
       onSaved()
@@ -616,6 +675,12 @@ function AccessForm({ orgId, user, grants, assignments, presetsKnown, catalog, r
   return (
     <form onSubmit={submit}>
       {error && <ErrorBanner error={error} />}
+      {managedByPeople && (
+        <div className="alert info">
+          {user.name}&apos;s roles come from their job in People. Change those with a role change; what you add here is
+          extra access, for a while: it ends on the date below. Their job access is not shown as editable and stays as it is.
+        </div>
+      )}
       {initial.changes.length > 0 && (
         <div className="alert info">
           {initial.changes.map(({ preset, codes }) => (
@@ -635,13 +700,30 @@ function AccessForm({ orgId, user, grants, assignments, presetsKnown, catalog, r
         fieldErrors={getFieldErrors(error)}
         presetsEditable={presetsKnown}
       />
+      {managedByPeople && (
+        <div className="field" style={{ maxWidth: 260 }}>
+          <label htmlFor="a-ends">Extra access ends on *</label>
+          <input
+            id="a-ends"
+            type="date"
+            value={endsOn}
+            min={dayFromToday(1)}
+            max={dayFromToday(EXTRA_ACCESS_DAYS.max)}
+            onChange={(e) => setEndsOn(e.target.value)}
+            required
+          />
+          <div className="hint">Applies to what you add or change now; within 90 days.</div>
+        </div>
+      )}
       <div className="field" style={{ maxWidth: 520 }}>
         <label htmlFor="a-reason">Reason for the change *</label>
         <input id="a-reason" value={reason} onChange={(e) => setReason(e.target.value)} required maxLength={500} placeholder="Promoted to team lead" />
         <div className="hint">Recorded in the audit trail.</div>
       </div>
       <div className="row-actions">
-        <button className="btn" type="submit" disabled={saving || !reason.trim()}>{saving ? 'Saving…' : 'Save access'}</button>
+        <button className="btn" type="submit" disabled={saving || !reason.trim() || (managedByPeople && !endsOn)}>
+          {saving ? 'Saving…' : managedByPeople ? 'Save extra access' : 'Save access'}
+        </button>
         <button className="btn secondary" type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
