@@ -7,7 +7,7 @@ import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 const PAGE_SIZE = 25
 const SEARCH_DELAY_MS = 300
 
-const SKIP_REASONS = {
+export const SKIP_REASONS = {
   not_an_active_employee: 'Not an active employee user',
   already_linked: 'Already has an employee record',
   duplicate_in_request: 'Selected twice',

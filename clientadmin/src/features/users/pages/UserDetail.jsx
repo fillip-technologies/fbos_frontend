@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { lazy, Suspense, useMemo, useState } from 'react'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { usersApi } from '@/features/users/api.js'
 import { getWorkerByUser } from '@/features/people/api.js'
+import MakeEmployeeDialog, { canBecomeEmployee } from '@/features/people/components/MakeEmployeeDialog.jsx'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
@@ -20,9 +21,12 @@ import {
 } from '@/features/access/permissions.js'
 import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
-import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
+import { DetailSkeleton, PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDateTime, USER_TYPE_LABELS } from '@/features/users/utils.js'
+
+// The employee record, loaded only when its tab is opened.
+const EmployeeDetail = lazy(() => import('@/features/people/pages/EmployeeDetail.jsx'))
 
 function Detail({ label, children }) {
   return (
@@ -76,6 +80,12 @@ export default function UserDetail() {
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(location.state?.notice || '')
   const [mode, setMode] = useState(null) // 'edit' | 'deactivate' | 'access'
+  const [makingEmployee, setMakingEmployee] = useState(false)
+  // One page for the person: their account (profile, access, sign-ins) and, with People, their employee record.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const canSeeEmployee = hasAccess(me, ACCESS.people)
+  const tab = canSeeEmployee && searchParams.get('tab') === 'employee' ? 'employee' : 'account'
+  const openTab = (next) => setSearchParams(next === 'employee' ? { tab: 'employee' } : {}, { replace: true })
 
   // After a change: refetch this person and mark every user list stale.
   const load = () => {
@@ -145,6 +155,41 @@ export default function UserDetail() {
       </div>
 
       {notice && <div className="alert success">{notice}</div>}
+
+      {canSeeEmployee && (
+        <div className="tab-bar" role="tablist">
+          {[['account', 'Account'], ['employee', employee ? 'Employee' : 'Employee record']].map(([key, label]) => (
+            <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? 'active' : ''} onClick={() => openTab(key)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === 'employee' && (
+        <EmployeeTab
+          user={user}
+          employee={employee}
+          loading={employeeQuery.loading}
+          canMake={hasAccess(me, ACCESS.manageEmployees)}
+          onMake={() => setMakingEmployee(true)}
+        />
+      )}
+      {makingEmployee && (
+        <MakeEmployeeDialog
+          user={user}
+          onClose={() => setMakingEmployee(false)}
+          onDone={() => {
+            setMakingEmployee(false)
+            employeeQuery.reload()
+            invalidate(['workers-by-users', orgId])
+            openTab('employee')
+            setNotice(`${user.name} is now an employee. People keeps their name, phone, team and manager from here on.`)
+          }}
+        />
+      )}
+
+      {tab === 'account' && (<>
       {mode === null && <ErrorBanner error={error || userQuery.error} onRetry={error ? undefined : userQuery.reload} />}
 
       {user.status === 'invited' && (
@@ -166,7 +211,7 @@ export default function UserDetail() {
           {!isDeactivated && mode !== 'edit' && (
             <div className="row-actions">
               {allowed.edit && !employee && <button className="btn secondary" onClick={() => setMode('edit')}>Edit profile</button>}
-              {allowed.edit && employee && <Link className="btn secondary" to={`/people/employees/${employee.id}`}>Edit in People</Link>}
+              {allowed.edit && employee && <button className="btn secondary" onClick={() => openTab('employee')}>Edit in the Employee tab</button>}
               {!isSelf && allowed.deactivate && (
                 <button className="btn danger-outline" onClick={() => setMode('deactivate')}>Deactivate</button>
               )}
@@ -224,7 +269,7 @@ export default function UserDetail() {
         <div className="panel form-section">
           <div className="section-head">
             <h2>Employee record</h2>
-            <Link to={`/people/employees/${employee.id}`}>Open in People →</Link>
+            <button type="button" className="link-btn" onClick={() => openTab('employee')}>Open the Employee tab →</button>
           </div>
           <div className="details-grid">
             <Detail label="Designation">{employee.designation}{employee.extra_post_count > 0 && <span className="muted small"> +{employee.extra_post_count} more</span>}</Detail>
@@ -232,7 +277,7 @@ export default function UserDetail() {
             <Detail label="Employee code">{employee.worker_code && <span className="mono">{employee.worker_code}</span>}</Detail>
           </div>
           <p className="muted small" style={{ margin: '10px 0 0' }}>
-            Managed in People: name, phone, employee code, where they work and who they report to. Change them there and they follow here.
+            Kept by People: name, phone, employee code, where they work and who they report to. Change them in the Employee tab and they follow here.
             Roles you grant by hand below stay as they are; the ones their job brings are added and removed from People.
           </p>
         </div>
@@ -306,6 +351,31 @@ export default function UserDetail() {
           logLink={allowed.securityLog ? `/audit-log?user=${user.id}` : null}
         />
       )}
+      </>)}
+    </div>
+  )
+}
+
+function EmployeeTab({ user, employee, loading, canMake, onMake }) {
+  if (loading) return <PanelSkeleton lines={4} />
+  if (employee) {
+    return (
+      <Suspense fallback={<PanelSkeleton lines={4} />}>
+        <EmployeeDetail workerId={employee.id} embedded />
+      </Suspense>
+    )
+  }
+  const eligible = canBecomeEmployee(user)
+  return (
+    <div className="panel form-section">
+      <h2>Not an employee yet</h2>
+      <p className="muted">
+        {eligible
+          ? `${user.name} has a login but no employee record. Make them an employee to keep their job, posts, documents, bank details, leave, pay and exit here, on this page.`
+          : 'Only an active user of type Employee can have an employee record. Contractors, client users and people who have not activated their account cannot.'}
+      </p>
+      {eligible && canMake && <button type="button" className="btn" onClick={onMake}>Make employee</button>}
+      {eligible && !canMake && <p className="muted small">Making someone an employee needs permission to manage employees.</p>}
     </div>
   )
 }

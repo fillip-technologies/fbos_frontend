@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, Navigate } from 'react-router-dom'
 import {
   getWorker,
   getWorkerBalances,
@@ -132,8 +132,11 @@ const Detail = ({ label, children }) => (
   </div>
 )
 
-export default function EmployeeDetail() {
-  const { id } = useParams()
+// The employee record. It is its own page only for people without a login: anyone with one is kept on their
+// user page (Users and employees), which shows this with `embedded` under its Employee tab.
+export default function EmployeeDetail({ workerId, embedded = false }) {
+  const params = useParams()
+  const id = workerId ?? params.id
   const { user } = useAuth()
   const { orgId } = useActiveOrg()
   const canManage = hasAccess(user, ACCESS.manageEmployees)
@@ -372,19 +375,25 @@ export default function EmployeeDetail() {
       <div>
         <ErrorBanner error={loadError} onRetry={loadWorker} />
         <div className="panel center-note">
-          Employee record not found. <Link to="/people/employees">Back to employees</Link>
+          Employee record not found. <Link to="/users?view=no-login">Back to employees</Link>
         </div>
       </div>
     )
+  }
+
+  if (!embedded && worker.user_id && hasAccess(user, ACCESS.users)) {
+    return <Navigate to={`/users/${worker.user_id}?tab=employee`} replace />
   }
 
   const displayName = worker.name || `${worker.first_name} ${worker.last_name}`
 
   return (
     <div>
-      <p className="small" style={{ margin: '0 0 12px' }}>
-        <Link to="/people/employees">← Employees</Link>
-      </p>
+      {!embedded && (
+        <p className="small" style={{ margin: '0 0 12px' }}>
+          <Link to={hasAccess(user, ACCESS.users) ? '/users?view=no-login' : '/people/employees'}>← Employees</Link>
+        </p>
+      )}
 
       <div className="panel profile-head">
         <div className="profile-id">

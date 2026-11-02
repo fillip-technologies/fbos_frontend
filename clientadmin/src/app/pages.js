@@ -120,7 +120,7 @@ const NAV_PAGES = {
   '/service-providers': [pages.ServiceProviders],
   '/offerings': [pages.Offerings],
   '/document-categories': [pages.DocumentCategories],
-  '/users': [pages.Users, pages.UserDetail, pages.UserInvite],
+  '/users': [pages.Users, pages.UserDetail, pages.UserInvite, pages.Employees, pages.EmployeeDetail],
   '/roles': [pages.Roles],
   '/audit-log': [pages.AuditLog],
   '/profile': [pages.Profile],

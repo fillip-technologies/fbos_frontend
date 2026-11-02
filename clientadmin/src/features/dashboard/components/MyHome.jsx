@@ -4,7 +4,7 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 
 // What each area lets you do; shown only when the user's access allows that page.
 const AREAS = [
-  { to: '/users', label: 'Users', rule: ACCESS.users, text: 'See the people in your company and their access.' },
+  { to: '/users', label: 'Users and employees', rule: ACCESS.usersOrPeople, text: 'See the people in your company, their access and their employee records.' },
   { to: '/users/new', label: 'Invite a user', rule: ACCESS.inviteUsers, text: 'Add someone and choose what they can do.' },
   { to: '/org-units', label: 'Company structure', rule: ACCESS.orgUnits, text: 'Branches, departments and teams.' },
   { to: '/calendars', label: 'Working calendars', rule: ACCESS.calendars, text: 'Office hours and holidays.' },
