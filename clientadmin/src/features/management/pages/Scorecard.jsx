@@ -3,13 +3,14 @@ import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { CheckInDialog, RagBadge } from '@/features/management/components.jsx'
 import { planningApi, scorecardApi } from '@/features/management/api.js'
-import { percent, RAG_LABELS } from '@/features/management/utils.js'
+import { byStart, covering, percent, RAG_LABELS } from '@/features/management/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
+import { todayIso } from '@/shared/utils/dates.js'
 import { formatDate } from '@/shared/utils/format.js'
 
 // Goals with their KPIs for one period: the computed score next to the owner's own confidence.
@@ -22,19 +23,23 @@ export default function Scorecard() {
   const [periodId, setPeriodId] = useState('')
   const [checkingIn, setCheckingIn] = useState(null)
 
-  const years = useLookup(['mgmt-years', orgId], ({ signal }) => planningApi.fiscalYears(orgId, { signal }), { enabled: Boolean(orgId) })
+  const years = useLookup(['mgmt-years', orgId], ({ signal }) => planningApi.fiscalYears(orgId, { signal }).then(byStart), {
+    enabled: Boolean(orgId),
+  })
   const periods = useLookup(
     ['mgmt-periods', orgId, yearId],
-    ({ signal }) => planningApi.periods(orgId, yearId, { signal }),
+    ({ signal }) => planningApi.periods(orgId, yearId, { signal }).then(byStart),
     { enabled: Boolean(orgId && yearId) }
   )
 
-  // Open on the newest year, then on its first period.
+  // Open on the year covering today (else the latest), then on its quarter covering today.
   useEffect(() => {
-    if (!yearId && years.data?.length) setYearId(years.data[years.data.length - 1].id)
+    if (!yearId && years.data?.length) setYearId(covering(years.data, todayIso()).id)
   }, [years.data, yearId])
   useEffect(() => {
-    if (periods.data?.length && !periods.data.some((p) => p.id === periodId)) setPeriodId(periods.data[0].id)
+    if (!periods.data?.length || periods.data.some((p) => p.id === periodId)) return
+    const quarters = periods.data.filter((p) => p.period_type === 'quarter')
+    setPeriodId(covering(quarters.length ? quarters : periods.data, todayIso()).id)
   }, [periods.data, periodId])
 
   const card = useQuery(
@@ -96,6 +101,7 @@ export default function Scorecard() {
         <CheckInDialog
           orgId={orgId}
           goal={checkingIn}
+          periodId={periodId}
           onClose={() => setCheckingIn(null)}
           onSaved={() => { setCheckingIn(null); card.reload() }}
         />

@@ -23,7 +23,8 @@ export default function BudgetDetail() {
 
   const budget = useQuery(['mgmt-budget', orgId, id], ({ signal }) => budgetsApi.get(orgId, id, { signal }), { enabled: Boolean(orgId) })
   const variance = useQuery(['mgmt-variance', orgId, id], ({ signal }) => budgetsApi.variance(orgId, id, { signal }), {
-    enabled: Boolean(orgId && budget.data?.status === 'approved'),
+    // Once approved, the report stands through a revision: it compares against the last approved amounts.
+    enabled: Boolean(orgId && (budget.data?.status === 'approved' || budget.data?.revision_no > 1)),
   })
   const b = budget.data
 

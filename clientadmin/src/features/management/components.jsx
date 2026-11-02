@@ -9,7 +9,7 @@ export const RagBadge = ({ rag }) => (rag ? <StatusBadge status={rag} label={RAG
 
 // The owner's own word on a goal, next to the computed score: confidence is forward-looking,
 // the score is what already happened.
-export function CheckInDialog({ orgId, goal, onClose, onSaved }) {
+export function CheckInDialog({ orgId, goal, periodId = null, onClose, onSaved }) {
   const [confidence, setConfidence] = useState('0.7')
   const [rag, setRag] = useState('green')
   const [narrative, setNarrative] = useState('')
@@ -21,7 +21,7 @@ export function CheckInDialog({ orgId, goal, onClose, onSaved }) {
     setSaving(true)
     setError(null)
     try {
-      await planningApi.checkIn(orgId, goal.goal_id ?? goal.id, { confidence: Number(confidence), rag, narrative: narrative.trim() })
+      await planningApi.checkIn(orgId, goal.goal_id ?? goal.id, { confidence: Number(confidence), rag, narrative: narrative.trim(), period_id: periodId })
       onSaved()
     } catch (err) {
       setError(err)

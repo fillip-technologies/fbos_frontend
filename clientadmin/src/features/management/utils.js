@@ -39,3 +39,18 @@ export function thisMonth(now = new Date()) {
   const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
   return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to: iso(new Date(now.getFullYear(), now.getMonth() + 1, 0)) }
 }
+
+// Management lists come back in id order; people read years and periods by date (a quarter before
+// the months inside it).
+const TYPE_ORDER = { year: 0, half: 1, quarter: 2, month: 3 }
+export function byStart(items = []) {
+  return [...items].sort(
+    (a, b) => a.start_date.localeCompare(b.start_date) || (TYPE_ORDER[a.period_type] ?? 9) - (TYPE_ORDER[b.period_type] ?? 9)
+  )
+}
+
+// What a page opens on: the item that covers today, else the latest one (`items` sorted by byStart).
+export function covering(items, today) {
+  if (!items?.length) return null
+  return items.find((i) => i.start_date <= today && today <= i.end_date) ?? items[items.length - 1]
+}

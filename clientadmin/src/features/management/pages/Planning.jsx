@@ -3,7 +3,7 @@ import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { planningApi } from '@/features/management/api.js'
 import { CheckInDialog, RagBadge } from '@/features/management/components.jsx'
-import { PRIORITY_LABELS } from '@/features/management/utils.js'
+import { byStart, PRIORITY_LABELS } from '@/features/management/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { usersApi } from '@/features/users/api.js'
@@ -25,7 +25,7 @@ export default function Planning() {
   const [dialog, setDialog] = useState(null) // 'year' | 'goal'
   const [checkingIn, setCheckingIn] = useState(null)
 
-  const years = useQuery(['mgmt-years', orgId], ({ signal }) => planningApi.fiscalYears(orgId, { signal }), {
+  const years = useQuery(['mgmt-years', orgId], ({ signal }) => planningApi.fiscalYears(orgId, { signal }).then(byStart), {
     enabled: Boolean(orgId && hasAccess(user, { permissions: ['management.fiscal_year.read'] })),
   })
   const goals = useQuery(['mgmt-goals', orgId], ({ signal }) => planningApi.goals(orgId, { limit: 100 }, { signal }), {
@@ -179,7 +179,7 @@ function GoalDialog({ orgId, me, years, onClose, onSaved }) {
   const people = useLookup(['users', orgId, 'all'], ({ signal }) => usersApi.list(orgId, { limit: 100 }, { signal }).then((r) => r.data || []), {
     enabled: Boolean(orgId),
   })
-  const periods = useLookup(['mgmt-periods', orgId, yearId], ({ signal }) => planningApi.periods(orgId, yearId, { signal }), {
+  const periods = useLookup(['mgmt-periods', orgId, yearId], ({ signal }) => planningApi.periods(orgId, yearId, { signal }).then(byStart), {
     enabled: Boolean(orgId && yearId),
   })
   const { saving, error, submit } = useSubmit(
