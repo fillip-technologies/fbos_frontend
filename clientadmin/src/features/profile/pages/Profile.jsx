@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { authApi } from '@/features/auth/api.js'
 import { friendlyMessage } from '@/shared/api/errors.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import MyEmployeeRecord from '../components/MyEmployeeRecord.jsx'
 import MySessions from '@/features/sessions/components/MySessions.jsx'
 import { formatDateTime, USER_TYPE_LABELS } from '@/features/users/utils.js'
 
@@ -42,6 +43,8 @@ export default function Profile() {
           Your name and email are managed by your administrator. Ask them if something here is wrong.
         </p>
       </div>
+
+      <MyEmployeeRecord />
 
       <PasswordSection user={user} />
       <TwoFactorSection />
