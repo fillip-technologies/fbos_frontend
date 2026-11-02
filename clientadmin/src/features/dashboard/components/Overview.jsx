@@ -20,6 +20,7 @@ import {
   STATUS,
   useCountUp,
 } from '@/shared/components/Charts.jsx'
+import { Row, Section } from '@/shared/components/DashboardGrid.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 
 // ---------- Formatting ----------
@@ -49,6 +50,7 @@ const LABELS = {
   draft: 'Draft', pending_approval: 'Waiting approval', issued: 'Issued', partially_paid: 'Part paid', overdue: 'Overdue',
   paid: 'Paid', written_off: 'Written off', cancelled: 'Cancelled', current: 'Not due yet', '1_30': '1–30 days late',
   '31_60': '31–60 days late', '61_90': '61–90 days late', '90_plus': '90+ days late',
+  planned: 'Planned', on_hold: 'On hold', completed: 'Completed', closed: 'Closed',
   active: 'Active', probation: 'Probation', on_leave: 'On leave', noticed: 'Serving notice', exited: 'Left',
   present: 'Present', half_day: 'Half day', regularized: 'Regularized', absent: 'Absent', holiday: 'Holiday',
   full_time: 'Full time', part_time: 'Part time', contractor: 'Contractor', intern: 'Intern',
@@ -140,12 +142,10 @@ export default function Overview() {
       <Headlines q={q} />
       <FlowStrip q={q} />
 
-      <div className="overview-grid">
-        <SalesCards q={q} names={names} />
-        <MoneyCards q={q} />
-        <WorkCards q={q} names={names} />
-        <PeopleCards q={q} names={names} />
-      </div>
+      <SalesSection q={q} names={names} />
+      <MoneySection q={q} />
+      <WorkSection q={q} names={names} />
+      <PeopleSection q={q} names={names} />
     </section>
   )
 }
@@ -297,75 +297,88 @@ function personLabel(names, id, index) {
 }
 const HIDDEN_NAMES = 'Names show for people who may see the user list.'
 
-function SalesCards({ q, names }) {
+const monthCats = (keys) => keys.map((k) => ({ key: k, label: monthShort.format(monthOf(k)), title: monthLong.format(monthOf(k)) }))
+
+// ---------- Sales ----------
+function SalesSection({ q, names }) {
   const opp = q.opportunities.data
   const leads = q.leads.data
   if (!opp && !leads) return null
   const stages = opp?.by_stage ?? []
+  const owners = (opp?.by_owner ?? []).slice(0, 8)
   const leadParts = (leads?.by_status ?? []).map((b, i) => ({ label: label(b.key), value: b.count, color: [...SERIES, '#a29d8f'][Math.min(i, 4)] }))
   return (
-    <>
-      {opp && (
-        <ChartCard
-          title="Pipeline by stage"
-          subtitle={`Value of opportunities in each stage · ${money(opp.weighted_value.amount, opp.currency)} weighted`}
-          table={{ columns: ['Stage', 'Deals', 'Value'], rows: stages.map((s) => [label(s.stage), count(s.count), money(s.value.amount, opp.currency, false)]) }}
-        >
-          <BarList
-            format={(v) => money(v, opp.currency)}
-            rows={stages.map((s) => ({ key: s.stage, label: label(s.stage), value: num(s.value.amount), sub: `${count(s.count)} deal${s.count === 1 ? '' : 's'}`, tipLabel: `${count(s.count)} deals` }))}
-          />
-        </ChartCard>
-      )}
+    <Section title="Sales" sub={opp ? `${money(opp.open_value.amount, opp.currency)} open · ${money(opp.weighted_value.amount, opp.currency)} weighted` : undefined}>
+      <Row spans={[5, 7]}>
+        {opp && (
+          <ChartCard
+            key="pipeline"
+            title="Pipeline by stage"
+            subtitle="Value of the opportunities in each stage"
+            table={{ columns: ['Stage', 'Deals', 'Value'], rows: stages.map((s) => [label(s.stage), count(s.count), money(s.value.amount, opp.currency, false)]) }}
+          >
+            <BarList
+              fill
+              format={(v) => money(v, opp.currency)}
+              rows={stages.map((s) => ({ key: s.stage, label: label(s.stage), value: num(s.value.amount), sub: `${count(s.count)} deal${s.count === 1 ? '' : 's'}`, tipLabel: `${count(s.count)} deals` }))}
+            />
+          </ChartCard>
+        )}
+        {opp && owners.length > 0 && (
+          <ChartCard
+            key="sellers"
+            title="Who is selling"
+            subtitle={`Open pipeline and won value per owner${owners.some((o) => !knownName(names, o.user_id)) ? ` · ${HIDDEN_NAMES}` : ''}`}
+            legend={[{ label: 'Open value', color: SERIES[0] }, { label: 'Won value', color: SERIES[1] }]}
+            table={{
+              columns: ['Owner', 'Open deals', 'Open value', 'Won', 'Won value'],
+              rows: opp.by_owner.map((o, i) => [personLabel(names, o.user_id, i), count(o.open_count), money(o.open_value.amount, opp.currency, false), count(o.won_count), money(o.won_value.amount, opp.currency, false)]),
+            }}
+          >
+            <ColumnChart
+              height="fill"
+              format={(v) => money(v, opp.currency)}
+              categories={owners.map((o, i) => ({ key: o.user_id, label: initialsOf(personLabel(names, o.user_id, i)), title: personLabel(names, o.user_id, i) }))}
+              series={[
+                { key: 'open', label: 'Open value', color: SERIES[0], values: owners.map((o) => num(o.open_value.amount)) },
+                { key: 'won', label: 'Won value', color: SERIES[1], values: owners.map((o) => num(o.won_value.amount)) },
+              ]}
+            />
+          </ChartCard>
+        )}
+      </Row>
       {leads && (
-        <ChartCard
-          title="Leads"
-          subtitle={`${count(leads.total)} in all · where they stand and where they came from`}
-          legend={leadParts.map((p) => ({ label: p.label, color: p.color }))}
-          table={{
-            columns: ['Status or source', 'Leads'],
-            rows: [...leads.by_status.map((b) => [label(b.key), count(b.count)]), ...leads.by_source.map((b) => [`Source: ${label(b.key)}`, count(b.count)])],
-          }}
-        >
-          <SegmentedBar parts={leadParts} format={count} label="Leads" />
-          <div className="chart-split">
-            <div>
-              <div className="mini-head">New leads per month</div>
-              <ColumnChart
-                height={150}
-                format={count}
-                categories={leads.created_by_month.map((m) => ({ key: m.key, label: monthShort.format(monthOf(m.key)), title: monthLong.format(monthOf(m.key)) }))}
-                series={[{ key: 'new', label: 'New leads', color: SERIES[0], values: leads.created_by_month.map((m) => m.count) }]}
-              />
-            </div>
-            <div>
-              <div className="mini-head">Where they came from</div>
-              <BarList format={count} rows={leads.by_source.slice(0, 5).map((b) => ({ key: b.key, label: label(b.key), value: b.count, tipLabel: 'Leads' }))} />
-            </div>
-          </div>
-        </ChartCard>
+        <Row spans={[5, 7]}>
+          <ChartCard
+            key="leads"
+            title="Leads"
+            subtitle={`${count(leads.total)} in all · where they stand and where they came from`}
+            legend={leadParts.map((p) => ({ label: p.label, color: p.color }))}
+            table={{
+              columns: ['Status or source', 'Leads'],
+              rows: [...leads.by_status.map((b) => [label(b.key), count(b.count)]), ...leads.by_source.map((b) => [`Source: ${label(b.key)}`, count(b.count)])],
+            }}
+          >
+            <SegmentedBar parts={leadParts} format={count} label="Leads" />
+            <div className="mini-head">Where they came from</div>
+            <BarList fill format={count} rows={leads.by_source.slice(0, 5).map((b) => ({ key: b.key, label: label(b.key), value: b.count, tipLabel: 'Leads' }))} />
+          </ChartCard>
+          <ChartCard
+            key="new-leads"
+            title="New leads per month"
+            subtitle={`${count(leads.created_by_month.reduce((s, m) => s + m.count, 0))} in the last ${leads.created_by_month.length} months`}
+            table={{ columns: ['Month', 'New leads'], rows: leads.created_by_month.map((m) => [monthLong.format(monthOf(m.key)), count(m.count)]) }}
+          >
+            <ColumnChart
+              height="fill"
+              format={count}
+              categories={monthCats(leads.created_by_month.map((m) => m.key))}
+              series={[{ key: 'new', label: 'New leads', color: SERIES[0], values: leads.created_by_month.map((m) => m.count) }]}
+            />
+          </ChartCard>
+        </Row>
       )}
-      {opp && opp.by_owner.length > 0 && (
-        <ChartCard
-          title="Who is selling"
-          subtitle={`Open pipeline and wins per owner${opp.by_owner.some((o) => !knownName(names, o.user_id)) ? ` · ${HIDDEN_NAMES}` : ''}`}
-          table={{
-            columns: ['Owner', 'Open deals', 'Open value', 'Won', 'Won value'],
-            rows: opp.by_owner.map((o, i) => [personLabel(names, o.user_id, i), count(o.open_count), money(o.open_value.amount, opp.currency, false), count(o.won_count), money(o.won_value.amount, opp.currency, false)]),
-          }}
-          legend={[{ label: 'Open value', color: SERIES[0] }, { label: 'Won value', color: SERIES[1] }]}
-        >
-          <ColumnChart
-            format={(v) => money(v, opp.currency)}
-            categories={opp.by_owner.slice(0, 8).map((o, i) => ({ key: o.user_id, label: initialsOf(personLabel(names, o.user_id, i)), title: personLabel(names, o.user_id, i) }))}
-            series={[
-              { key: 'open', label: 'Open value', color: SERIES[0], values: opp.by_owner.slice(0, 8).map((o) => num(o.open_value.amount)) },
-              { key: 'won', label: 'Won value', color: SERIES[1], values: opp.by_owner.slice(0, 8).map((o) => num(o.won_value.amount)) },
-            ]}
-          />
-        </ChartCard>
-      )}
-    </>
+    </Section>
   )
 }
 
@@ -375,7 +388,7 @@ function initialsOf(name) {
 }
 
 // ---------- Money ----------
-function MoneyCards({ q }) {
+function MoneySection({ q }) {
   const inv = q.invoices.data
   const pay = q.payments.data
   if (!inv && !pay) return null
@@ -387,35 +400,56 @@ function MoneyCards({ q }) {
   ].filter(Boolean)
   const mixed = inv?.mixed_currencies || pay?.mixed_currencies
   return (
-    <>
-      <ChartCard
-        title={series.length > 1 ? 'Invoiced and collected' : series[0].label}
-        subtitle={`Per month${mixed ? ' · some records use other currencies and are added as they are' : ''}`}
-        legend={series.length > 1 ? series.map((s) => ({ label: s.label, color: s.color })) : undefined}
-        table={{ columns: ['Month', ...series.map((s) => s.label)], rows: months.map((k, i) => [monthLong.format(monthOf(k)), ...series.map((s) => money(s.values[i], cur, false))]) }}
-      >
-        <ColumnChart
-          format={(v) => money(v, cur)}
-          categories={months.map((k) => ({ key: k, label: monthShort.format(monthOf(k)), title: monthLong.format(monthOf(k)) }))}
-          series={series}
-        />
-      </ChartCard>
-      {inv && (
+    <Section title="Money" sub={inv ? `${money(inv.outstanding.amount, cur)} owed · ${money(inv.overdue.amount, cur)} past due` : undefined}>
+      <Row spans={[7, 5]}>
         <ChartCard
-          title="How late is the money owed"
-          subtitle={`${money(inv.outstanding.amount, cur)} owed · ${money(inv.overdue.amount, cur)} past due`}
-          table={{ columns: ['Age', 'Invoices', 'Owed'], rows: inv.aging.map((a) => [label(a.key), count(a.count), money(a.amount.amount, cur, false)]) }}
-          action={<Link className="link-btn" to="/collections">Collections</Link>}
+          key="flow"
+          title={series.length > 1 ? 'Invoiced and collected' : series[0].label}
+          subtitle={`Per month${mixed ? ' · some records use other currencies and are added as they are' : ''}`}
+          legend={series.length > 1 ? series.map((s) => ({ label: s.label, color: s.color })) : undefined}
+          table={{ columns: ['Month', ...series.map((s) => s.label)], rows: months.map((k, i) => [monthLong.format(monthOf(k)), ...series.map((s) => money(s.values[i], cur, false))]) }}
         >
-          <BarList
-            format={(v) => money(v, cur)}
-            colors={ORDINAL}
-            rows={inv.aging.map((a) => ({ key: a.key, label: label(a.key), value: num(a.amount.amount), sub: `${count(a.count)} inv.`, tipLabel: `${count(a.count)} invoices` }))}
-          />
+          <ColumnChart height="fill" format={(v) => money(v, cur)} categories={monthCats(months)} series={series} />
+        </ChartCard>
+        {inv && (
+          <ChartCard
+            key="aging"
+            title="How late is the money owed"
+            subtitle="Money still owed, by how long past its due date"
+            table={{ columns: ['Age', 'Invoices', 'Owed'], rows: inv.aging.map((a) => [label(a.key), count(a.count), money(a.amount.amount, cur, false)]) }}
+            action={<Link className="link-btn" to="/collections">Collections</Link>}
+          >
+            <BarList
+              fill
+              format={(v) => money(v, cur)}
+              colors={ORDINAL}
+              rows={inv.aging.map((a) => ({ key: a.key, label: label(a.key), value: num(a.amount.amount), sub: `${count(a.count)} inv.`, tipLabel: `${count(a.count)} invoices` }))}
+            />
+          </ChartCard>
+        )}
+      </Row>
+      {inv && (
+        <Row spans={[7, 5]}>
+          <ChartCard
+            key="status"
+            title="Invoices by status"
+            subtitle="How many in each status, and what they are worth"
+            table={{ columns: ['Status', 'Invoices', 'Total', 'Still owed'], rows: inv.by_status.map((s) => [label(s.status), count(s.count), money(s.total.amount, cur, false), money(s.balance.amount, cur, false)]) }}
+          >
+            <BarList
+              fill
+              format={count}
+              rows={inv.by_status.map((s) => ({ key: s.status, label: label(s.status), value: s.count, sub: money(s.total.amount, cur), tipLabel: 'Invoices' }))}
+            />
+          </ChartCard>
           {inv.top_balances.length > 0 && (
-            <>
-              <div className="mini-head">Owes you the most</div>
-              <ol className="rank-list">
+            <ChartCard
+              key="owers"
+              title="Owes you the most"
+              subtitle="Customers with the largest unpaid balance"
+              table={{ columns: ['Customer', 'Owed'], rows: inv.top_balances.map((c) => [c.name || 'Customer', money(c.balance.amount, cur, false)]) }}
+            >
+              <ol className="rank-list fill">
                 {inv.top_balances.map((c) => (
                   <li key={c.client_id}>
                     <Link to={`/customers/${c.client_id}`}>{c.name || 'Customer'}</Link>
@@ -423,122 +457,125 @@ function MoneyCards({ q }) {
                   </li>
                 ))}
               </ol>
-            </>
+            </ChartCard>
           )}
-        </ChartCard>
+        </Row>
       )}
-      {inv && (
-        <ChartCard
-          title="Invoices by status"
-          subtitle="How many, and what each group is worth"
-          table={{ columns: ['Status', 'Invoices', 'Total', 'Still owed'], rows: inv.by_status.map((s) => [label(s.status), count(s.count), money(s.total.amount, cur, false), money(s.balance.amount, cur, false)]) }}
-        >
-          <BarList
-            format={count}
-            rows={inv.by_status.map((s) => ({ key: s.status, label: label(s.status), value: s.count, sub: money(s.total.amount, cur), tipLabel: 'Invoices' }))}
-          />
-        </ChartCard>
-      )}
-    </>
+    </Section>
   )
 }
 
 // ---------- Work ----------
-function WorkCards({ q, names }) {
+function WorkSection({ q, names }) {
   const tasks = q.tasks.data
   const projects = q.projects.data
   if (!tasks && !projects) return null
   const columns = tasks?.by_column ?? []
   const people = (tasks?.people ?? []).slice(0, 12)
+  const weeks = (tasks?.weekly ?? []).map((w) => {
+    const d = new Date(`${w.week_start}T00:00:00`)
+    return { key: w.week_start, label: dayShort.format(d), title: `Week of ${dayShort.format(d)}` }
+  })
   return (
-    <>
+    <Section title="Work" sub={tasks ? `${count(tasks.open)} open tasks · ${count(tasks.overdue)} late` : undefined}>
       {tasks && (
-        <ChartCard
-          wide
-          title="Who is doing what"
-          subtitle={`Open tasks per person by stage · late work and what each finished in the last ${tasks.done_within_days} days${people.some((p) => p.user_id && !knownName(names, p.user_id)) ? ` · ${HIDDEN_NAMES}` : ''}`}
-          legend={WORK_KEYS.map((k) => ({ label: k.label, color: k.color }))}
-          action={<Link className="link-btn" to="/tasks">Tasks</Link>}
-          table={{
-            columns: ['Person', ...WORK_KEYS.map((k) => k.label), 'Overdue', 'Done lately'],
-            rows: people.map((p, i) => [personLabel(names, p.user_id, i), ...WORK_KEYS.map((k) => count(p[k.key])), count(p.overdue), count(p.done_recent)]),
-          }}
-        >
-          <StackedRows
-            format={count}
-            keys={WORK_KEYS}
-            rows={people.map((p, i) => ({
-              key: p.user_id || 'nobody',
-              label: personLabel(names, p.user_id, i),
-              parts: { todo: p.todo, in_progress: p.in_progress, in_review: p.in_review, blocked: p.blocked },
-              overdue: p.overdue,
-              done: p.done_recent,
-              avatar: <span className={`mini-avatar${p.user_id ? '' : ' none'}`}>{p.user_id ? (knownName(names, p.user_id)?.[0] ?? i + 1) : '?'}</span>,
-            }))}
-            aside={[
-              { label: 'Late', render: (r) => (r.overdue ? <span className="flag bad">▲ {count(r.overdue)}</span> : <span className="muted">—</span>) },
-              { label: 'Done', render: (r) => (r.done ? <span className="flag good">✓ {count(r.done)}</span> : <span className="muted">—</span>) },
-            ]}
-          />
-        </ChartCard>
+        <Row>
+          <ChartCard
+            key="who"
+            title="Who is doing what"
+            subtitle={`Open tasks per person by stage · late work and what each finished in the last ${tasks.done_within_days} days${people.some((p) => p.user_id && !knownName(names, p.user_id)) ? ` · ${HIDDEN_NAMES}` : ''}`}
+            legend={WORK_KEYS.map((k) => ({ label: k.label, color: k.color }))}
+            action={<Link className="link-btn" to="/tasks">Tasks</Link>}
+            table={{
+              columns: ['Person', ...WORK_KEYS.map((k) => k.label), 'Overdue', 'Done lately'],
+              rows: people.map((p, i) => [personLabel(names, p.user_id, i), ...WORK_KEYS.map((k) => count(p[k.key])), count(p.overdue), count(p.done_recent)]),
+            }}
+          >
+            <StackedRows
+              format={count}
+              keys={WORK_KEYS}
+              rows={people.map((p, i) => ({
+                key: p.user_id || 'nobody',
+                label: personLabel(names, p.user_id, i),
+                parts: { todo: p.todo, in_progress: p.in_progress, in_review: p.in_review, blocked: p.blocked },
+                overdue: p.overdue,
+                done: p.done_recent,
+                avatar: <span className={`mini-avatar${p.user_id ? '' : ' none'}`}>{p.user_id ? (knownName(names, p.user_id)?.[0] ?? i + 1) : '?'}</span>,
+              }))}
+              aside={[
+                { label: 'Late', render: (r) => (r.overdue ? <span className="flag bad">▲ {count(r.overdue)}</span> : <span className="muted">—</span>) },
+                { label: 'Done', render: (r) => (r.done ? <span className="flag good">✓ {count(r.done)}</span> : <span className="muted">—</span>) },
+              ]}
+            />
+          </ChartCard>
+        </Row>
       )}
       {tasks && (
-        <ChartCard
-          title="Task board"
-          subtitle={`${count(tasks.open)} open · ${count(tasks.due_next_7_days)} due this week · ${count(tasks.unassigned)} waiting for someone`}
-          legend={columns.map((c, i) => ({ label: c.label || label(c.key), color: c.key === 'done' ? '#a29d8f' : SERIES[i] }))}
-          table={{ columns: ['Column', 'Tasks'], rows: columns.map((c) => [c.label || label(c.key), count(c.count)]) }}
-        >
-          <SegmentedBar
-            format={count}
-            label="Tasks"
-            parts={columns.map((c, i) => ({ label: c.key === 'done' ? `Done (last ${tasks.done_within_days} days)` : c.label, value: c.count, color: c.key === 'done' ? '#a29d8f' : SERIES[i], ink: c.key === 'blocked' ? '#0b0b0b' : '#fff' }))}
-          />
-          <div className="mini-head">Created and completed each week</div>
-          <LineChart
-            height={170}
-            format={count}
-            categories={tasks.weekly.map((w) => {
-              const d = new Date(`${w.week_start}T00:00:00`)
-              return { key: w.week_start, label: dayShort.format(d), title: `Week of ${dayShort.format(d)}` }
-            })}
-            series={[
-              { key: 'created', label: 'Created', color: SERIES[0], values: tasks.weekly.map((w) => w.created) },
-              { key: 'completed', label: 'Completed', color: SERIES[1], values: tasks.weekly.map((w) => w.completed) },
-            ]}
-          />
-          <ul className="chart-legend inline">
-            <li><span className="legend-key line" style={{ background: SERIES[0] }} />Created</li>
-            <li><span className="legend-key line" style={{ background: SERIES[1] }} />Completed</li>
-          </ul>
-        </ChartCard>
+        <Row spans={[5, 7]}>
+          <ChartCard
+            key="board"
+            title="Task board"
+            subtitle={`${count(tasks.due_next_7_days)} due this week · ${count(tasks.unassigned)} waiting for someone`}
+            legend={columns.map((c, i) => ({ label: c.label || label(c.key), color: c.key === 'done' ? '#a29d8f' : SERIES[i] }))}
+            table={{ columns: ['Column', 'Tasks'], rows: columns.map((c) => [c.label || label(c.key), count(c.count)]) }}
+          >
+            <SegmentedBar
+              format={count}
+              label="Tasks"
+              parts={columns.map((c, i) => ({ label: c.key === 'done' ? `Done (last ${tasks.done_within_days} days)` : c.label, value: c.count, color: c.key === 'done' ? '#a29d8f' : SERIES[i], ink: c.key === 'blocked' ? '#0b0b0b' : '#fff' }))}
+            />
+            <div className="mini-head">Open tasks by priority</div>
+            <BarList fill format={count} rows={(tasks.by_priority ?? []).map((p) => ({ key: p.key, label: label(p.key), value: p.count, tipLabel: 'Open tasks' }))} />
+          </ChartCard>
+          <ChartCard
+            key="weekly"
+            title="Created and completed each week"
+            subtitle="When completed stays under created, the backlog grows"
+            legend={[{ label: 'Created', color: SERIES[0], shape: 'line' }, { label: 'Completed', color: SERIES[1], shape: 'line' }]}
+            table={{ columns: ['Week', 'Created', 'Completed'], rows: tasks.weekly.map((w, i) => [weeks[i].title, count(w.created), count(w.completed)]) }}
+          >
+            <LineChart
+              height="fill"
+              format={count}
+              categories={weeks}
+              series={[
+                { key: 'created', label: 'Created', color: SERIES[0], values: tasks.weekly.map((w) => w.created) },
+                { key: 'completed', label: 'Completed', color: SERIES[1], values: tasks.weekly.map((w) => w.completed) },
+              ]}
+            />
+          </ChartCard>
+        </Row>
       )}
       {projects && (
-        <ChartCard
-          title="Projects"
-          subtitle={`${count(projects.running)} running · ${projects.average_progress_pct}% done on average`}
-          action={<Link className="link-btn" to="/projects">Projects</Link>}
-          table={{
-            columns: ['Health or status', 'Projects'],
-            rows: [...projects.by_health.map((h) => [`Health: ${HEALTH[h.key]?.label || h.key}`, count(h.count)]), ...projects.by_status.map((s) => [label(s.key), count(s.count)])],
-          }}
-        >
-          <div className="health-row">
-            {projects.by_health.map((h) => {
-              const meta = HEALTH[h.key] || HEALTH.unknown
-              return (
-                <div key={h.key} className="health-chip">
-                  <span className="health-icon" style={{ color: meta.color }} aria-hidden="true">{meta.icon}</span>
-                  <strong>{count(h.count)}</strong>
-                  <span>{meta.label}</span>
-                </div>
-              )
-            })}
-          </div>
-          {projects.needs_attention.length > 0 ? (
-            <>
-              <div className="mini-head">Needs attention</div>
-              <ul className="attention-list">
+        <Row spans={[5, 7]}>
+          <ChartCard
+            key="health"
+            title="Projects"
+            subtitle={`${count(projects.running)} running · ${projects.average_progress_pct}% done on average · ${count(projects.late)} late`}
+            action={<Link className="link-btn" to="/projects">Projects</Link>}
+            table={{
+              columns: ['Health or status', 'Projects'],
+              rows: [...projects.by_health.map((h) => [`Health: ${HEALTH[h.key]?.label || h.key}`, count(h.count)]), ...projects.by_status.map((s) => [label(s.key), count(s.count)])],
+            }}
+          >
+            <div className="health-row">
+              {projects.by_health.map((h) => {
+                const meta = HEALTH[h.key] || HEALTH.unknown
+                return (
+                  <div key={h.key} className="health-chip">
+                    <span className="health-icon" style={{ color: meta.color }} aria-hidden="true">{meta.icon}</span>
+                    <strong>{count(h.count)}</strong>
+                    <span>{meta.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="mini-head">By status</div>
+            <BarList fill format={count} rows={projects.by_status.map((s) => ({ key: s.key, label: label(s.key), value: s.count, tipLabel: 'Projects' }))} />
+          </ChartCard>
+          <ChartCard key="attention" title="Projects that need attention" subtitle="Off track, at risk or past their end date; worst first">
+            {projects.needs_attention.length > 0 ? (
+              <ul className="attention-list fill">
                 {projects.needs_attention.map((p) => {
                   const meta = HEALTH[p.health] || HEALTH.unknown
                   const late = p.planned_end && new Date(`${p.planned_end}T00:00:00`) < new Date()
@@ -557,18 +594,18 @@ function WorkCards({ q, names }) {
                   )
                 })}
               </ul>
-            </>
-          ) : (
-            <p className="chart-empty">No project needs attention.</p>
-          )}
-        </ChartCard>
+            ) : (
+              <p className="chart-empty">No project needs attention.</p>
+            )}
+          </ChartCard>
+        </Row>
       )}
-    </>
+    </Section>
   )
 }
 
 // ---------- People ----------
-function PeopleCards({ q, names }) {
+function PeopleSection({ q, names }) {
   const people = q.workforce.data
   const util = q.utilization.data
   if (!people && !util) return null
@@ -578,81 +615,84 @@ function PeopleCards({ q, names }) {
   const utilRows = (util?.data ?? [])
     .map((r, i) => ({ key: r.resource_id, label: r.user?.name || personLabel(names, r.user?.id, i), value: num(r.total_pct ?? r.planned_pct) }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 10)
+    .slice(0, 8)
+  const unitName = (id) => (id ? names.unitName(id) : 'No department')
   return (
-    <>
+    <Section title="People" sub={people ? `${count(people.headcount)} on the payroll` : undefined}>
       {people && (
-        <ChartCard
-          title="People"
-          subtitle={`${count(people.headcount)} on the payroll`}
-          action={<Link className="link-btn" to="/users">People</Link>}
-          table={{
-            columns: ['Group', 'People'],
-            rows: [
-              ...people.by_unit.map((u) => [u.unit_id ? names.unitName(u.unit_id) : 'No department', count(u.count)]),
-              ...people.by_employment_type.map((t) => [label(t.key), count(t.count)]),
-            ],
-          }}
-        >
-          <div className="mini-head">By department</div>
-          <BarList
-            format={count}
-            rows={people.by_unit.slice(0, 8).map((u) => ({ key: u.unit_id || 'none', label: u.unit_id ? names.unitName(u.unit_id) : 'No department', value: u.count, tipLabel: 'People' }))}
-          />
-          <div className="mini-head">Joined and left</div>
-          <ColumnChart
-            height={150}
-            format={count}
-            categories={people.moves_by_month.map((m) => ({ key: m.month, label: monthShort.format(monthOf(m.month)), title: monthLong.format(monthOf(m.month)) }))}
-            series={[
-              { key: 'joined', label: 'Joined', color: SERIES[0], values: people.moves_by_month.map((m) => m.joined) },
-              { key: 'left', label: 'Left', color: SERIES[1], values: people.moves_by_month.map((m) => m.left) },
-            ]}
-          />
-          <ul className="chart-legend inline">
-            <li><span className="legend-key" style={{ background: SERIES[0] }} />Joined</li>
-            <li><span className="legend-key" style={{ background: SERIES[1] }} />Left</li>
-          </ul>
-        </ChartCard>
+        <Row spans={[5, 7]}>
+          <ChartCard
+            key="units"
+            title="People by department"
+            subtitle={people.by_employment_type.map((t) => `${count(t.count)} ${label(t.key).toLowerCase()}`).join(' · ')}
+            action={<Link className="link-btn" to="/users">People</Link>}
+            table={{
+              columns: ['Group', 'People'],
+              rows: [...people.by_unit.map((u) => [unitName(u.unit_id), count(u.count)]), ...people.by_employment_type.map((t) => [label(t.key), count(t.count)])],
+            }}
+          >
+            <BarList fill format={count} rows={people.by_unit.slice(0, 7).map((u) => ({ key: u.unit_id || 'none', label: unitName(u.unit_id), value: u.count, tipLabel: 'People' }))} />
+          </ChartCard>
+          <ChartCard
+            key="moves"
+            title="Joined and left"
+            subtitle="People who joined and who left, per month"
+            legend={[{ label: 'Joined', color: SERIES[0] }, { label: 'Left', color: SERIES[1] }]}
+            table={{ columns: ['Month', 'Joined', 'Left'], rows: people.moves_by_month.map((m) => [monthLong.format(monthOf(m.month)), count(m.joined), count(m.left)]) }}
+          >
+            <ColumnChart
+              height="fill"
+              format={count}
+              categories={monthCats(people.moves_by_month.map((m) => m.month))}
+              series={[
+                { key: 'joined', label: 'Joined', color: SERIES[0], values: people.moves_by_month.map((m) => m.joined) },
+                { key: 'left', label: 'Left', color: SERIES[1], values: people.moves_by_month.map((m) => m.left) },
+              ]}
+            />
+          </ChartCard>
+        </Row>
       )}
-      {att && (
-        <ChartCard
-          title="Today"
-          subtitle={`${count(att.expected)} expected at work${att.late ? ` · ${count(att.late)} came in late` : ''}`}
-          legend={attParts.map((p) => ({ label: p.label, color: p.color }))}
-          action={<Link className="link-btn" to="/people/attendance">Attendance</Link>}
-          table={{ columns: ['Attendance', 'People'], rows: attParts.map((p) => [p.label, count(p.value)]) }}
-        >
-          <SegmentedBar parts={attParts} format={count} label="Attendance today" />
-          {people.leave && (
-            <div className="stat-trio">
-              <Link to="/people/leaves">
-                <strong>{count(people.leave.pending_requests)}</strong>
-                <span>leave requests to decide</span>
-              </Link>
-              <div>
-                <strong>{count(people.leave.on_leave_today)}</strong>
-                <span>on leave today</span>
+      <Row spans={[5, 7]}>
+        {att && (
+          <ChartCard
+            key="today"
+            title="Today"
+            subtitle={`${count(att.expected)} expected at work${att.late ? ` · ${count(att.late)} came in late` : ''}`}
+            legend={attParts.map((p) => ({ label: p.label, color: p.color }))}
+            action={<Link className="link-btn" to="/people/attendance">Attendance</Link>}
+            table={{ columns: ['Attendance', 'People'], rows: attParts.map((p) => [p.label, count(p.value)]) }}
+          >
+            <SegmentedBar parts={attParts} format={count} label="Attendance today" />
+            {people.leave && (
+              <div className="stat-trio fill">
+                <Link to="/people/leaves">
+                  <strong>{count(people.leave.pending_requests)}</strong>
+                  <span>leave requests to decide</span>
+                </Link>
+                <div>
+                  <strong>{count(people.leave.on_leave_today)}</strong>
+                  <span>on leave today</span>
+                </div>
+                <div>
+                  <strong>{count(people.leave.starting_next_7_days)}</strong>
+                  <span>leaves starting this week</span>
+                </div>
               </div>
-              <div>
-                <strong>{count(people.leave.starting_next_7_days)}</strong>
-                <span>leaves starting this week</span>
-              </div>
-            </div>
-          )}
-        </ChartCard>
-      )}
-      {util && utilRows.length > 0 && (
-        <ChartCard
-          title="How busy people are"
-          subtitle={`This month · ${util.actuals_available ? 'time recorded' : 'time planned (recorded time not available)'} against working hours`}
-          action={<Link className="link-btn" to="/capacity">Capacity</Link>}
-          table={{ columns: ['Person', 'Busy'], rows: utilRows.map((r) => [r.label, `${Math.round(r.value)}%`]) }}
-        >
-          <BarList format={(v) => `${Math.round(v)}%`} rows={utilRows.map((r) => ({ ...r, tipLabel: 'Of working hours' }))} />
-        </ChartCard>
-      )}
-    </>
+            )}
+          </ChartCard>
+        )}
+        {util && utilRows.length > 0 && (
+          <ChartCard
+            key="busy"
+            title="How busy people are"
+            subtitle={`This month · ${util.actuals_available ? 'time recorded' : 'time planned'} against working hours`}
+            action={<Link className="link-btn" to="/capacity">Capacity</Link>}
+            table={{ columns: ['Person', 'Busy'], rows: utilRows.map((r) => [r.label, `${Math.round(r.value)}%`]) }}
+          >
+            <BarList fill format={(v) => `${Math.round(v)}%`} rows={utilRows.map((r) => ({ ...r, tipLabel: 'Of working hours' }))} />
+          </ChartCard>
+        )}
+      </Row>
+    </Section>
   )
 }
-

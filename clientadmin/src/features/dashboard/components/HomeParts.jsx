@@ -65,25 +65,39 @@ export function Workspace({ user, exclude = HOME_ONLY }) {
     [user, exclude],
   )
   if (sections.length === 0) return null
-  return sections.map((section) => (
-    <section key={section.id} className="home-section">
+  const total = sections.reduce((n, s) => n + s.items.length, 0)
+  // One directory: the sections flow into balanced columns, so no row is left half empty.
+  return (
+    <section className="home-section">
       <div className="home-section-head">
-        <h2>{section.label}</h2>
+        <h2>Go to</h2>
         <span>
-          {section.items.length} {section.items.length === 1 ? 'place' : 'places'}
+          {total} {total === 1 ? 'place' : 'places'} you can open · press / to search them
         </span>
       </div>
-      <div className="place-grid">
-        {section.items.map((item) => (
-          <Link key={item.to} to={item.to} className="place" onMouseEnter={() => preloadPage(item.to)} onFocus={() => preloadPage(item.to)}>
-            <span className="place-icon">{item.icon}</span>
-            <span className="place-label">{item.label}</span>
-            {arrow}
-          </Link>
+      <nav className="panel directory" aria-label="Places you can open">
+        {sections.map((section) => (
+          <div key={section.id} className="directory-group">
+            <h3>
+              {section.label}
+              <span>{section.items.length}</span>
+            </h3>
+            <ul>
+              {section.items.map((item) => (
+                <li key={item.to}>
+                  <Link to={item.to} className="directory-link" onMouseEnter={() => preloadPage(item.to)} onFocus={() => preloadPage(item.to)}>
+                    <span className="place-icon">{item.icon}</span>
+                    <span className="place-label">{item.label}</span>
+                    {arrow}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
-      </div>
+      </nav>
     </section>
-  ))
+  )
 }
 
 // A thin bar: how much of something is used. `value` and `max` are numbers; nothing shows without a max.

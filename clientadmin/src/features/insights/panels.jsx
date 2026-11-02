@@ -17,6 +17,7 @@ import {
 import { add, avgProgress, budgetUse, kpiRag, kpiScore, RANGES, sumWithin, unitTree, useInsightQueries } from '@/features/insights/data.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { ChartCard, ColumnChart, LineChart, SegmentedBar, SERIES, StackedRows } from '@/shared/components/Charts.jsx'
+import { Row } from '@/shared/components/DashboardGrid.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 
 // The insight panels on a unit's, a person's and a project's own page. Each reads the same
@@ -127,9 +128,9 @@ export function UnitInsights({ unitId }) {
         {total.time && <Stat label="Hours" value={hours(total.time.minutes)} sub={`${hours(total.time.billable)} billable`} />}
       </div>
 
-      <div className="overview-grid">
+      <Row>
         {childRows.length > 0 && (
-          <section className="panel chart-card wide">
+          <section className="panel chart-card">
             <div className="chart-head">
               <div>
                 <h3>{UNIT_CHILD[unit?.unit_type] || 'Units under it'}</h3>
@@ -152,6 +153,8 @@ export function UnitInsights({ unitId }) {
             />
           </section>
         )}
+      </Row>
+      <Row spans={[7, 5]}>
         {own.tasks.data && (
           <ChartCard
             title="Who is doing this unit’s work"
@@ -179,13 +182,15 @@ export function UnitInsights({ unitId }) {
             <ProjectRows projects={projects.slice(0, 8)} />
           </ChartCard>
         )}
+      </Row>
+      <Row>
         {all.budgets.data && budgets.length > 0 && (
           <ChartCard
             title={`Budgets · ${all.budgets.data.fiscal_year_code}`}
             subtitle="Spent against approved"
             table={{ columns: ['Budget', 'Approved', 'Spent', 'Used'], rows: budgets.map((b) => [b.name, b.approved, b.actual, pct(budgetUse(b))]) }}
           >
-            <ul className="ins-projects">
+            <ul className="ins-projects fill">
               {budgets.map((b) => (
                 <li key={b.budget_id}>
                   <div>
@@ -207,7 +212,7 @@ export function UnitInsights({ unitId }) {
             <KpiRows results={kpis} scopeName={(r) => (r.scope.unit_id !== unitId ? tree.name(r.scope.unit_id) : null)} />
           </ChartCard>
         )}
-      </div>
+      </Row>
     </section>
   )
 }
@@ -243,7 +248,7 @@ export function PersonInsights({ userId }) {
         {q.projects.data && <Stat label="Projects they run" value={count(managed.length)} sub={managed.length ? `${pct(managed.reduce((s, p) => s + p.progress_pct, 0) / managed.length)} done on average` : 'None running'} />}
         {q.kpis.data && <Stat label="Their KPIs" value={kpiScore(kpi) === null ? '—' : pct(kpiScore(kpi))} sub={kpiScore(kpi) === null ? 'No results this period' : `${RAG[kpiRag(kpiScore(kpi))].label} · ${kpi.count} results`} />}
       </div>
-      <div className="overview-grid">
+      <Row>
         {tasks && (
           <ChartCard
             title="Their tasks"
@@ -254,7 +259,7 @@ export function PersonInsights({ userId }) {
             <SegmentedBar parts={workParts(me, 'Done')} format={count} label="Their tasks" />
             <div className="mini-head">New and completed each week</div>
             <LineChart
-              height={170}
+              height="fill"
               format={count}
               categories={weekCats(tasks.weekly)}
               series={[
@@ -272,6 +277,7 @@ export function PersonInsights({ userId }) {
             table={{ columns: ['Week', 'Hours', 'Billable'], rows: time.by_week.map((w) => [dayShort.format(new Date(`${w.week_start}T00:00:00`)), hours(w.minutes), hours(w.billable_minutes)]) }}
           >
             <ColumnChart
+              height="fill"
               format={hours}
               axisFormat={(v) => `${Math.round(v / 60)} h`}
               categories={weekCats(time.by_week)}
@@ -295,6 +301,8 @@ export function PersonInsights({ userId }) {
             )}
           </ChartCard>
         )}
+      </Row>
+      <Row>
         {q.projects.data && managed.length > 0 && (
           <ChartCard title="Projects they run" subtitle="Least complete first" table={{ columns: ['Project', 'Health', 'Done'], rows: managed.map((p) => [p.name, RAG[p.health]?.label || 'Not assessed', pct(p.progress_pct)]) }}>
             <ProjectRows projects={managed} tree={tree} />
@@ -305,7 +313,7 @@ export function PersonInsights({ userId }) {
             <KpiRows results={kpis} />
           </ChartCard>
         )}
-      </div>
+      </Row>
     </section>
   )
 }
@@ -342,7 +350,7 @@ export function ProjectInsights({ project }) {
         {time && <Stat label="Hours" value={hours(time.minutes)} sub={`${hours(time.billable_minutes)} billable`} />}
         {tasks && <Stat label="People on it" value={count(tasks.people.filter((p) => p.user_id).length)} sub={tasks.unassigned ? `${count(tasks.unassigned)} tasks unassigned` : undefined} />}
       </div>
-      <div className="overview-grid">
+      <Row spans={[5, 7]}>
         {tasks && (
           <ChartCard
             title="Tasks"
@@ -357,7 +365,7 @@ export function ProjectInsights({ project }) {
             />
             <div className="mini-head">Created and completed each week</div>
             <LineChart
-              height={170}
+              height="fill"
               format={count}
               categories={weekCats(tasks.weekly)}
               series={[
@@ -385,6 +393,8 @@ export function ProjectInsights({ project }) {
             />
           </ChartCard>
         )}
+      </Row>
+      <Row>
         {time && time.minutes > 0 && (
           <ChartCard
             title="Hours each week"
@@ -393,6 +403,7 @@ export function ProjectInsights({ project }) {
             table={{ columns: ['Week', 'Hours', 'Billable'], rows: time.by_week.map((w) => [dayShort.format(new Date(`${w.week_start}T00:00:00`)), hours(w.minutes), hours(w.billable_minutes)]) }}
           >
             <ColumnChart
+              height="fill"
               format={hours}
               axisFormat={(v) => `${Math.round(v / 60)} h`}
               categories={weekCats(time.by_week)}
@@ -403,7 +414,7 @@ export function ProjectInsights({ project }) {
             />
           </ChartCard>
         )}
-      </div>
+      </Row>
     </section>
   )
 }
@@ -412,7 +423,7 @@ export function ProjectInsights({ project }) {
 function ProjectRows({ projects, tree }) {
   if (!projects.length) return <p className="chart-empty">No running projects.</p>
   return (
-    <ul className="ins-projects">
+    <ul className="ins-projects fill">
       {projects.map((p) => {
         const rag = RAG[p.health]
         return (
@@ -436,7 +447,7 @@ function ProjectRows({ projects, tree }) {
 
 function KpiRows({ results, scopeName }) {
   return (
-    <ul className="ins-projects">
+    <ul className="ins-projects fill">
       {[...results]
         .sort((a, b) => (a.achievement_pct ?? 999) - (b.achievement_pct ?? 999))
         .map((r) => {

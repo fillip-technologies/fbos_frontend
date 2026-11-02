@@ -151,11 +151,11 @@ function barWidth(share, nonZero) {
 }
 
 // ---------- Horizontal bars: one series, value at the tip ----------
-export function BarList({ rows, color = SERIES[0], colors, format = String, emptyText = 'Nothing yet.' }) {
+export function BarList({ rows, color = SERIES[0], colors, format = String, emptyText = 'Nothing yet.', fill = false }) {
   const max = Math.max(0, ...rows.map((r) => r.value))
   if (!rows.length || max === 0) return <p className="chart-empty">{emptyText}</p>
   return (
-    <ul className="bar-list">
+    <ul className={`bar-list${fill ? ' fill' : ''}`}>
       {rows.map((row, i) => (
         <BarRow key={row.key ?? row.label} row={row} share={row.value / max} color={colors?.[i] ?? row.color ?? color} format={format} />
       ))}
@@ -264,19 +264,22 @@ function StackRow({ row, keys, max, format, aside }) {
 }
 
 // ---------- Plots with axes (columns, lines) ----------
-function useWidth() {
+// The plot's box. With `height="fill"` a plot takes the room its card leaves it (cards in a row
+// share one height), so the chart grows instead of leaving a gap under it.
+function useBox() {
   const ref = useRef(null)
-  const [width, setWidth] = useState(0)
+  const [box, setBox] = useState({ width: 0, height: 0 })
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return undefined
-    setWidth(el.clientWidth)
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    setBox({ width: el.clientWidth, height: el.clientHeight })
+    const observer = new ResizeObserver(([entry]) => setBox({ width: entry.contentRect.width, height: entry.contentRect.height }))
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
-  return [ref, width]
+  return [ref, box]
 }
+const FILL_MIN = 180
 
 // Clean ticks from 0 to the max: 0 / 1 / 2 / 5 × 10^n steps.
 function ticks(max, count = 4) {
@@ -293,8 +296,11 @@ function ticks(max, count = 4) {
 const PAD = { top: 12, right: 12, bottom: 28, left: 52 }
 
 // Grouped columns: categories along x, one column per series, one y-axis.
-export function ColumnChart({ categories, series, format = String, axisFormat = format, height = 220 }) {
-  const [ref, width] = useWidth()
+export function ColumnChart({ categories, series, format = String, axisFormat = format, height: wanted = 220 }) {
+  const [ref, box] = useBox()
+  const fill = wanted === 'fill'
+  const width = box.width
+  const height = fill ? Math.max(FILL_MIN, box.height) : wanted
   const id = useId()
   const ctx = useContext(TooltipContext)
   const max = Math.max(0, ...series.flatMap((s) => s.values))
@@ -310,7 +316,7 @@ export function ColumnChart({ categories, series, format = String, axisFormat = 
   const every = Math.max(1, Math.ceil(categories.length / Math.max(1, Math.floor(plotW / 56))))
 
   return (
-    <div className="plot" ref={ref} style={{ height }}>
+    <div className={`plot${fill ? ' fill' : ''}`} ref={ref} style={fill ? undefined : { height }}>
       {width > 0 && (
         <svg width={width} height={height} role="img" aria-labelledby={`${id}-t`}>
           <title id={`${id}-t`}>{series.map((s) => s.label).join(' and ')} by {categories.length} periods</title>
@@ -364,8 +370,11 @@ function columnPath(x, top, w, h) {
 }
 
 // Lines over time with a crosshair that snaps to the nearest point.
-export function LineChart({ categories, series, format = String, axisFormat = format, height = 220 }) {
-  const [ref, width] = useWidth()
+export function LineChart({ categories, series, format = String, axisFormat = format, height: wanted = 220 }) {
+  const [ref, box] = useBox()
+  const fill = wanted === 'fill'
+  const width = box.width
+  const height = fill ? Math.max(FILL_MIN, box.height) : wanted
   const id = useId()
   const ctx = useContext(TooltipContext)
   const [hover, setHover] = useState(null)
@@ -388,7 +397,7 @@ export function LineChart({ categories, series, format = String, axisFormat = fo
   }
 
   return (
-    <div className="plot" ref={ref} style={{ height }}>
+    <div className={`plot${fill ? ' fill' : ''}`} ref={ref} style={fill ? undefined : { height }}>
       {width > 0 && (
         <svg
           width={width}

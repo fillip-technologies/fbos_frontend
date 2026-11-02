@@ -1229,7 +1229,7 @@ th.right, td.right { text-align: right; }
 .overview-filters .segmented { align-self: flex-end; }
 
 /* Headline numbers: the sans face, proportional figures, one row. */
-.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .kpi {
   position: relative; display: flex; flex-direction: column; gap: 4px;
   padding: 16px 18px; border-radius: var(--r-lg);
@@ -1412,7 +1412,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 /* =========================================================================
    Insights: the page, and the panels on unit, person and project pages
    ========================================================================= */
-.ins-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.ins-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .ins-stat {
   display: flex; flex-direction: column; gap: 4px; min-width: 0;
   padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line);
@@ -1474,3 +1474,58 @@ a.ins-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); tex
   .ins-stat-value { font-size: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .ins-progress-fill, .ins-work-bar { animation: none !important; } }
+
+/* =========================================================================
+   Dashboard layout: sections of rows. A row is 12 columns; its cards stretch to
+   one height, and their charts and lists fill that height, so nothing leaves a gap.
+   ========================================================================= */
+.ov-section { margin-top: 28px; }
+.ov-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.ov-section-head h3 { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 24px; letter-spacing: -0.01em; }
+.ov-section-head span { font-size: 12.5px; color: var(--muted); }
+.ov-row { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.ov-row + .ov-row { margin-top: 16px; }
+.ov-cell { grid-column: span var(--span, 6); display: flex; min-width: 0; }
+.ov-cell > .chart-card { flex: 1; margin: 0; }
+@media (max-width: 1080px) { .ov-cell { grid-column: span 12; } }
+
+.chart-card { height: 100%; }
+.chart-card .chart-body { flex: 1 1 auto; }
+
+/* A plot asked to fill takes the card's leftover height; its SVG sits on top so it never pushes back. */
+.plot.fill { flex: 1 1 auto; min-height: 180px; position: relative; }
+.plot.fill > svg { position: absolute; inset: 0; }
+
+/* Lists asked to fill spread their rows over the height the row gives them. */
+.bar-list.fill, .rank-list.fill, .attention-list.fill { flex: 1 1 auto; justify-content: space-evenly; }
+.bar-list.fill { gap: 4px; }
+.rank-list.fill { display: flex; flex-direction: column; margin: 0; }
+.rank-list.fill li { flex: 1 1 0; align-items: center; max-height: 64px; }
+.attention-list.fill li { flex: 1 1 0; max-height: 84px; }
+.stat-trio.fill { flex: 1 1 auto; }
+.stat-trio.fill > * { justify-content: center; }
+
+/* "Go to": every place the person can open, sections flowing into balanced columns. */
+.directory { columns: 4 220px; column-gap: 32px; padding: 22px 24px 8px; }
+.directory-group { break-inside: avoid; margin-bottom: 20px; }
+.directory-group h3 {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin: 0 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted);
+}
+.directory-group h3 span { font-weight: 500; letter-spacing: 0; color: var(--faint); }
+.directory-group ul { list-style: none; margin: 0; padding: 0; }
+.directory-link {
+  display: flex; align-items: center; gap: 10px; padding: 6px 6px; margin: 0 -6px;
+  border-radius: var(--r-sm); color: var(--ink); text-decoration: none; font-size: 13.5px;
+  transition: background-color 0.15s ease;
+}
+.directory-link:hover { background: var(--surface-2); text-decoration: none; }
+.directory-link .place-icon { width: 28px; height: 28px; border-radius: 8px; }
+.directory-link .place-icon svg { width: 15px; height: 15px; }
+.directory-link:hover .place-icon { background: var(--ink); color: var(--signal); }
+.directory-link .place-label { flex: 1; font-weight: 550; font-size: 13.5px; }
+.directory-link .place-arrow { opacity: 0; transform: translateX(-4px); transition: opacity 0.15s ease, transform 0.25s var(--ease); }
+.directory-link:hover .place-arrow { opacity: 1; transform: none; }
+.ins-projects.fill { flex: 1 1 auto; justify-content: space-evenly; }
+.ins-projects.fill li { flex: 1 1 0; max-height: 76px; }
