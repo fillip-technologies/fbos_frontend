@@ -84,6 +84,11 @@ const WorkflowBuilder = lazy(pages.WorkflowBuilder)
 const Requests = lazy(pages.Requests)
 const RequestCreate = lazy(pages.RequestCreate)
 const Assets = lazy(pages.Assets)
+const Scorecard = lazy(pages.Scorecard)
+const Planning = lazy(pages.Planning)
+const Budgets = lazy(pages.Budgets)
+const BudgetDetail = lazy(pages.BudgetDetail)
+const Capacity = lazy(pages.Capacity)
 const AssetDetail = lazy(pages.AssetDetail)
 const AssetCreate = lazy(pages.AssetCreate)
 const Employees = lazy(pages.Employees)
@@ -143,6 +148,11 @@ export default function App() {
           <Route path="/assets" element={<RequireAccess rule={ACCESS.assets}><Assets /></RequireAccess>} />
           <Route path="/assets/new" element={<RequireAccess rule={ACCESS.manageAssets}><AssetCreate /></RequireAccess>} />
           <Route path="/assets/:id" element={<RequireAccess rule={ACCESS.assets}><AssetDetail /></RequireAccess>} />
+          <Route path="/scorecard" element={<RequireAccess rule={ACCESS.scorecard}><Scorecard /></RequireAccess>} />
+          <Route path="/planning" element={<RequireAccess rule={ACCESS.planning}><Planning /></RequireAccess>} />
+          <Route path="/budgets" element={<RequireAccess rule={ACCESS.budgets}><Budgets /></RequireAccess>} />
+          <Route path="/budgets/:id" element={<RequireAccess rule={ACCESS.budgets}><BudgetDetail /></RequireAccess>} />
+          <Route path="/capacity" element={<RequireAccess rule={ACCESS.capacity}><Capacity /></RequireAccess>} />
           <Route path="/calendars" element={<RequireAccess rule={ACCESS.calendars}><Calendars /></RequireAccess>} />
           <Route path="/custom-fields" element={<RequireAccess rule={ACCESS.customFields}><CustomFields /></RequireAccess>} />
           <Route path="/custom-fields/:form" element={<RequireAccess rule={ACCESS.customFields}><FormFields /></RequireAccess>} />

@@ -20,6 +20,8 @@ const INVENTORY_URL = process.env.INVENTORY_URL || process.env.API_URL || 'http:
 const ASSETS_URL = process.env.ASSETS_URL || process.env.API_URL || 'http://localhost:8009'
 // People (HCM, ATS, employee directory, attendance, leaves, payroll) is on :8010.
 const PEOPLE_URL = process.env.PEOPLE_URL || process.env.API_URL || 'http://localhost:8010'
+// Management (planning, KPIs, budgets, capacity) is on :8007.
+const MANAGEMENT_URL = process.env.MANAGEMENT_URL || process.env.API_URL || 'http://localhost:8007'
 
 export default defineConfig({
   plugins: [react()],
@@ -65,6 +67,10 @@ export default defineConfig({
       },
       '/api/assets': {
         target: ASSETS_URL,
+        changeOrigin: true,
+      },
+      '/api/management': {
+        target: MANAGEMENT_URL,
         changeOrigin: true,
       },
       '/api/people': {

@@ -200,6 +200,18 @@ export const ACCESS = {
   // role changes may delegate their own approvals.
   roleChangeSetup: { anyPermissions: ['people.role_change.manage', 'people.role_change.approve'] },
   manageRoleChangeSetup: { permissions: ['people.role_change.manage'] },
+  // Management: planning (fiscal years, goals), the scorecard, budgets and capacity. Each reads and
+  // manages with its own pair of codes; the sensitive reads (cost rates, targets) are not for members.
+  planning: { anyPermissions: ['management.fiscal_year.read', 'management.goal.read'] },
+  manageFiscalYears: { permissions: ['management.fiscal_year.manage'] },
+  goals: { permissions: ['management.goal.read'] },
+  manageGoals: { permissions: ['management.goal.manage'] },
+  checkIn: { permissions: ['management.check_in.write'] },
+  scorecard: { permissions: ['management.result.read', 'management.period.read'] },
+  budgets: { permissions: ['management.budget.read'] },
+  manageBudgets: { permissions: ['management.budget.manage'] },
+  capacity: { anyPermissions: ['management.capacity.read', 'management.resource.read'] },
+  // Approving a target or a budget happens in Control, not here.
   // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
   viewUserSessions: { permissions: ['identity.session.read'] },
   revokeUserSessions: { permissions: ['identity.session.revoke'] },
