@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { getWorkers, createWorker } from '../api.js'
 import { formatDate, statusLabel, toList, todayISO } from '../utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
+import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
+import useAccessCatalog from '@/features/access/useAccessCatalog.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import ImportFromUsersModal from '../components/ImportFromUsersModal.jsx'
@@ -25,6 +27,11 @@ const newForm = () => ({
 })
 
 export default function EmployeeDirectory() {
+  const { orgId } = useActiveOrg()
+  // The designation is a role from Identity (the same names "Add from users" uses). Reading roles needs
+  // its own permission: without it the field stays a text box so nobody is blocked.
+  const { roles } = useAccessCatalog(orgId)
+  const roleNames = roles.map((role) => role.name || role.code)
   const [workers, setWorkers] = useState([])
   const [nextCursor, setNextCursor] = useState(null)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -218,13 +225,25 @@ export default function EmployeeDirectory() {
             <Field label="Phone" error={fieldErrors.phone}>
               <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </Field>
-            <Field label="Designation" required error={fieldErrors.designation}>
-              <input
-                type="text"
-                value={form.designation}
-                onChange={(e) => setForm({ ...form, designation: e.target.value })}
-                placeholder="e.g. Senior Software Engineer"
-              />
+            <Field
+              label="Designation"
+              required
+              hint={roleNames.length > 0 ? 'A role from Identity, so the two stay the same.' : 'Roles could not be loaded, so type it as it is in Identity.'}
+              error={fieldErrors.designation}
+            >
+              {roleNames.length > 0 ? (
+                <select value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })}>
+                  <option value="">Choose a role…</option>
+                  {roleNames.map((name) => <option key={name} value={name}>{name}</option>)}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={form.designation}
+                  onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                  placeholder="e.g. Sales Manager"
+                />
+              )}
             </Field>
             <Field label="Employment type" error={fieldErrors.employment_type}>
               <select

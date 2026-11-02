@@ -13,16 +13,18 @@ const SKIP_REASONS = {
   duplicate_in_request: 'Selected twice',
   work_email_taken: 'An employee with this email already exists',
   worker_code_taken: 'Employee code already in use',
+  no_role: 'Has no role in Identity yet. Give them one under Users first',
 }
 
-// Create employee records from existing users: pick users, give each a designation and joining date.
+// Create employee records from existing users: pick users and give each a joining date. The designation is the
+// user's role in Identity, so the two never disagree; a user with no role has to be given one first.
 export default function ImportFromUsersModal({ onClose, onImported }) {
   const [search, setSearch] = useState('')
   const [users, setUsers] = useState([])
   const [nextCursor, setNextCursor] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  // user_id -> { designation, date_of_joining } for every ticked user; kept across searches.
+  // user_id -> { date_of_joining } for every ticked user; kept across searches.
   const [selected, setSelected] = useState({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -61,14 +63,14 @@ export default function ImportFromUsersModal({ onClose, onImported }) {
         const { [user.user_id]: _removed, ...rest } = prev
         return rest
       }
-      return { ...prev, [user.user_id]: { designation: '', date_of_joining: todayISO() } }
+      return { ...prev, [user.user_id]: { date_of_joining: todayISO() } }
     })
 
   const setField = (userId, field, value) =>
     setSelected((prev) => ({ ...prev, [userId]: { ...prev[userId], [field]: value } }))
 
   const selectedIds = Object.keys(selected)
-  const incomplete = selectedIds.some((id) => !selected[id].designation.trim() || !selected[id].date_of_joining)
+  const incomplete = selectedIds.some((id) => !selected[id].date_of_joining)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -78,7 +80,6 @@ export default function ImportFromUsersModal({ onClose, onImported }) {
       const res = await importWorkersFromUsers(
         selectedIds.map((id) => ({
           user_id: id,
-          designation: selected[id].designation.trim(),
           date_of_joining: selected[id].date_of_joining,
         })),
       )
@@ -115,9 +116,9 @@ export default function ImportFromUsersModal({ onClose, onImported }) {
       ) : (
         <form onSubmit={handleSubmit}>
           <p className="dialog-intro">
-            Active employee users who have no employee record yet. Name, email, phone and team come from their user
-            account; give each person you pick a designation and a joining date (past dates are fine). The employee code
-            can be filled in later.
+            Active employee users who have no employee record yet. Name, email, phone, team and designation come from
+            their user account (the designation is their role); give each person you pick a joining date (past dates are
+            fine). The employee code can be filled in later.
           </p>
 
           <ErrorBanner error={error} />
@@ -140,6 +141,7 @@ export default function ImportFromUsersModal({ onClose, onImported }) {
             ) : (
               users.map((u) => {
                 const picked = selected[u.user_id]
+                const hasRole = Boolean(u.designation)
                 return (
                   <div key={u.user_id} className="form-row" style={{ flexDirection: 'column', alignItems: 'stretch', padding: '10px 14px' }}>
                     <div className="field check-field" style={{ margin: 0 }}>
@@ -148,6 +150,7 @@ export default function ImportFromUsersModal({ onClose, onImported }) {
                           id={`pick-${u.user_id}`}
                           type="checkbox"
                           checked={Boolean(picked)}
+                          disabled={!hasRole}
                           onChange={() => toggle(u)}
                         />
                         <span>
@@ -156,21 +159,14 @@ export default function ImportFromUsersModal({ onClose, onImported }) {
                             {u.email}
                             {u.employee_code ? ` · ${u.employee_code}` : ''}
                           </span>
+                          <span className="small" style={{ display: 'block', fontWeight: 400 }}>
+                            {hasRole ? <>Designation: <strong>{u.designation}</strong></> : <span className="muted">No role yet: give them one under Users first</span>}
+                          </span>
                         </span>
                       </label>
                     </div>
                     {picked && (
                       <div className="grid-2" style={{ marginTop: 10 }}>
-                        <div className="field" style={{ marginBottom: 0 }}>
-                          <label htmlFor={`desig-${u.user_id}`}>Designation<span className="req">*</span></label>
-                          <input
-                            id={`desig-${u.user_id}`}
-                            type="text"
-                            value={picked.designation}
-                            onChange={(e) => setField(u.user_id, 'designation', e.target.value)}
-                            placeholder="e.g. Accountant"
-                          />
-                        </div>
                         <div className="field" style={{ marginBottom: 0 }}>
                           <label htmlFor={`join-${u.user_id}`}>Date of joining<span className="req">*</span></label>
                           <input
