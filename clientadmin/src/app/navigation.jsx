@@ -35,6 +35,30 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></>),
   },
   {
+    to: '/scorecard',
+    label: 'Scorecard',
+    access: ACCESS.scorecard,
+    icon: icon(<><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>),
+  },
+  {
+    to: '/planning',
+    label: 'Planning',
+    access: ACCESS.planning,
+    icon: icon(<><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>),
+  },
+  {
+    to: '/budgets',
+    label: 'Budgets',
+    access: ACCESS.budgets,
+    icon: icon(<><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" /></>),
+  },
+  {
+    to: '/capacity',
+    label: 'Capacity',
+    access: ACCESS.capacity,
+    icon: icon(<><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M17 8v6M20 11h-6" /></>),
+  },
+  {
     to: '/people/jobs',
     label: 'Recruitment',
     access: ACCESS.recruitment,

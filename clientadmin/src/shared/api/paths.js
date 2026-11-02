@@ -14,5 +14,5 @@ export const INVENTORY = '/api/inventory/v1'
 export const ASSETS = '/api/assets/v1'
 // Base path of the People service: HCM, ATS, employees, attendance, leaves, payroll.
 export const PEOPLE = '/api/people/v1'
-
-
+// Base path of the Management service: fiscal years, goals, KPIs and scorecards, budgets, capacity.
+export const MANAGEMENT = '/api/management/v1'
