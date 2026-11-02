@@ -1,11 +1,7 @@
 import { useState } from 'react'
 import {
-  createAccessRoleMapping,
   createDelegation,
-  deleteAccessRoleMapping,
   endDelegation,
-  getAccessRoleMappings,
-  getJobProfiles,
   getMyDelegations,
   getStandingApprovers,
   setStandingApprovers,
@@ -15,8 +11,7 @@ import { getFieldErrors } from '@/shared/api/errors.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
-import useAccessCatalog from '@/features/access/useAccessCatalog.js'
-import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
+import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 import Field from '../components/Field.jsx'
@@ -27,7 +22,7 @@ const APPROVER_ROLES = [
   ['finance', 'Finance', 'Joins the approvals of every change that moves someone’s salary.'],
 ]
 
-// Who approves what, and what access a job brings. Approvers must also hold the permission to approve role changes.
+// Who approves what. Approvers must also hold the permission to approve role changes.
 export default function RoleChangeSetup() {
   const { user } = useAuth()
   const { orgId } = useActiveOrg()
@@ -44,7 +39,6 @@ export default function RoleChangeSetup() {
         </div>
       </div>
       {canSetUp && <StandingApprovers orgId={orgId} />}
-      {canSetUp && <AccessMappings orgId={orgId} canMap={hasAccess(user, ACCESS.mapAccessRoles)} />}
       {canDelegate && <Delegations orgId={orgId} />}
     </div>
   )
@@ -98,122 +92,6 @@ function StandingApprovers({ orgId }) {
           )}
         </div>
       ))}
-    </div>
-  )
-}
-
-function AccessMappings({ orgId, canMap }) {
-  const { roles } = useAccessCatalog(orgId)
-  const query = useQuery(['access-role-mappings', orgId], ({ signal }) => getAccessRoleMappings({ signal }), { enabled: Boolean(orgId) })
-  const profiles = useLookup(['job-profiles', orgId], ({ signal }) => getJobProfiles({ signal }).catch(() => ({ data: [] })), { enabled: Boolean(orgId) })
-  const empty = { match_type: 'designation', match_value: '', role_code: '', scope: 'department' }
-  const [form, setForm] = useState(empty)
-  const [error, setError] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const fieldErrors = getFieldErrors(error)
-  const profileList = toList(profiles.data)
-  const profileName = (id) => profileList.find((p) => p.id === id)?.title || id
-
-  const add = async (e) => {
-    e.preventDefault()
-    try {
-      setSaving(true)
-      setError(null)
-      await createAccessRoleMapping(form)
-      invalidate(['access-role-mappings', orgId])
-      setForm(empty)
-    } catch (err) {
-      setError(err)
-    } finally {
-      setSaving(false)
-    }
-  }
-  const remove = async (id) => {
-    try {
-      setError(null)
-      await deleteAccessRoleMapping(id)
-      invalidate(['access-role-mappings', orgId])
-    } catch (err) {
-      setError(err)
-    }
-  }
-
-  return (
-    <div className="panel">
-      <h2 className="form-section" style={{ fontSize: 16 }}>Access that comes with a job</h2>
-      <p className="muted small">
-        A person’s main post already gets its access from their role in Identity, so this is for the rest: extra posts (additional charge, acting, concurrent),
-        job profiles, and people without a login. Everyone who holds a matching post gets the role, for the post’s department or company-wide, and loses it when the post ends.
-        Roles granted by hand under Users are never touched. A job profile is used before a designation.
-      </p>
-      <ErrorBanner error={query.error || (Object.keys(fieldErrors).length ? null : error)} onRetry={query.reload} />
-      <table className="table-plain">
-        <thead><tr><th>Job</th><th>Brings the role</th><th>For</th><th /></tr></thead>
-        <tbody>
-          {(query.data?.data ?? []).length === 0 ? (
-            <tr><td colSpan={4} className="center-note">No jobs bring an access role yet.</td></tr>
-          ) : (
-            query.data.data.map((m) => (
-              <tr key={m.id}>
-                <td>{m.match_type === 'job_profile' ? `Job profile: ${profileName(m.match_value)}` : `Designation: ${m.match_value}`}</td>
-                <td className="mono">{m.role_code}</td>
-                <td>{m.scope === 'department' ? 'Their department' : 'The whole company'}</td>
-                <td className="right"><button type="button" className="btn danger-outline small-btn" onClick={() => window.confirm('Stop this job bringing the role? People who got it from this job lose it.') && remove(m.id)}>Remove</button></td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-      {canMap ? (
-        <form onSubmit={add} style={{ marginTop: 12 }}>
-          <div className="grid-2">
-            <Field label="Match on" error={fieldErrors.match_type}>
-              <select value={form.match_type} onChange={(e) => setForm({ ...form, match_type: e.target.value, match_value: '' })}>
-                <option value="designation">Designation</option>
-                <option value="job_profile">Job profile</option>
-              </select>
-            </Field>
-            {form.match_type === 'job_profile' ? (
-              <Field label="Job profile" required error={fieldErrors.match_value}>
-                <select value={form.match_value} onChange={(e) => setForm({ ...form, match_value: e.target.value })}>
-                  <option value="">Choose…</option>
-                  {profileList.map((p) => <option key={p.id} value={p.id}>{p.job_code} · {p.title}</option>)}
-                </select>
-              </Field>
-            ) : (
-              <Field label="Designation" required hint={roles.length > 0 ? 'A role from Identity. A person whose designation joins several roles matches each of them.' : 'Exactly as it is written on the post, in any case.'} error={fieldErrors.match_value}>
-                {roles.length > 0 ? (
-                  <select value={form.match_value} onChange={(e) => setForm({ ...form, match_value: e.target.value })}>
-                    <option value="">Choose…</option>
-                    {roles.map((r) => <option key={r.id} value={r.name || r.code}>{r.name || r.code}</option>)}
-                  </select>
-                ) : (
-                  <input value={form.match_value} onChange={(e) => setForm({ ...form, match_value: e.target.value })} />
-                )}
-              </Field>
-            )}
-            <Field label="Role" required hint="The role’s code in Identity." error={fieldErrors.role_code}>
-              {roles.length > 0 ? (
-                <select value={form.role_code} onChange={(e) => setForm({ ...form, role_code: e.target.value })}>
-                  <option value="">Choose…</option>
-                  {roles.map((r) => <option key={r.id} value={r.code}>{r.name || r.code}</option>)}
-                </select>
-              ) : (
-                <input value={form.role_code} onChange={(e) => setForm({ ...form, role_code: e.target.value })} />
-              )}
-            </Field>
-            <Field label="Applies to">
-              <select value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })}>
-                <option value="department">The post’s department</option>
-                <option value="company">The whole company</option>
-              </select>
-            </Field>
-          </div>
-          <button className="btn" type="submit" disabled={saving || !form.match_value || !form.role_code} aria-busy={saving}>Add</button>
-        </form>
-      ) : (
-        <p className="muted small">Adding one also needs permission to apply roles in Identity.</p>
-      )}
     </div>
   )
 }
