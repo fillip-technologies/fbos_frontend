@@ -194,6 +194,12 @@ export const ACCESS = {
   approveRoleChanges: { permissions: ['people.role_change.approve'] },
   // Promotions, demotions and transfers: anyone who may request or approve one sees the list.
   roleChanges: { anyPermissions: ['people.employee.manage', 'people.role_change.approve'] },
+  // Who approves what: the standing approvers and the job -> access role mappings are set up by those who
+  // manage it; anyone who approves role changes may delegate their own approvals.
+  roleChangeSetup: { anyPermissions: ['people.role_change.manage', 'people.role_change.approve'] },
+  manageRoleChangeSetup: { permissions: ['people.role_change.manage'] },
+  // A mapping hands out access, so it also needs the right to apply roles in Identity.
+  mapAccessRoles: { permissions: ['people.role_change.manage', 'identity.role_assignment.create'] },
   // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
   viewUserSessions: { permissions: ['identity.session.read'] },
   revokeUserSessions: { permissions: ['identity.session.revoke'] },

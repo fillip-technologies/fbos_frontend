@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { usersApi } from '@/features/users/api.js'
+import { getWorkerByUser } from '@/features/people/api.js'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
@@ -58,6 +59,12 @@ export default function UserDetail() {
     ({ signal }) => usersApi.list(orgId, { limit: 100, status: 'active' }, { signal }).catch(() => ({ data: null })),
     { enabled }
   )
+  // The employee record People keeps for this login, when there is one and the viewer may read it. Its
+  // department, manager, name, phone and employee code are managed there, so they are not edited here.
+  const employeeQuery = useQuery(['worker-by-user', orgId, id], ({ signal }) =>
+    getWorkerByUser(id, { signal }).catch(() => null), { enabled: enabled && hasAccess(me, ACCESS.people) }
+  )
+  const employee = employeeQuery.data?.data?.[0] ?? null
   const user = userQuery.data
   const access = accessQuery.data ?? null // GET /users/{id}/permissions
   const presets = presetsQuery.data ?? []
@@ -158,7 +165,8 @@ export default function UserDetail() {
           <h2>Profile</h2>
           {!isDeactivated && mode !== 'edit' && (
             <div className="row-actions">
-              {allowed.edit && <button className="btn secondary" onClick={() => setMode('edit')}>Edit profile</button>}
+              {allowed.edit && !employee && <button className="btn secondary" onClick={() => setMode('edit')}>Edit profile</button>}
+              {allowed.edit && employee && <Link className="btn secondary" to={`/people/employees/${employee.id}`}>Edit in People</Link>}
               {!isSelf && allowed.deactivate && (
                 <button className="btn danger-outline" onClick={() => setMode('deactivate')}>Deactivate</button>
               )}
@@ -211,6 +219,24 @@ export default function UserDetail() {
           <DeactivateForm orgId={orgId} user={user} candidates={managers} onCancel={() => setMode(null)} onDone={() => done(`${user.name} was deactivated and signed out everywhere.`)} />
         )}
       </div>
+
+      {employee && (
+        <div className="panel form-section">
+          <div className="section-head">
+            <h2>Employee record</h2>
+            <Link to={`/people/employees/${employee.id}`}>Open in People →</Link>
+          </div>
+          <div className="details-grid">
+            <Detail label="Designation">{employee.designation}{employee.extra_post_count > 0 && <span className="muted small"> +{employee.extra_post_count} more</span>}</Detail>
+            <Detail label="Status"><StatusBadge status={employee.status} label={employee.status.replace(/_/g, ' ')} /></Detail>
+            <Detail label="Employee code">{employee.worker_code && <span className="mono">{employee.worker_code}</span>}</Detail>
+          </div>
+          <p className="muted small" style={{ margin: '10px 0 0' }}>
+            Managed in People: name, phone, employee code, where they work and who they report to. Change them there and they follow here.
+            Roles you grant by hand below stay as they are; the ones their job brings are added and removed from People.
+          </p>
+        </div>
+      )}
 
       {/* ---------------- Access ---------------- */}
       <div className="panel form-section">

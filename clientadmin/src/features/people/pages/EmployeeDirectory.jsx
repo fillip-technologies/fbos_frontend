@@ -156,7 +156,7 @@ export default function EmployeeDirectory() {
                     <strong>{w.name || `${w.first_name} ${w.last_name}`}</strong>
                     <div className="muted small">{w.work_email}</div>
                   </td>
-                  <td>{w.designation}</td>
+                  <td>{w.designation}{w.extra_post_count > 0 && <span className="muted small"> +{w.extra_post_count} more</span>}</td>
                   <td>{formatDate(w.date_of_joining)}</td>
                   <td><StatusBadge status={w.status} label={statusLabel(w.status)} /></td>
                   <td className="right">

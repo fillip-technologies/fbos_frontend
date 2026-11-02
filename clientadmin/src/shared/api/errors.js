@@ -45,6 +45,19 @@ const FRIENDLY = {
   PRECONDITION_FAILED: 'Someone else changed this in the meantime. Reload the page and try again.',
   ROLE_IS_SYSTEM: 'Built-in roles can\'t be edited. Create a custom role instead.',
 
+  // ---- People: posts, approvals, access from the job ----
+  POST_LIMIT_REACHED: 'This person already holds the most posts allowed at once.',
+  POST_DUPLICATE: 'The person already holds a post with that title in that department.',
+  POST_LAST: 'The last post cannot be ended. Starting an exit does that.',
+  POST_PRIMARY_REQUIRED: 'A person needs exactly one primary post. Make another post primary first.',
+  POST_NOT_CONCURRENT: 'Only a concurrent post can become the primary post.',
+  POST_NOT_FOUND: 'That post is no longer there. Reload and try again.',
+  NOT_AN_APPROVER: 'This change is waiting on someone else\'s approval, not yours.',
+  SELF_APPROVAL_FORBIDDEN: 'You can\'t approve a change you requested or one about yourself.',
+  ROLE_CHANGE_OPEN: 'This person already has a role change waiting. Decide or cancel it first.',
+  DELEGATION_OVERLAP: 'You already have a delegation in that period.',
+  MAPPING_EXISTS: 'That job already brings this role.',
+
   // ---- Org units ----
   ORG_UNIT_HIERARCHY_INVALID: 'That can\'t sit there. Branches sit directly under the company; departments go under a branch or another department; teams under a department.',
   ORG_UNIT_CYCLE: 'Nothing can be moved under itself or under something that sits inside it.',

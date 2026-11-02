@@ -34,6 +34,8 @@ export const getRoleChanges = (params = {}) => api.get(`${PEOPLE}/role-changes${
 export const approveRoleChange = (id, note) => api.post(`${PEOPLE}/role-changes/${id}/approve`, { note: note || null })
 export const rejectRoleChange = (id, note) => api.post(`${PEOPLE}/role-changes/${id}/reject`, { note })
 export const cancelRoleChange = (id) => api.post(`${PEOPLE}/role-changes/${id}/cancel`)
+// What a request would set in motion (its approvals, the access it changes); saves nothing.
+export const previewRoleChange = (workerId, data) => api.post(`${PEOPLE}/workers/${workerId}/role-change-previews`, data)
 export const addTimelineEvent = (id, data) => api.post(`${PEOPLE}/workers/${id}/timeline`, data)
 
 // ID documents and the onboarding checklist. Numbers come back masked; `reveal*` returns the full value and is logged.
@@ -57,7 +59,7 @@ export const revealBankAccountNumber = (id, accountId) => api.get(`${PEOPLE}/wor
 
 export const getPositions = (params = {}) => api.get(`${PEOPLE}/positions${toQuery(params)}`)
 export const createPosition = (data) => api.post(`${PEOPLE}/positions`, data)
-export const getJobProfiles = () => api.get(`${PEOPLE}/job-profiles`)
+export const getJobProfiles = (opts) => api.get(`${PEOPLE}/job-profiles`, opts)
 export const createJobProfile = (data) => api.post(`${PEOPLE}/job-profiles`, data)
 export const getPayBands = () => api.get(`${PEOPLE}/pay-bands`)
 export const createPayBand = (data) => api.post(`${PEOPLE}/pay-bands`, data)
@@ -154,3 +156,26 @@ export const getSeparationDetail = (id) => api.get(`${PEOPLE}/separations/${id}`
 export const updateClearance = (id, data) => api.patch(`${PEOPLE}/separations/${id}/clearance`, data)
 export const calculateSettlement = (id) => api.post(`${PEOPLE}/separations/${id}/settlement`)
 export const finalizeExit = (id) => api.post(`${PEOPLE}/separations/${id}/finalize`)
+
+// -------------------------------------------------------------
+// Posts, org chart, approval setup and the login's sync with Identity
+// -------------------------------------------------------------
+export const getWorkerPosts = (id, params = {}, opts) => api.get(`${PEOPLE}/workers/${id}/posts${toQuery(params)}`, opts)
+export const getOrgChart = (opts) => api.get(`${PEOPLE}/org-chart`, opts)
+export const getPostsReport = (opts) => api.get(`${PEOPLE}/reports/posts`, opts)
+
+// Whether the person's login matches their job, and sending it again.
+export const getIdentitySync = (id, opts) => api.get(`${PEOPLE}/workers/${id}/identity-sync`, opts)
+export const requestIdentitySync = (id) => api.post(`${PEOPLE}/workers/${id}/identity-sync-requests`)
+// The employee record linked to an Identity user (empty when there is none).
+export const getWorkerByUser = (userId, opts) => api.get(`${PEOPLE}/workers${toQuery({ user_id: userId, limit: 1 })}`, opts)
+
+// Standing approvers (HR head, finance), delegation of one's own approvals, and which jobs bring which access roles.
+export const getStandingApprovers = (opts) => api.get(`${PEOPLE}/role-change-approvers`, opts)
+export const setStandingApprovers = (roleKey, userIds) => api.put(`${PEOPLE}/role-change-approvers/${roleKey}`, { user_ids: userIds })
+export const getMyDelegations = (opts) => api.get(`${PEOPLE}/role-change-delegations`, opts)
+export const createDelegation = (data) => api.post(`${PEOPLE}/role-change-delegations`, data)
+export const endDelegation = (id) => api.del(`${PEOPLE}/role-change-delegations/${id}`)
+export const getAccessRoleMappings = (opts) => api.get(`${PEOPLE}/access-role-mappings`, opts)
+export const createAccessRoleMapping = (data) => api.post(`${PEOPLE}/access-role-mappings`, data)
+export const deleteAccessRoleMapping = (id) => api.del(`${PEOPLE}/access-role-mappings/${id}`)

@@ -86,6 +86,9 @@ export const pages = {
   PayrollHub: () => import('@/features/people/pages/PayrollHub.jsx'),
   SeparationManager: () => import('@/features/people/pages/SeparationManager.jsx'),
   RoleChanges: () => import('@/features/people/pages/RoleChanges.jsx'),
+  RoleChangeSetup: () => import('@/features/people/pages/RoleChangeSetup.jsx'),
+  OrgChart: () => import('@/features/people/pages/OrgChart.jsx'),
+  PostsReport: () => import('@/features/people/pages/PostsReport.jsx'),
 }
 
 // Sidebar path -> the pages of that section. Hovering an entry downloads the list page
@@ -138,6 +141,9 @@ const NAV_PAGES = {
   '/people/payroll': [pages.PayrollHub],
   '/people/offboarding': [pages.SeparationManager],
   '/people/role-changes': [pages.RoleChanges],
+  '/people/approvals': [pages.RoleChangeSetup],
+  '/people/org-chart': [pages.OrgChart],
+  '/people/post-report': [pages.PostsReport],
 }
 
 // Starts downloading a section's code; a failed preload is ignored (the click retries it).
