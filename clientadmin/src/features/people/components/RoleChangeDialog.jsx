@@ -161,6 +161,10 @@ export default function RoleChangeDialog({ worker, salary, units, preset = null,
   }
 
   const future = form.effective_date > todayISO()
+  // Someone with a login has the designation of their role in Identity: it is not set here, and another post
+  // cannot take its place as the primary one.
+  const fromIdentity = Boolean(worker.user_id)
+  const actions = fromIdentity ? ACTIONS.filter(([value]) => value !== 'make_primary') : ACTIONS
   const isChange = form.action === 'change'
   const isAdd = form.action === 'add_post'
   const needsPost = form.action !== 'add_post'
@@ -183,7 +187,7 @@ export default function RoleChangeDialog({ worker, salary, units, preset = null,
       <div className="grid-2">
         <Field label="What to do">
           <select value={form.action} onChange={(e) => set({ action: e.target.value, post_ref: e.target.value === 'add_post' ? '' : form.post_ref })}>
-            {ACTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {actions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </Field>
         {isChange && (
@@ -216,10 +220,19 @@ export default function RoleChangeDialog({ worker, salary, units, preset = null,
             <Field
               label={isAdd ? 'Title' : 'New designation'}
               required={isAdd}
-              hint={!isAdd && target ? `Now: ${target.title}` : undefined}
+              hint={
+                fromIdentity && !isAdd && targetIsPrimary
+                  ? 'Their designation is their role in Identity. Change their role under Users instead.'
+                  : !isAdd && target ? `Now: ${target.title}` : undefined
+              }
               error={fieldErrors.new_designation}
             >
-              <input type="text" value={form.new_designation} onChange={(e) => set({ new_designation: e.target.value })} />
+              <input
+                type="text"
+                value={form.new_designation}
+                disabled={fromIdentity && !isAdd && targetIsPrimary}
+                onChange={(e) => set({ new_designation: e.target.value })}
+              />
             </Field>
             {units?.length > 0 && (
               <div className="field">

@@ -393,7 +393,10 @@ export default function EmployeeDetail() {
             <h1>
               {displayName} <StatusBadge status={worker.status} label={statusLabel(worker.status)} />
             </h1>
-            <div>{worker.designation}</div>
+            <div>
+              {worker.designation}
+              {worker.user_id && <span className="muted small"> · their role in Identity</span>}
+            </div>
             <div className="muted small">
               {worker.worker_code && <span className="mono">{worker.worker_code} · </span>}
               {worker.work_email} · Joined {formatDate(worker.date_of_joining)}
@@ -475,6 +478,7 @@ export default function EmployeeDetail() {
           workerId={id}
           canManage={canManage}
           canSeePay={canSeePay || canApproveRoleChanges}
+          canMakePrimary={!worker.user_id}
           unitName={(unitId) => unitNames[unitId] || 'another department'}
           onChange={(preset) => {
             setRolePreset(preset)

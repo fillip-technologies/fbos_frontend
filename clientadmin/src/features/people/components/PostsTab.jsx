@@ -9,7 +9,7 @@ import StatusBadge from '@/shared/components/StatusBadge.jsx'
 
 // The jobs a person holds: the primary post first, then the others, with earlier versions on request.
 // Posts change through role changes, so each action opens the Change role form already filled in.
-export default function PostsTab({ workerId, canManage, canSeePay, unitName, onChange }) {
+export default function PostsTab({ workerId, canManage, canSeePay, canMakePrimary = true, unitName, onChange }) {
   const { orgId } = useActiveOrg()
   const [showEnded, setShowEnded] = useState(false)
   const query = useQuery(
@@ -76,7 +76,7 @@ export default function PostsTab({ workerId, canManage, canSeePay, unitName, onC
                             <button type="button" className="btn secondary small-btn" onClick={() => onChange({ action: 'change', postRef: post.post_ref })}>
                               Change
                             </button>
-                            {post.post_type === 'concurrent' && (
+                            {post.post_type === 'concurrent' && canMakePrimary && (
                               <button type="button" className="btn secondary small-btn" onClick={() => onChange({ action: 'make_primary', postRef: post.post_ref })}>
                                 Make primary
                               </button>
