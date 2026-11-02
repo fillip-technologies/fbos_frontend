@@ -85,6 +85,7 @@ const Requests = lazy(pages.Requests)
 const RequestCreate = lazy(pages.RequestCreate)
 const Assets = lazy(pages.Assets)
 const Scorecard = lazy(pages.Scorecard)
+const Insights = lazy(pages.Insights)
 const Planning = lazy(pages.Planning)
 const Budgets = lazy(pages.Budgets)
 const BudgetDetail = lazy(pages.BudgetDetail)
@@ -149,6 +150,7 @@ export default function App() {
           <Route path="/assets/new" element={<RequireAccess rule={ACCESS.manageAssets}><AssetCreate /></RequireAccess>} />
           <Route path="/assets/:id" element={<RequireAccess rule={ACCESS.assets}><AssetDetail /></RequireAccess>} />
           <Route path="/scorecard" element={<RequireAccess rule={ACCESS.scorecard}><Scorecard /></RequireAccess>} />
+          <Route path="/insights" element={<RequireAccess rule={ACCESS.insights}><Insights /></RequireAccess>} />
           <Route path="/planning" element={<RequireAccess rule={ACCESS.planning}><Planning /></RequireAccess>} />
           <Route path="/budgets" element={<RequireAccess rule={ACCESS.budgets}><Budgets /></RequireAccess>} />
           <Route path="/budgets/:id" element={<RequireAccess rule={ACCESS.budgets}><BudgetDetail /></RequireAccess>} />

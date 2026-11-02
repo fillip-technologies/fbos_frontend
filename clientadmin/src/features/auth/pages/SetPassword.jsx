@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '@/features/auth/api.js'
 import { friendlyMessage } from '@/shared/api/errors.js'
+import AuthFrame from '@/shared/components/AuthFrame.jsx'
 
 const MODES = {
   invite: {
@@ -51,7 +52,7 @@ export default function SetPassword({ mode }) {
   }
 
   return (
-    <div className="auth-wrap">
+    <AuthFrame>
       <div className="panel auth-card">
         <h1>{cfg.title}</h1>
         <p className="sub">{cfg.sub}</p>
@@ -98,6 +99,6 @@ export default function SetPassword({ mode }) {
           <Link to="/login">Back to sign in</Link>
         </div>
       </div>
-    </div>
+    </AuthFrame>
   )
 }

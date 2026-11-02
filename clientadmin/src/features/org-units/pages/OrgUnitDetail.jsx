@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { UnitInsights } from '@/features/insights/panels.jsx'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { calendarsApi } from '@/features/calendars/api.js'
 import { orgUnitsApi } from '@/features/org-units/api.js'
@@ -136,6 +137,9 @@ export default function OrgUnitDetail() {
 
       {notice && <div className="alert success">{notice}</div>}
       {mode === null && <ErrorBanner error={error || loadError} onRetry={error ? undefined : unitQuery.reload} />}
+
+      {/* Work, projects, budget, KPIs and hours of this unit and everything under it. */}
+      {mode === null && isActive && <UnitInsights unitId={unit.id} />}
 
       {/* ---------------- Details ---------------- */}
       <div className="panel form-section">

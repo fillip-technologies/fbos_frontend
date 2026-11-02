@@ -1,33 +1,26 @@
 import { Link } from 'react-router-dom'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
-
-// What each area lets you do; shown only when the user's access allows that page.
-const AREAS = [
-  { to: '/users', label: 'Users and employees', rule: ACCESS.usersOrPeople, text: 'See the people in your company, their access and their employee records.' },
-  { to: '/users/new', label: 'Invite a user', rule: ACCESS.inviteUsers, text: 'Add someone and choose what they can do.' },
-  { to: '/org-units', label: 'Company structure', rule: ACCESS.orgUnits, text: 'Branches, departments and teams.' },
-  { to: '/calendars', label: 'Working calendars', rule: ACCESS.calendars, text: 'Office hours and holidays.' },
-  { to: '/roles', label: 'Roles', rule: ACCESS.roles, text: 'Ready-made sets of permissions.' },
-  { to: '/audit-log', label: 'Security log', rule: ACCESS.auditLog, text: 'Sign-ins, failed attempts and sign-outs.' },
-]
+import Overview from '@/features/dashboard/components/Overview.jsx'
+import { HomeHero, Workspace } from '@/features/dashboard/components/HomeParts.jsx'
+import { NAV_ITEMS } from '@/app/navigation.jsx'
 
 // Home page for organization users who aren't client administrators.
 export default function MyHome() {
   const { user } = useAuth()
-  const areas = AREAS.filter((a) => hasAccess(user, a.rule))
+  const canOpenAnything = NAV_ITEMS.some((item) => item.to !== '/' && hasAccess(user, item.access))
+  const where = [user.organization?.name, user.home_unit?.name].filter(Boolean).join(' · ')
 
   return (
     <div>
-      <div className="page-head">
-        <div>
-          <h1>Welcome, {user.name.split(' ')[0]}</h1>
-          <p className="muted small" style={{ margin: '4px 0 0' }}>
-            {user.organization.name}
-            {user.home_unit && ` · ${user.home_unit.name}`}
-          </p>
-        </div>
-      </div>
+      <HomeHero eyebrow={where || 'Your workspace'} name={user.name} sub="Everything you can work on today, in one place. Press / anywhere to jump straight to a page.">
+        {hasAccess(user, ACCESS.inviteUsers) && (
+          <div className="row-actions" style={{ marginTop: 20 }}>
+            <Link className="btn" to="/users/new">Invite a user</Link>
+            <Link className="btn secondary" to="/profile">My profile</Link>
+          </div>
+        )}
+      </HomeHero>
 
       {!user.mfa_enabled && (
         <div className="alert warn">
@@ -35,15 +28,10 @@ export default function MyHome() {
         </div>
       )}
 
-      {areas.length > 0 ? (
-        <div className="cards">
-          {areas.map((a) => (
-            <Link key={a.to} to={a.to} className="panel area-card">
-              <div className="stat-label">{a.label}</div>
-              <div className="stat-sub">{a.text}</div>
-            </Link>
-          ))}
-        </div>
+      <Overview />
+
+      {canOpenAnything ? (
+        <Workspace user={user} />
       ) : (
         <div className="panel empty-state">
           <h2>Nothing to manage here yet</h2>
@@ -53,30 +41,34 @@ export default function MyHome() {
         </div>
       )}
 
-      <div className="panel form-section">
-        <div className="section-head">
-          <div>
-            <h2>Your access</h2>
-            <p className="muted small" style={{ margin: '2px 0 0' }}>
-              {user.permissions.length} permission{user.permissions.length === 1 ? '' : 's'}. Your administrator manages these.
-            </p>
-          </div>
-          <Link className="btn secondary" to="/profile">My profile</Link>
+      <section className="home-section">
+        <div className="home-section-head">
+          <h2>Your access</h2>
+          <span>
+            {user.permissions.length} permission{user.permissions.length === 1 ? '' : 's'} · managed by your administrator
+          </span>
         </div>
-        {user.roles.length > 0 && (
-          <>
-            <div className="detail-label">Role presets applied</div>
-            <div className="chips">
-              {user.roles.map((r, i) => (
-                <span key={`${r.role_code}-${i}`} className="chip subtle">
-                  {r.role_code} · {r.scope_unit ? `${r.scope_unit.name} and below` : 'whole company'}
-                  {r.self_only ? ' · own records' : ''}
-                </span>
-              ))}
+        <div className="panel">
+          <div className="section-head">
+            <div>
+              <div className="detail-label">Role presets applied</div>
+              {user.roles.length > 0 ? (
+                <div className="chips">
+                  {user.roles.map((r, i) => (
+                    <span key={`${r.role_code}-${i}`} className="chip subtle">
+                      {r.role_code} · {r.scope_unit ? `${r.scope_unit.name} and below` : 'whole company'}
+                      {r.self_only ? ' · own records' : ''}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted small" style={{ margin: '4px 0 0' }}>No role presets — your access was given one permission at a time.</p>
+              )}
             </div>
-          </>
-        )}
-      </div>
+            <Link className="btn secondary" to="/profile">My profile</Link>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

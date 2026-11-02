@@ -1,4 +1,4 @@
 export default function StatusBadge({ status }) {
   const cls = (status || 'inactive').toLowerCase()
-  return <span className={`badge ${cls}`}>{status || 'unknown'}</span>
+  return <span className={`badge ${cls}`}>{status ? String(status).replace(/_/g, ' ') : 'unknown'}</span>
 }

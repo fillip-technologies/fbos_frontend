@@ -17,6 +17,12 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></>),
   },
   {
+    to: '/insights',
+    label: 'Insights',
+    access: ACCESS.insights,
+    icon: icon(<><path d="M3 3v18h18" /><path d="M7 15l4-5 3 3 5-7" /><circle cx="19" cy="6" r="1.5" /></>),
+  },
+  {
     to: '/organizations',
     label: 'Companies',
     access: ACCESS.organizations,
@@ -331,3 +337,48 @@ export const NAV_ITEMS = [
     icon: icon(<path d="M3 12h4l3-8 4 16 3-8h4" />),
   },
 ]
+
+// Sidebar sections, in display order. Each page belongs to the first section listing its path;
+// a page listed nowhere lands in the last one, so a new NAV_ITEMS entry is never hidden.
+const SECTIONS = [
+  { id: 'overview', label: 'Overview', paths: ['/', '/insights', '/scorecard', '/planning', '/budgets', '/capacity'] },
+  { id: 'sales', label: 'Sales', paths: ['/leads', '/opportunities', '/customers', '/contracts', '/offerings'] },
+  { id: 'billing', label: 'Billing & tax', paths: ['/invoices', '/billing-schedules', '/payments', '/collections', '/tax-reports', '/tax-setup'] },
+  { id: 'delivery', label: 'Delivery', paths: ['/projects', '/tasks', '/requests', '/client-services', '/service-providers', '/task-types', '/project-templates'] },
+  {
+    id: 'people',
+    label: 'People',
+    paths: ['/users', '/people/jobs', '/people/interviews', '/people/attendance', '/people/leaves', '/people/payroll', '/people/role-changes', '/people/approvals', '/people/org-chart', '/people/post-report', '/people/offboarding'],
+  },
+  {
+    id: 'assets',
+    label: 'Assets & inventory',
+    paths: ['/assets', '/inventory/devices', '/inventory/stock', '/inventory/transfers', '/inventory/issues', '/inventory/repairs', '/inventory/disposals', '/inventory/reports', '/inventory/purchase-orders'],
+  },
+  {
+    id: 'company',
+    label: 'Company',
+    paths: ['/organizations', '/org-units', '/calendars', '/custom-fields', '/verticals', '/document-categories', '/roles', '/audit-log'],
+  },
+]
+
+// The items a user may open, grouped into sections (empty sections dropped).
+export function navSections(items) {
+  const groups = SECTIONS.map((s) => ({ ...s, items: [] }))
+  for (const item of items) {
+    const group = groups.find((g) => g.paths.includes(item.to)) ?? groups[groups.length - 1]
+    group.items.push(item)
+  }
+  for (const g of groups) g.items.sort((a, b) => g.paths.indexOf(a.to) - g.paths.indexOf(b.to))
+  return groups.filter((g) => g.items.length > 0)
+}
+
+// The nav item a path belongs to: the longest `to` that is the path or a parent of it.
+export function navItemFor(items, pathname) {
+  let best = null
+  for (const item of items) {
+    const match = item.to === '/' ? pathname === '/' : pathname === item.to || pathname.startsWith(`${item.to}/`)
+    if (match && (!best || item.to.length > best.to.length)) best = item
+  }
+  return best
+}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { authApi } from '@/features/auth/api.js'
 import { friendlyMessage } from '@/shared/api/errors.js'
+import AuthFrame from '@/shared/components/AuthFrame.jsx'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -24,7 +25,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="auth-wrap">
+    <AuthFrame>
       <div className="panel auth-card">
         <h1>Reset password</h1>
         <p className="sub">We'll email you a reset link.</p>
@@ -47,6 +48,6 @@ export default function ForgotPassword() {
           <Link to="/login">Back to sign in</Link>
         </div>
       </div>
-    </div>
+    </AuthFrame>
   )
 }
