@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { authApi } from '@/features/auth/api.js'
 import { friendlyMessage } from '@/shared/api/errors.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import AuthFrame from '@/shared/components/AuthFrame.jsx'
 
 export default function Login() {
   const { establish } = useAuth()
@@ -31,7 +32,7 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-wrap">
+    <AuthFrame>
       <div className="panel auth-card">
         <h1>Super Admin</h1>
         <p className="sub">FBOS Platform — Clients management console</p>
@@ -68,6 +69,6 @@ export default function Login() {
           </button>
         </form>
       </div>
-    </div>
+    </AuthFrame>
   )
 }

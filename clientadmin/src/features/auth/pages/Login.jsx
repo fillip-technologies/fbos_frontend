@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ApiError } from '@/shared/api/http.js'
 import { authApi } from '@/features/auth/api.js'
 import { friendlyMessage } from '@/shared/api/errors.js'
+import AuthFrame from '@/shared/components/AuthFrame.jsx'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 
 export default function Login() {
@@ -65,9 +66,9 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-wrap">
+    <AuthFrame>
       <div className="panel auth-card">
-        <h1>FBOS Admin console</h1>
+        <h1>Welcome back</h1>
         <p className="sub">Sign in with your work email. What you can manage depends on your access.</p>
 
         {notice && <div className="alert success">{notice}</div>}
@@ -147,6 +148,6 @@ export default function Login() {
           </form>
         )}
       </div>
-    </div>
+    </AuthFrame>
   )
 }
