@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { clientApi } from '@/features/dashboard/api.js'
+import Overview from '@/features/dashboard/components/Overview.jsx'
 import { HomeHero, Meter, Workspace } from '@/features/dashboard/components/HomeParts.jsx'
 import { organizationsApi } from '@/features/organizations/api.js'
 import { useQuery } from '@/shared/api/useQuery.js'
@@ -89,6 +90,8 @@ export default function SubscriptionOverview() {
         </div>
       </div>
       <p className="muted small">Subscription dates and quotas are set by the platform administrator.</p>
+
+      <Overview />
 
       <Workspace user={user} />
     </div>

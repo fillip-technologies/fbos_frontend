@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import Overview from '@/features/dashboard/components/Overview.jsx'
 import { HomeHero, Workspace } from '@/features/dashboard/components/HomeParts.jsx'
 import { NAV_ITEMS } from '@/app/navigation.jsx'
 
@@ -26,6 +27,8 @@ export default function MyHome() {
           Protect your account: <Link to="/profile">turn on two-factor sign-in</Link>.
         </div>
       )}
+
+      <Overview />
 
       {canOpenAnything ? (
         <Workspace user={user} />
