@@ -142,7 +142,8 @@ function AccessMappings({ orgId, canMap }) {
     <div className="panel">
       <h2 className="form-section" style={{ fontSize: 16 }}>Access that comes with a job</h2>
       <p className="muted small">
-        Everyone who holds a matching post gets the role, for the post’s department or company-wide, and loses it when the post ends.
+        A person’s main post already gets its access from their role in Identity, so this is for the rest: extra posts (additional charge, acting, concurrent),
+        job profiles, and people without a login. Everyone who holds a matching post gets the role, for the post’s department or company-wide, and loses it when the post ends.
         Roles granted by hand under Users are never touched. A job profile is used before a designation.
       </p>
       <ErrorBanner error={query.error || (Object.keys(fieldErrors).length ? null : error)} onRetry={query.reload} />
@@ -180,8 +181,15 @@ function AccessMappings({ orgId, canMap }) {
                 </select>
               </Field>
             ) : (
-              <Field label="Designation" required hint="Exactly as it is written on the post, in any case." error={fieldErrors.match_value}>
-                <input value={form.match_value} onChange={(e) => setForm({ ...form, match_value: e.target.value })} />
+              <Field label="Designation" required hint={roles.length > 0 ? 'A role from Identity. A person whose designation joins several roles matches each of them.' : 'Exactly as it is written on the post, in any case.'} error={fieldErrors.match_value}>
+                {roles.length > 0 ? (
+                  <select value={form.match_value} onChange={(e) => setForm({ ...form, match_value: e.target.value })}>
+                    <option value="">Choose…</option>
+                    {roles.map((r) => <option key={r.id} value={r.name || r.code}>{r.name || r.code}</option>)}
+                  </select>
+                ) : (
+                  <input value={form.match_value} onChange={(e) => setForm({ ...form, match_value: e.target.value })} />
+                )}
               </Field>
             )}
             <Field label="Role" required hint="The role’s code in Identity." error={fieldErrors.role_code}>
