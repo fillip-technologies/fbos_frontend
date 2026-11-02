@@ -17,11 +17,13 @@ import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { ProjectInsights } from '@/features/insights/panels.jsx'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 
 const TABS = [
   ['overview', 'Overview'],
+  ['insights', 'Insights'],
   ['tasks', 'Tasks'],
   ['milestones', 'Milestones'],
   ['team', 'Team'],
@@ -104,6 +106,7 @@ export default function ProjectDetail() {
           <WorkflowPanel orgId={orgId} subject={{ type: SUBJECT_TYPES.project, id: project.id }} />
         </>
       )}
+      {tab === 'insights' && <ProjectInsights project={project} />}
       {tab === 'tasks' && <ProjectTasks {...tabProps} />}
       {tab === 'milestones' && (
         <>

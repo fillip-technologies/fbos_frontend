@@ -211,6 +211,17 @@ export const ACCESS = {
   budgets: { permissions: ['management.budget.read'] },
   manageBudgets: { permissions: ['management.budget.manage'] },
   capacity: { anyPermissions: ['management.capacity.read', 'management.resource.read'] },
+  // Insights: KPI results of the period covering today (finding it reads fiscal years and periods).
+  kpiResults: { permissions: ['management.result.read', 'management.period.read', 'management.fiscal_year.read'] },
+  // Everyone's recorded time (with "own records only", just one's own).
+  timeSummary: { permissions: ['delivery.time_entry.read'] },
+  // The Insights page shows whichever parts the user may read; it needs at least one of them.
+  insights: {
+    anyPermissions: [
+      'delivery.task.read', 'delivery.work_unit.read', 'delivery.time_entry.read', 'management.budget.read',
+      'management.result.read', 'people.employee.read',
+    ],
+  },
   // Approving a target or a budget happens in Control, not here.
   // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
   viewUserSessions: { permissions: ['identity.session.read'] },

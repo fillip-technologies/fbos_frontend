@@ -17,6 +17,12 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></>),
   },
   {
+    to: '/insights',
+    label: 'Insights',
+    access: ACCESS.insights,
+    icon: icon(<><path d="M3 3v18h18" /><path d="M7 15l4-5 3 3 5-7" /><circle cx="19" cy="6" r="1.5" /></>),
+  },
+  {
     to: '/organizations',
     label: 'Companies',
     access: ACCESS.organizations,
@@ -335,7 +341,7 @@ export const NAV_ITEMS = [
 // Sidebar sections, in display order. Each page belongs to the first section listing its path;
 // a page listed nowhere lands in the last one, so a new NAV_ITEMS entry is never hidden.
 const SECTIONS = [
-  { id: 'overview', label: 'Overview', paths: ['/', '/scorecard', '/planning', '/budgets', '/capacity'] },
+  { id: 'overview', label: 'Overview', paths: ['/', '/insights', '/scorecard', '/planning', '/budgets', '/capacity'] },
   { id: 'sales', label: 'Sales', paths: ['/leads', '/opportunities', '/customers', '/contracts', '/offerings'] },
   { id: 'billing', label: 'Billing & tax', paths: ['/invoices', '/billing-schedules', '/payments', '/collections', '/tax-reports', '/tax-setup'] },
   { id: 'delivery', label: 'Delivery', paths: ['/projects', '/tasks', '/requests', '/client-services', '/service-providers', '/task-types', '/project-templates'] },

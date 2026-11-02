@@ -306,6 +306,8 @@ export function ColumnChart({ categories, series, format = String, axisFormat = 
   const barW = Math.min(24, Math.max(4, (band * 0.7 - (series.length - 1) * 2) / series.length))
   const groupW = series.length * barW + (series.length - 1) * 2
   const y = (v) => PAD.top + plotH - (v / top) * plotH
+  // Every k-th category label, so labels never collide (the tooltip and table name every one).
+  const every = Math.max(1, Math.ceil(categories.length / Math.max(1, Math.floor(plotW / 56))))
 
   return (
     <div className="plot" ref={ref} style={{ height }}>
@@ -341,9 +343,11 @@ export function ColumnChart({ categories, series, format = String, axisFormat = 
                     <path key={s.key} d={columnPath(x0 + si * (barW + 2), y(v), barW, h)} fill={s.color} className="col" />
                   ) : null
                 })}
-                <text className="axis" x={PAD.left + ci * band + band / 2} y={height - 8} textAnchor="middle">
-                  {c.label}
-                </text>
+                {(ci % every === 0 || ci === categories.length - 1) && (
+                  <text className="axis" x={PAD.left + ci * band + band / 2} y={height - 8} textAnchor="middle">
+                    {c.label}
+                  </text>
+                )}
               </g>
             )
           })}

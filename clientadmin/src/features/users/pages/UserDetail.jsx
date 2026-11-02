@@ -1,4 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
+import { PersonInsights } from '@/features/insights/panels.jsx'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { usersApi } from '@/features/users/api.js'
 import { getWorkerByUser } from '@/features/people/api.js'
@@ -85,8 +86,9 @@ export default function UserDetail() {
   // One page for the person: their account (profile, access, sign-ins) and, with People, their employee record.
   const [searchParams, setSearchParams] = useSearchParams()
   const canSeeEmployee = hasAccess(me, ACCESS.people)
-  const tab = canSeeEmployee && searchParams.get('tab') === 'employee' ? 'employee' : 'account'
-  const openTab = (next) => setSearchParams(next === 'employee' ? { tab: 'employee' } : {}, { replace: true })
+  const asked = searchParams.get('tab')
+  const tab = canSeeEmployee && asked === 'employee' ? 'employee' : asked === 'insights' ? 'insights' : 'account'
+  const openTab = (next) => setSearchParams(next === 'account' ? {} : { tab: next }, { replace: true })
   // Roles of someone People manages change with a role change: open it on the Employee tab.
   const openRoleChange = () => setSearchParams({ tab: 'employee', change: 'role' }, { replace: true })
 
@@ -181,15 +183,17 @@ export default function UserDetail() {
 
       {notice && <div className="alert success">{notice}</div>}
 
-      {canSeeEmployee && (
+      {(
         <div className="tab-bar" role="tablist">
-          {[['account', 'Account'], ['employee', employee ? 'Employee' : 'Employee record']].map(([key, label]) => (
+          {[['account', 'Account'], ...(canSeeEmployee ? [['employee', employee ? 'Employee' : 'Employee record']] : []), ['insights', 'Insights']].map(([key, label]) => (
             <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? 'active' : ''} onClick={() => openTab(key)}>
               {label}
             </button>
           ))}
         </div>
       )}
+
+      {tab === 'insights' && <PersonInsights userId={user.id} />}
 
       {tab === 'employee' && (
         <EmployeeTab
