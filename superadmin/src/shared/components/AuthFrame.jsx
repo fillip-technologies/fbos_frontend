@@ -22,7 +22,6 @@ export default function AuthFrame({ children }) {
           </ul>
         </div>
         <div className="auth-foot">
-          <span>An IT Service Provider</span>
           <span>© {new Date().getFullYear()}</span>
         </div>
       </aside>
