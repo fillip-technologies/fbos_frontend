@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
-import { getRequisitions, createRequisition, getPositions } from '../api.js'
+import { Link } from 'react-router-dom'
+import { getRequisitions, createRequisition, getPositions, getCandidates } from '../api.js'
 import { formatDate, statusLabel, toList } from '../utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import FormDialog from '../components/FormDialog.jsx'
 import Field from '../components/Field.jsx'
+import CandidateDialog from '../components/CandidateDialog.jsx'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
 
 const EMPTY_FORM = {
   title: '',
@@ -15,6 +19,12 @@ const EMPTY_FORM = {
 }
 
 export default function RecruitmentJobs() {
+  const { user } = useAuth()
+  const canManage = hasAccess(user, ACCESS.manageRecruitment)
+  const [tab, setTab] = useState('requisitions')
+  const [candidates, setCandidates] = useState([])
+  const [search, setSearch] = useState('')
+  const [candidateOpen, setCandidateOpen] = useState(false)
   const [requisitions, setRequisitions] = useState([])
   const [positions, setPositions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -29,7 +39,8 @@ export default function RecruitmentJobs() {
     try {
       setLoading(true)
       setLoadError(null)
-      const [reqRes, posRes] = await Promise.all([getRequisitions(), getPositions()])
+      const [reqRes, posRes, candRes] = await Promise.all([getRequisitions(), getPositions(), getCandidates()])
+      setCandidates(toList(candRes))
       setRequisitions(toList(reqRes))
       setPositions(toList(posRes))
     } catch (err) {
@@ -76,17 +87,68 @@ export default function RecruitmentJobs() {
         <div>
           <h1>Recruitment</h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
-            Job requisitions and the positions they fill.
+            Job requisitions, candidates and the hiring pipeline. Open a job to move candidates through interviews and offers.
           </p>
         </div>
-        <button type="button" className="btn" onClick={openForm}>
-          + Open requisition
-        </button>
+        {canManage && (
+          tab === 'requisitions' ? (
+            <button type="button" className="btn" onClick={openForm}>+ Open requisition</button>
+          ) : (
+            <button type="button" className="btn" onClick={() => setCandidateOpen(true)}>+ Add candidate</button>
+          )
+        )}
       </div>
 
       <ErrorBanner error={loadError} onRetry={loadData} />
 
-      <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+      <div className="tab-bar" role="tablist">
+        {['requisitions', 'candidates'].map((t) => (
+          <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'candidates' && (
+        <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+          <div style={{ padding: 12 }}>
+            <input type="search" placeholder="Search by name, email or tag" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <table className="table-plain">
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Phone</th><th>Source</th><th>Tags</th><th>Added</th></tr>
+            </thead>
+            <tbody>
+              {(() => {
+                const q = search.trim().toLowerCase()
+                const rows = candidates.filter((c) =>
+                  !q || `${c.first_name} ${c.last_name} ${c.email} ${(c.tags || []).join(' ')}`.toLowerCase().includes(q))
+                if (loading) return <tr><td colSpan={6} className="center-note">Loading candidates...</td></tr>
+                if (rows.length === 0) return <tr><td colSpan={6} className="center-note">No candidates yet.</td></tr>
+                return rows.map((c) => (
+                  <tr key={c.id}>
+                    <td><strong>{c.first_name} {c.last_name}</strong></td>
+                    <td>{c.email}</td>
+                    <td>{c.phone || <span className="muted">—</span>}</td>
+                    <td style={{ textTransform: 'capitalize' }}>{statusLabel(c.source) || <span className="muted">—</span>}</td>
+                    <td>{(c.tags || []).join(', ') || <span className="muted">—</span>}</td>
+                    <td className="muted small">{formatDate(c.created_at)}</td>
+                  </tr>
+                ))
+              })()}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {candidateOpen && (
+        <CandidateDialog
+          onClose={() => setCandidateOpen(false)}
+          onCreated={() => { setCandidateOpen(false); loadData() }}
+        />
+      )}
+
+      {tab === 'requisitions' && <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
         <table className="table-plain">
           <thead>
             <tr>
@@ -107,8 +169,8 @@ export default function RecruitmentJobs() {
             ) : (
               requisitions.map((req) => (
                 <tr key={req.id}>
-                  <td className="mono">{req.requisition_code}</td>
-                  <td><strong>{req.title}</strong></td>
+                  <td className="mono"><Link to={`/people/jobs/${req.id}`}>{req.requisition_code}</Link></td>
+                  <td><Link to={`/people/jobs/${req.id}`}><strong>{req.title}</strong></Link></td>
                   <td>{req.department || <span className="muted">—</span>}</td>
                   <td>{req.openings_count}</td>
                   <td>{req.filled_count}</td>
@@ -119,7 +181,7 @@ export default function RecruitmentJobs() {
             )}
           </tbody>
         </table>
-      </div>
+      </div>}
 
       {modalOpen && (
         <FormDialog
