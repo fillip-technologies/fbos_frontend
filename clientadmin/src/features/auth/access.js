@@ -50,6 +50,8 @@ export const ACCESS = {
   organizations: { userTypes: ['client_admin'] },
   subscription: { userTypes: ['client_admin'] },
   users: { permissions: ['identity.user.read'] },
+  // The Users and employees page: the user list, or the employee directory for someone who can read only that.
+  usersOrPeople: { anyPermissions: ['identity.user.read', 'people.employee.read'] },
   inviteUsers: { permissions: ['identity.user.create'] },
   updateUsers: { permissions: ['identity.user.update'] },
   deactivateUsers: { permissions: ['identity.user.deactivate'] },

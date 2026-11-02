@@ -4,6 +4,8 @@ import { getWorkers, createWorker } from '../api.js'
 import { formatDate, statusLabel, toList, todayISO } from '../utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
+import { useAuth } from '@/features/auth/AuthContext.jsx'
 import useAccessCatalog from '@/features/access/useAccessCatalog.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
@@ -26,8 +28,12 @@ const newForm = () => ({
   custom_worker_code: '',
 })
 
-export default function EmployeeDirectory() {
+// The employee directory. On its own (`/people/employees`) it is for someone who may read employees but not
+// users. The Users and employees page shows it `embedded` with `hasLogin={false}`: the people without a login.
+export default function EmployeeDirectory({ embedded = false, hasLogin } = {}) {
   const { orgId } = useActiveOrg()
+  const { user } = useAuth()
+  const canManage = hasAccess(user, ACCESS.manageEmployees)
   // The designation is a role from Identity (the same names "Add from users" uses). Reading roles needs
   // its own permission: without it the field stays a text box so nobody is blocked.
   const { roles } = useAccessCatalog(orgId)
@@ -54,6 +60,7 @@ export default function EmployeeDirectory() {
       const params = { limit: PAGE_SIZE }
       if (search) params.search = search
       if (statusFilter) params.status = statusFilter
+      if (hasLogin !== undefined) params.has_login = hasLogin
       if (cursor) params.cursor = cursor
       const res = await getWorkers(params)
       setWorkers((prev) => (append ? [...prev, ...toList(res)] : toList(res)))
@@ -68,7 +75,7 @@ export default function EmployeeDirectory() {
   useEffect(() => {
     const timer = setTimeout(() => loadData(), SEARCH_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [search, statusFilter])
+  }, [search, statusFilter, hasLogin])
 
   const openForm = () => {
     setForm(newForm())
@@ -101,22 +108,33 @@ export default function EmployeeDirectory() {
 
   return (
     <div>
-      <div className="page-head">
-        <div>
-          <h1>Employees</h1>
-          <p className="muted small" style={{ margin: '4px 0 0' }}>
-            Everyone who works here, with their role, joining date and status.
+      {embedded ? (
+        <div className="row-actions" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+          <p className="muted small" style={{ margin: 0 }}>
+            Employees who have no login. Anyone who signs in is on the With a login tab, with their employee record on their page.
           </p>
+          {canManage && <button type="button" className="btn" onClick={openForm}>+ Add employee</button>}
         </div>
-        <div className="row-actions">
-          <button type="button" className="btn secondary" onClick={() => setImportOpen(true)}>
-            Add from users
-          </button>
-          <button type="button" className="btn" onClick={openForm}>
-            + Add employee
-          </button>
+      ) : (
+        <div className="page-head">
+          <div>
+            <h1>Employees</h1>
+            <p className="muted small" style={{ margin: '4px 0 0' }}>
+              Everyone who works here, with their role, joining date and status.
+            </p>
+          </div>
+          {canManage && (
+            <div className="row-actions">
+              <button type="button" className="btn secondary" onClick={() => setImportOpen(true)}>
+                Add from users
+              </button>
+              <button type="button" className="btn" onClick={openForm}>
+                + Add employee
+              </button>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       <ErrorBanner error={loadError} onRetry={() => loadData()} />
 
@@ -192,7 +210,7 @@ export default function EmployeeDirectory() {
         <FormDialog
           wide
           title="Add an employee"
-          intro="For people who have no user account yet, including existing staff with a past joining date. For people who already have one, use Add from users."
+          intro="For people who have no login, including existing staff with a past joining date. Someone who already has a login is made an employee from their user page (or with Make employees)."
           onClose={() => setModalOpen(false)}
           onSubmit={handleCreate}
           submitLabel="Save employee"

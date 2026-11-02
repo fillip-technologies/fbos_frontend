@@ -169,6 +169,9 @@ export const getIdentitySync = (id, opts) => api.get(`${PEOPLE}/workers/${id}/id
 export const requestIdentitySync = (id) => api.post(`${PEOPLE}/workers/${id}/identity-sync-requests`)
 // The employee record linked to an Identity user (empty when there is none).
 export const getWorkerByUser = (userId, opts) => api.get(`${PEOPLE}/workers${toQuery({ user_id: userId, limit: 1 })}`, opts)
+// The employee records of several Identity users at once (one page of the user list).
+export const getWorkersByUsers = (userIds, opts) =>
+  api.get(`${PEOPLE}/workers${toQuery({ user_id: userIds, limit: Math.min(Math.max(userIds.length, 1), 100) })}`, opts)
 
 // Standing approvers (HR head, finance), delegation of one's own approvals, and which jobs bring which access roles.
 export const getStandingApprovers = (opts) => api.get(`${PEOPLE}/role-change-approvers`, opts)
