@@ -56,7 +56,8 @@ const FRIENDLY = {
   SELF_APPROVAL_FORBIDDEN: 'You can\'t approve a change you requested or one about yourself.',
   ROLE_CHANGE_OPEN: 'This person already has a role change waiting. Decide or cancel it first.',
   DELEGATION_OVERLAP: 'You already have a delegation in that period.',
-  MAPPING_EXISTS: 'That job already brings this role.',
+  ACCESS_APPROVER_MISSING: 'This gives a role you could not grant yourself. Name the access approver under Approvals first.',
+  ROLE_MANAGED_BY_PEOPLE: 'This role comes from the person’s post in People. Change it with a role change there.',
 
   // ---- Org units ----
   ORG_UNIT_HIERARCHY_INVALID: 'That can\'t sit there. Branches sit directly under the company; departments go under a branch or another department; teams under a department.',

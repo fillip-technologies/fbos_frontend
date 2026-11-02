@@ -35,6 +35,7 @@ export const approveRoleChange = (id, note) => api.post(`${PEOPLE}/role-changes/
 export const rejectRoleChange = (id, note) => api.post(`${PEOPLE}/role-changes/${id}/reject`, { note })
 export const cancelRoleChange = (id) => api.post(`${PEOPLE}/role-changes/${id}/cancel`)
 // What a request would set in motion (its approvals, the access it changes); saves nothing.
+export const getRoleOptions = (opts) => api.get(`${PEOPLE}/role-options`, opts)
 export const previewRoleChange = (workerId, data) => api.post(`${PEOPLE}/workers/${workerId}/role-change-previews`, data)
 export const addTimelineEvent = (id, data) => api.post(`${PEOPLE}/workers/${id}/timeline`, data)
 
