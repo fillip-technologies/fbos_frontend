@@ -80,6 +80,11 @@ export const getScorecards = (id) => api.get(`${PEOPLE}/applications/${id}/score
 export const submitScorecard = (id, data) => api.post(`${PEOPLE}/applications/${id}/scorecards`, data)
 export const getOffers = (applicationId) => api.get(`${PEOPLE}/applications/${applicationId}/offers`)
 export const updateRequisition = (id, data) => api.patch(`${PEOPLE}/requisitions/${id}`, data)
+export const getApplicationInterviews = (applicationId) => api.get(`${PEOPLE}/applications/${applicationId}/interviews`)
+export const scheduleInterview = (applicationId, data) => api.post(`${PEOPLE}/applications/${applicationId}/interviews`, data)
+export const updateInterview = (id, data) => api.patch(`${PEOPLE}/interviews/${id}`, data)
+export const getMyInterviews = (params = {}) => api.get(`${PEOPLE}/interviews/mine${toQuery(params)}`)
+export const submitInterviewFeedback = (id, data) => api.post(`${PEOPLE}/interviews/${id}/feedback`, data)
 export const createOffer = (id, data) => api.post(`${PEOPLE}/applications/${id}/offers`, data)
 export const acceptAndOnboardCandidate = (id, data) => api.post(`${PEOPLE}/offers/${id}/accept-and-onboard`, data)
 

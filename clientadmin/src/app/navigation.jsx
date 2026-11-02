@@ -47,6 +47,12 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><path d="M12 12v.01" /><path d="M2 13a20 20 0 0 0 20 0" /></>),
   },
   {
+    to: '/people/interviews',
+    label: 'My interviews',
+    access: ACCESS.interviews,
+    icon: icon(<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></>),
+  },
+  {
     to: '/people/attendance',
     label: 'Attendance',
     access: ACCESS.attendance,

@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react'
 import {
   acceptAndOnboardCandidate,
   createOffer,
+  getApplicationInterviews,
   getOffers,
+  getWorkers,
+  scheduleInterview,
+  updateInterview,
   getScorecards,
   submitScorecard,
   transitionApplicationStage,
 } from '../api.js'
-import { formatCurrency, formatDate, statusLabel, todayISO, toList } from '../utils.js'
+import { formatCurrency, formatDate, formatDateTime, statusLabel, todayISO, toList } from '../utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import Dialog from '@/shared/components/Dialog.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -21,6 +25,9 @@ const RECOMMENDATIONS = ['strong_yes', 'yes', 'neutral', 'no', 'strong_no']
 export default function ApplicationDialog({ application, candidate, requisition, canManage, onClose, onChanged }) {
   const [scorecards, setScorecards] = useState([])
   const [offers, setOffers] = useState([])
+  const [interviews, setInterviews] = useState([])
+  const [workers, setWorkers] = useState([])
+  const [slot, setSlot] = useState({ round_name: 'technical', interviewer_worker_id: '', scheduled_at: '', duration_minutes: '60', location: '' })
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const [rejecting, setRejecting] = useState(false)
@@ -35,15 +42,26 @@ export default function ApplicationDialog({ application, candidate, requisition,
   const load = async () => {
     try {
       setError(null)
-      const [cards, offerRes] = await Promise.all([getScorecards(application.id), getOffers(application.id)])
+      const [cards, offerRes, interviewRes] = await Promise.all([
+        getScorecards(application.id),
+        getOffers(application.id),
+        getApplicationInterviews(application.id),
+      ])
       setScorecards(toList(cards))
       setOffers(toList(offerRes))
+      setInterviews(toList(interviewRes))
     } catch (err) {
       setError(err)
     }
   }
 
   useEffect(() => { load() }, [application.id])
+
+  // Anyone who can manage recruitment may pick the interviewer from the active employees.
+  useEffect(() => {
+    if (!canManage) return
+    getWorkers({ status: 'active', limit: 100 }).then((res) => setWorkers(toList(res))).catch(() => setWorkers([]))
+  }, [canManage])
 
   const run = async (action, { reload = true } = {}) => {
     try {
@@ -80,6 +98,20 @@ export default function ApplicationDialog({ application, candidate, requisition,
     }))
     if (saved) setScore({ ...score, interviewer_name: '', feedback_notes: '' })
   }
+
+  const assign = async (e) => {
+    e.preventDefault()
+    const saved = await run(() => scheduleInterview(application.id, {
+      round_name: slot.round_name.trim(),
+      interviewer_worker_id: slot.interviewer_worker_id,
+      scheduled_at: new Date(slot.scheduled_at).toISOString(),
+      duration_minutes: Number(slot.duration_minutes) || 60,
+      location: slot.location.trim() || null,
+    }))
+    if (saved) setSlot({ ...slot, interviewer_worker_id: '', scheduled_at: '', location: '' })
+  }
+
+  const cancelInterview = (interview) => run(() => updateInterview(interview.id, { status: 'cancelled' }))
 
   const sendOffer = async (e) => {
     e.preventDefault()
@@ -160,6 +192,60 @@ export default function ApplicationDialog({ application, candidate, requisition,
       {application.status === 'rejected' && application.rejection_reason && (
         <p className="small amount-neg">Rejected: {application.rejection_reason}</p>
       )}
+
+      <div className="form-section">
+        <h3 style={{ fontSize: 14, margin: '0 0 8px' }}>Interviews</h3>
+        {interviews.length === 0 ? (
+          <p className="muted small">No interviewer assigned yet.</p>
+        ) : (
+          <table className="table-plain">
+            <thead><tr><th>When</th><th>Round</th><th>Interviewer</th><th>Where</th><th>Status</th><th /></tr></thead>
+            <tbody>
+              {interviews.map((i) => (
+                <tr key={i.id}>
+                  <td>{formatDateTime(i.scheduled_at)}<div className="muted small">{i.duration_minutes} min</div></td>
+                  <td style={{ textTransform: 'capitalize' }}>{i.round_name}</td>
+                  <td>{i.interviewer_name}</td>
+                  <td>{i.location || <span className="muted">—</span>}</td>
+                  <td><StatusBadge status={i.status} label={statusLabel(i.status)} /></td>
+                  <td className="right">
+                    {canManage && i.status === 'scheduled' && (
+                      <button type="button" className="btn secondary small-btn" disabled={busy} onClick={() => cancelInterview(i)}>Cancel</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {canManage && !closed && (
+          <form onSubmit={assign} style={{ marginTop: 12 }}>
+            <div className="grid-2">
+              <Field label="Interviewer" required error={fieldErrors.interviewer_worker_id} hint="They get a notification and see it under My interviews.">
+                <select value={slot.interviewer_worker_id} onChange={(e) => setSlot({ ...slot, interviewer_worker_id: e.target.value })}>
+                  <option value="">Choose an employee</option>
+                  {workers.filter((w) => w.user_id).map((w) => (
+                    <option key={w.id} value={w.id}>{w.first_name} {w.last_name} · {w.designation}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Round" required error={fieldErrors.round_name}>
+                <input type="text" value={slot.round_name} onChange={(e) => setSlot({ ...slot, round_name: e.target.value })} />
+              </Field>
+              <Field label="Date and time" required error={fieldErrors.scheduled_at}>
+                <input type="datetime-local" value={slot.scheduled_at} onChange={(e) => setSlot({ ...slot, scheduled_at: e.target.value })} />
+              </Field>
+              <Field label="Minutes" error={fieldErrors.duration_minutes}>
+                <input type="number" min="5" max="480" value={slot.duration_minutes} onChange={(e) => setSlot({ ...slot, duration_minutes: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Room or meeting link" error={fieldErrors.location}>
+              <input type="text" value={slot.location} onChange={(e) => setSlot({ ...slot, location: e.target.value })} />
+            </Field>
+            <button type="submit" className="btn secondary" disabled={busy}>Assign interviewer</button>
+          </form>
+        )}
+      </div>
 
       <div className="form-section">
         <h3 style={{ fontSize: 14, margin: '0 0 8px' }}>Interview feedback</h3>
