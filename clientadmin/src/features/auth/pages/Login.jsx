@@ -18,6 +18,8 @@ export default function Login() {
   const [needsOrgCode, setNeedsOrgCode] = useState(false)
   const [mfaToken, setMfaToken] = useState(null)
   const [code, setCode] = useState('')
+  // Without the authenticator, one of the recovery codes shown when two-factor sign-in was turned on (each works once).
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -74,18 +76,32 @@ export default function Login() {
         {mfaToken ? (
           <form onSubmit={handleMfa}>
             <div className="field">
-              <label htmlFor="code">Verification code</label>
+              <label htmlFor="code">{useRecoveryCode ? 'Recovery code' : 'Verification code'}</label>
               <input
                 id="code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
+                inputMode={useRecoveryCode ? 'text' : 'numeric'}
+                autoComplete={useRecoveryCode ? 'off' : 'one-time-code'}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="6-digit code"
+                placeholder={useRecoveryCode ? 'ABCDE-FGHJK' : '6-digit code'}
                 required
                 autoFocus
               />
-              <div className="hint">Enter the code from your authenticator app.</div>
+              <div className="hint">
+                {useRecoveryCode
+                  ? 'Enter one of the recovery codes you saved. Each one works once.'
+                  : 'Enter the code from your authenticator app.'}
+              </div>
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => { setUseRecoveryCode((on) => !on); setCode('') }}
+              >
+                {useRecoveryCode ? 'Use the authenticator app instead' : 'Lost your phone? Use a recovery code'}
+              </button>
+              {useRecoveryCode && (
+                <div className="hint">No recovery codes left? Ask an administrator to turn off two-factor sign-in for you.</div>
+              )}
             </div>
             <button className="btn" type="submit" disabled={submitting} style={{ width: '100%' }}>
               {submitting ? 'Verifying…' : 'Verify'}

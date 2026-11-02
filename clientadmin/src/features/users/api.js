@@ -14,6 +14,8 @@ export const usersApi = {
   deactivate: (orgId, id, version, body) =>
     api.post(`${IDENTITY}/users/${id}/deactivate`, body, { headers: inOrg(orgId, { 'If-Match': `"${version}"` }) }),
   resendInvitation: (orgId, id) => api.post(`${IDENTITY}/users/${id}/invitations`, undefined, { headers: inOrg(orgId) }),
+  // For someone who lost their authenticator and recovery codes: turns MFA off and signs them out everywhere.
+  resetMfa: (orgId, id) => api.del(`${IDENTITY}/users/${id}/mfa`, { headers: inOrg(orgId) }),
   // Extra team membership; where the person works doesn't change. Both are safe to repeat.
   joinTeam: (orgId, id, teamId) => api.put(`${IDENTITY}/users/${id}/teams/${teamId}`, undefined, { headers: inOrg(orgId) }),
   leaveTeam: (orgId, id, teamId) => api.del(`${IDENTITY}/users/${id}/teams/${teamId}`, { headers: inOrg(orgId) }),

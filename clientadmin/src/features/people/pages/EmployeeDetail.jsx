@@ -12,6 +12,7 @@ import {
   getPromotions,
   getBonuses,
   awardBonus,
+  decideBonus,
   initiateSeparation,
   getSeparations,
   getAttendance,
@@ -181,6 +182,9 @@ export default function EmployeeDetail({ workerId, embedded = false }) {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  // What a form did when it is not visible at once (a request waiting for approval).
+  const [notice, setNotice] = useState('')
+  const [decidingBonus, setDecidingBonus] = useState(null)
   const fieldErrors = getFieldErrors(error)
 
   const setForm = (name, patch) => setForms((prev) => ({ ...prev, [name]: { ...prev[name], ...patch } }))
@@ -274,15 +278,18 @@ export default function EmployeeDetail({ workerId, embedded = false }) {
   }, [dialog])
 
   // Runs a form's request, then closes it and refreshes what it changed.
-  const submit = (request, { reloadWorker = false } = {}) => async (e) => {
+  const submit = (request, { reloadWorker = false, reloadRoleChanges = false, doneNotice = '' } = {}) => async (e) => {
     e.preventDefault()
     try {
       setSaving(true)
       setError(null)
+      setNotice('')
       await request()
       setDialog(null)
       loadTabData()
       if (reloadWorker) loadWorker()
+      if (reloadRoleChanges) loadRoleChanges()
+      if (doneNotice) setNotice(doneNotice)
     } catch (err) {
       setError(err)
     } finally {
@@ -304,7 +311,10 @@ export default function EmployeeDetail({ workerId, embedded = false }) {
           notes: forms.hike.notes.trim() || null,
           previous_annual_ctc: salaryStruct.annual_ctc,
         }),
-      { reloadWorker: true },
+      {
+        reloadRoleChanges: true,
+        doneNotice: 'The salary revision was sent for approval. It takes effect once it is approved (see Role changes).',
+      },
     )(e)
   }
 
@@ -330,13 +340,30 @@ export default function EmployeeDetail({ workerId, embedded = false }) {
     { reloadWorker: true },
   )
 
-  const handleAwardBonus = submit(() =>
-    awardBonus(id, {
-      ...forms.bonus,
-      amount: Number(forms.bonus.amount),
-      reason: forms.bonus.reason.trim(),
-    }),
+  const handleAwardBonus = submit(
+    () =>
+      awardBonus(id, {
+        ...forms.bonus,
+        amount: Number(forms.bonus.amount),
+        reason: forms.bonus.reason.trim(),
+      }),
+    { doneNotice: 'The bonus was awarded. Someone else approves it before it is paid.' },
   )
+
+  // Someone other than whoever awarded a bonus approves or rejects it.
+  const handleDecideBonus = async (bonus, approved) => {
+    try {
+      setDecidingBonus(bonus.id)
+      setTabError(null)
+      setNotice('')
+      await decideBonus(id, bonus.id, approved)
+      loadTabData()
+    } catch (err) {
+      setTabError(err)
+    } finally {
+      setDecidingBonus(null)
+    }
+  }
 
   const handleAdjustLeave = submit(() =>
     adjustLeaveBalance({
@@ -420,7 +447,7 @@ export default function EmployeeDetail({ workerId, embedded = false }) {
         <div className="row-actions wrap">
           {canManage && <button type="button" className="btn secondary" onClick={() => setEditOpen(true)}>Edit</button>}
           {canManage && <button type="button" className="btn secondary" onClick={() => { setRolePreset(null); setRoleDialogOpen(true) }}>Change role</button>}
-          {canManagePay && <button type="button" className="btn secondary" onClick={() => openDialog('hike')}>Record hike</button>}
+          {canManagePay && <button type="button" className="btn secondary" onClick={() => openDialog('hike')}>Request hike</button>}
           {canManagePay && <button type="button" className="btn secondary" onClick={() => openDialog('bonus')}>Award bonus</button>}
           <button type="button" className="btn danger-outline" onClick={() => openDialog('exit')}>Start exit</button>
         </div>
@@ -442,6 +469,7 @@ export default function EmployeeDetail({ workerId, embedded = false }) {
       </div>
 
       <ErrorBanner error={tabError} onRetry={loadTabData} />
+      {notice && <div className="alert success">{notice}</div>}
 
       {activeTab === 'overview' && (
         <div className="two-col">
@@ -666,16 +694,27 @@ export default function EmployeeDetail({ workerId, embedded = false }) {
               <h2>Bonuses</h2>
               <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
                 <table className="table-plain">
-                  <thead><tr><th>Month</th><th>Type</th><th>Amount</th></tr></thead>
+                  <thead><tr><th>Month</th><th>Type</th><th>Amount</th><th>Status</th>{canManagePay && <th />}</tr></thead>
                   <tbody>
                     {bonuses.length === 0 ? (
-                      <tr><td colSpan={3} className="center-note">No bonuses awarded.</td></tr>
+                      <tr><td colSpan={canManagePay ? 5 : 4} className="center-note">No bonuses awarded.</td></tr>
                     ) : (
                       bonuses.map((b) => (
                         <tr key={b.id}>
                           <td className="mono">{b.payout_month}</td>
                           <td style={{ textTransform: 'capitalize' }}>{statusLabel(b.bonus_type)}</td>
                           <td><strong>{formatCurrency(b.amount, b.currency)}</strong></td>
+                          <td><StatusBadge status={b.status} label={statusLabel(b.status === 'pending' ? 'awaiting approval' : b.status)} /></td>
+                          {canManagePay && (
+                            <td className="row-actions">
+                              {b.status === 'pending' && (
+                                <>
+                                  <button type="button" className="btn secondary small-btn" disabled={decidingBonus === b.id} aria-busy={decidingBonus === b.id} onClick={() => handleDecideBonus(b, true)}>Approve</button>
+                                  <button type="button" className="btn danger-outline small-btn" disabled={decidingBonus === b.id} onClick={() => handleDecideBonus(b, false)}>Reject</button>
+                                </>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))
                     )}
@@ -792,15 +831,15 @@ export default function EmployeeDetail({ workerId, embedded = false }) {
 
       {dialog === 'hike' && (
         <FormDialog
-          title="Record a salary hike"
+          title="Request a salary revision"
           intro={
             salaryStruct?.annual_ctc
-              ? `Current annual CTC is ${formatCurrency(salaryStruct.annual_ctc, salaryStruct.currency)}.`
-              : 'This employee has no salary structure yet, so a hike cannot be recorded.'
+              ? `Current annual CTC is ${formatCurrency(salaryStruct.annual_ctc, salaryStruct.currency)}. The revision is sent for approval and takes effect once it is approved.`
+              : 'This employee has no salary structure yet, so a revision cannot be requested.'
           }
           onClose={() => setDialog(null)}
           onSubmit={handleRecordHike}
-          submitLabel="Apply hike"
+          submitLabel="Send for approval"
           saving={saving}
           error={error}
         >

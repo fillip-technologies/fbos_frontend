@@ -140,13 +140,17 @@ export const disbursePayrollRun = (id) => api.post(`${PEOPLE}/payroll/runs/${id}
 // Appraisals, Promotions & Bonuses
 // -------------------------------------------------------------
 export const getCompensationRevisions = (workerId) => api.get(`${PEOPLE}/workers/${workerId}/compensation-revisions`)
+// A salary revision or promotion is a role change: it answers the waiting request and applies once approved.
 export const createCompensationRevision = (workerId, data) => api.post(`${PEOPLE}/workers/${workerId}/compensation-revisions`, data)
 
 export const getPromotions = (workerId) => api.get(`${PEOPLE}/workers/${workerId}/promotions`)
 export const createPromotion = (workerId, data) => api.post(`${PEOPLE}/workers/${workerId}/promotions`, data)
 
 export const getBonuses = (workerId) => api.get(`${PEOPLE}/workers/${workerId}/bonuses`)
+// A bonus waits for someone other than whoever awarded it; only approved bonuses are paid.
 export const awardBonus = (workerId, data) => api.post(`${PEOPLE}/workers/${workerId}/bonuses`, data)
+export const decideBonus = (workerId, bonusId, approved = true) =>
+  api.patch(`${PEOPLE}/workers/${workerId}/bonuses/${bonusId}/approve?approved=${approved}`)
 
 // -------------------------------------------------------------
 // Separation & Clearance
