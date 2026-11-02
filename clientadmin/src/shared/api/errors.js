@@ -65,6 +65,7 @@ const FRIENDLY = {
   LEAVE_OVERLAP: 'These dates overlap a leave request that is already pending or approved.',
   MFA_ALREADY_ENABLED: 'Two-factor sign-in is already on for this account.',
   MFA_NOT_ENABLED: 'Two-factor sign-in is not on for this user.',
+  EXTRA_ACCESS_NEEDS_END_DATE: (err) => err.message || 'This person\'s roles come from their job in People. Access given here needs an end date.',
   DELEGATION_OVERLAP: 'You already have a delegation in that period.',
   ACCESS_APPROVER_MISSING: 'This gives a role you could not grant yourself. Name the access approver under Approvals first.',
   ROLE_MANAGED_BY_PEOPLE: 'This role comes from the person’s post in People. Change it with a role change there.',

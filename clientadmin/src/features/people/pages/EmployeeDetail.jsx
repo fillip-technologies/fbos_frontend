@@ -135,7 +135,7 @@ const Detail = ({ label, children }) => (
 
 // The employee record. It is its own page only for people without a login: anyone with one is kept on their
 // user page (Users and employees), which shows this with `embedded` under its Employee tab.
-export default function EmployeeDetail({ workerId, embedded = false }) {
+export default function EmployeeDetail({ workerId, embedded = false, openRoleChange = false, onRoleChangeOpened }) {
   const params = useParams()
   const id = workerId ?? params.id
   const { user } = useAuth()
@@ -260,6 +260,15 @@ export default function EmployeeDetail({ workerId, embedded = false }) {
   useEffect(() => {
     loadTabData()
   }, [id, activeTab])
+
+  // Arriving from a user's Access ("Change role"): open the form once, on the Posts tab.
+  useEffect(() => {
+    if (!openRoleChange || !canManage) return
+    setActiveTab('posts')
+    setRolePreset(null)
+    setRoleDialogOpen(true)
+    onRoleChangeOpened?.()
+  }, [openRoleChange, canManage])
 
   // A form may be opened from any tab, so fetch what it needs when it opens.
   useEffect(() => {

@@ -31,6 +31,7 @@ export function accessFromGrants(grants, assignments = []) {
     role_code: a.role.code,
     scope_unit_id: a.scope_unit?.id || null,
     self_only: a.self_only,
+    valid_to: a.valid_to || null, // kept as it is when the form is saved
     source: a.source || null, // "people": comes from the person's post in People
   }))
   return {
@@ -43,6 +44,7 @@ export function accessFromGrants(grants, assignments = []) {
         code: g.code,
         scope_unit_id: unit,
         self_only: g.self_only,
+        valid_to: g.valid_to || null,
         source_role: g.source_role,
         ...(preset ? { preset_key: preset.key } : {}),
       }

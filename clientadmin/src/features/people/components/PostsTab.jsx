@@ -7,6 +7,14 @@ import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 
+// A role a post gives, with where it applies: "Sales Manager (its department)".
+const roleWithScope = (spec, unitName) => {
+  const name = spec.name || spec.role_code
+  if (spec.scope === 'department') return `${name} (its department)`
+  if (spec.scope === 'unit' && spec.unit_id) return `${name} (${unitName(spec.unit_id)})`
+  return `${name} (whole company)`
+}
+
 // The jobs a person holds: the primary post first, then the others, with earlier versions on request.
 // Posts change through role changes, so each action opens the Change role form already filled in.
 export default function PostsTab({ workerId, canManage, canSeePay, canMakePrimary = true, unitName, onChange }) {
@@ -59,7 +67,12 @@ export default function PostsTab({ workerId, canManage, canSeePay, canMakePrimar
                 const active = post.status === 'active'
                 return (
                   <tr key={post.id} className={active ? undefined : 'post-ended'}>
-                    <td><strong>{post.title}</strong></td>
+                    <td>
+                      <strong>{post.title}</strong>
+                      {post.role_codes?.length > 0 && (
+                        <div className="muted small">Gives: {post.role_codes.map((r) => roleWithScope(r, unitName)).join(', ')}</div>
+                      )}
+                    </td>
                     <td>{POST_TYPE_LABELS[post.post_type] || post.post_type}</td>
                     <td>{post.unit_id ? unitName(post.unit_id) : <span className="muted">—</span>}</td>
                     <td>{post.manager_name || <span className="muted">—</span>}</td>
