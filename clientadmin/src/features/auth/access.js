@@ -183,6 +183,7 @@ export const ACCESS = {
   manageEmployees: { permissions: ['people.employee.manage'] },
   recruitment: { permissions: ['people.recruitment.read'] },
   manageRecruitment: { permissions: ['people.recruitment.manage'] },
+  interviews: { anyPermissions: ['people.recruitment.interview', 'people.recruitment.manage'] },
   attendance: { permissions: ['people.attendance.read'] },
   manageAttendance: { permissions: ['people.attendance.manage'] },
   leaves: { permissions: ['people.leave.apply'] },

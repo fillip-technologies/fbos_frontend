@@ -90,6 +90,7 @@ const Employees = lazy(pages.Employees)
 const EmployeeDetail = lazy(pages.EmployeeDetail)
 const RecruitmentJobs = lazy(pages.RecruitmentJobs)
 const RequisitionDetail = lazy(pages.RequisitionDetail)
+const MyInterviews = lazy(pages.MyInterviews)
 const AttendanceBoard = lazy(pages.AttendanceBoard)
 const LeaveManager = lazy(pages.LeaveManager)
 const PayrollHub = lazy(pages.PayrollHub)
@@ -223,6 +224,7 @@ export default function App() {
           <Route path="/people/employees/:id" element={<RequireAccess rule={ACCESS.people}><EmployeeDetail /></RequireAccess>} />
           <Route path="/people/jobs" element={<RequireAccess rule={ACCESS.recruitment}><RecruitmentJobs /></RequireAccess>} />
           <Route path="/people/jobs/:id" element={<RequireAccess rule={ACCESS.recruitment}><RequisitionDetail /></RequireAccess>} />
+          <Route path="/people/interviews" element={<RequireAccess rule={ACCESS.interviews}><MyInterviews /></RequireAccess>} />
           <Route path="/people/attendance" element={<RequireAccess rule={ACCESS.attendance}><AttendanceBoard /></RequireAccess>} />
           <Route path="/people/leaves" element={<RequireAccess rule={ACCESS.leaves}><LeaveManager /></RequireAccess>} />
           <Route path="/people/payroll" element={<RequireAccess rule={ACCESS.compensation}><PayrollHub /></RequireAccess>} />
