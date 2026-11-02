@@ -31,6 +31,7 @@ export function accessFromGrants(grants, assignments = []) {
     role_code: a.role.code,
     scope_unit_id: a.scope_unit?.id || null,
     self_only: a.self_only,
+    source: a.source || null, // "people": comes from the person's post in People
   }))
   return {
     presets,
@@ -194,12 +195,14 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
                         <td>
                           <b>{roleName(preset)}</b>
                           <div className="muted small">{rolesById[preset.role_id]?.permissions.length ?? 0} permissions</div>
+                          {preset.source === 'people' && <div className="muted small">From their post in People. Change it with a role change.</div>}
                         </td>
                         <td>
                           <UnitSelect
                             units={units}
                             value={preset.scope_unit_id}
                             emptyLabel="Whole company"
+                            disabled={preset.source === 'people'}
                             onChange={(id) => changePreset(preset, { scope_unit_id: id })}
                           />
                         </td>
@@ -207,19 +210,20 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
                           <input
                             type="checkbox"
                             checked={preset.self_only}
+                            disabled={preset.source === 'people'}
                             aria-label={`${roleName(preset)}: only their own records`}
                             onChange={(e) => changePreset(preset, { self_only: e.target.checked })}
                           />
                         </td>
                         <td>
-                          <button
+                          {preset.source === 'people' ? <span className="muted small">Locked</span> : <button
                             type="button"
                             className="link-btn danger"
                             onClick={() => removePreset(preset.key)}
                             title={lost ? `Takes away ${lost} permission${lost === 1 ? '' : 's'}` : 'Every permission stays: other roles give them'}
                           >
                             Remove
-                          </button>
+                          </button>}
                         </td>
                       </tr>
                     )

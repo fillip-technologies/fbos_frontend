@@ -40,6 +40,10 @@ function ChangeLines({ change, unitName }) {
   if (change.new_designation) {
     lines.push(<li key="d">Designation: {change.previous_designation || '—'}<Arrow />{change.new_designation}</li>)
   }
+  if (change.new_role_codes) {
+    const names = (roles) => (roles?.length ? roles.map((r) => r.name || r.role_code).join(', ') : 'none')
+    lines.push(<li key="r">Role: {names(change.previous_role_codes)}<Arrow />{names(change.new_role_codes)}</li>)
+  }
   if (change.new_unit_id) {
     lines.push(
       <li key="u">

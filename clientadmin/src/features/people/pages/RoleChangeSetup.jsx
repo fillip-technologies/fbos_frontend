@@ -20,6 +20,7 @@ import useUserNames from '../useUserNames.js'
 const APPROVER_ROLES = [
   ['hr_head', 'HR head', 'Joins the approvals of every demotion.'],
   ['finance', 'Finance', 'Joins the approvals of every change that moves someone’s salary.'],
+  ['access_admin', 'Access approver', 'Approves a change that gives a role the requester could not grant themselves under Users. Needed before such a role can be requested.'],
 ]
 
 // Who approves what. Approvers must also hold the permission to approve role changes.
@@ -34,7 +35,7 @@ export default function RoleChangeSetup() {
         <div>
           <h1>Approvals and access</h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
-            Every role change needs one approval. Some need more: department heads for a new post, the HR head for a demotion, finance for a salary change.
+            Every role change needs one approval. Some need more: department heads for a new post, the HR head for a demotion, finance for a salary change, an access approver for a role beyond the requester’s own access.
           </p>
         </div>
       </div>
