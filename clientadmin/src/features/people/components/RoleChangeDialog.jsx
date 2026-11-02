@@ -4,6 +4,7 @@ import { POST_TYPE_LABELS, formatCurrency, formatShare, toList, todayISO } from 
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
+import useAccessCatalog from '@/features/access/useAccessCatalog.js'
 import FormDialog from './FormDialog.jsx'
 import Field from './Field.jsx'
 import { AccessImpact, ApprovalRoute } from './RoleChangeRoute.jsx'
@@ -75,6 +76,10 @@ function buildBody(form, target) {
 export default function RoleChangeDialog({ worker, salary, units, preset = null, onClose, onSaved }) {
   const { orgId } = useActiveOrg()
   const { nameOf } = useUserNames(orgId)
+  // A post's title is a role from Identity (the names "Add employee" and "Add from users" use). Reading roles
+  // needs its own permission: without it the field stays a text box so nobody is blocked.
+  const { roles } = useAccessCatalog(orgId)
+  const roleNames = roles.map((role) => role.name || role.code)
   const [form, setForm] = useState(() => emptyForm(preset))
   const [posts, setPosts] = useState([])
   const [workers, setWorkers] = useState([])
@@ -227,12 +232,23 @@ export default function RoleChangeDialog({ worker, salary, units, preset = null,
               }
               error={fieldErrors.new_designation}
             >
-              <input
-                type="text"
-                value={form.new_designation}
-                disabled={fromIdentity && !isAdd && targetIsPrimary}
-                onChange={(e) => set({ new_designation: e.target.value })}
-              />
+              {roleNames.length > 0 ? (
+                <select
+                  value={form.new_designation}
+                  disabled={fromIdentity && !isAdd && targetIsPrimary}
+                  onChange={(e) => set({ new_designation: e.target.value })}
+                >
+                  <option value="">{isAdd ? 'Choose a role…' : 'No change'}</option>
+                  {roleNames.map((name) => <option key={name} value={name}>{name}</option>)}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={form.new_designation}
+                  disabled={fromIdentity && !isAdd && targetIsPrimary}
+                  onChange={(e) => set({ new_designation: e.target.value })}
+                />
+              )}
             </Field>
             {units?.length > 0 && (
               <div className="field">
