@@ -179,6 +179,3 @@ export const setStandingApprovers = (roleKey, userIds) => api.put(`${PEOPLE}/rol
 export const getMyDelegations = (opts) => api.get(`${PEOPLE}/role-change-delegations`, opts)
 export const createDelegation = (data) => api.post(`${PEOPLE}/role-change-delegations`, data)
 export const endDelegation = (id) => api.del(`${PEOPLE}/role-change-delegations/${id}`)
-export const getAccessRoleMappings = (opts) => api.get(`${PEOPLE}/access-role-mappings`, opts)
-export const createAccessRoleMapping = (data) => api.post(`${PEOPLE}/access-role-mappings`, data)
-export const deleteAccessRoleMapping = (id) => api.del(`${PEOPLE}/access-role-mappings/${id}`)
