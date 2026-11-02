@@ -68,7 +68,7 @@ function firstError(...queries) {
 
 function workParts(work, doneLabel) {
   const parts = WORK_STAGES.map((s) => ({ label: s.label, value: work?.[s.key] ?? 0, color: s.color, ink: s.key === 'blocked' ? '#0b0b0b' : '#fff' }))
-  if (doneLabel) parts.push({ label: doneLabel, value: work?.done_recent ?? 0, color: '#a29d8f' })
+  if (doneLabel) parts.push({ label: doneLabel, value: work?.done_recent ?? 0, color: '#94a3b8' })
   return parts
 }
 
@@ -253,7 +253,7 @@ export function PersonInsights({ userId }) {
           <ChartCard
             title="Their tasks"
             subtitle={`By stage · done in the last ${q.range.days} days`}
-            legend={[...WORK_STAGES.map((s) => ({ label: s.label, color: s.color })), { label: 'Done', color: '#a29d8f' }]}
+            legend={[...WORK_STAGES.map((s) => ({ label: s.label, color: s.color })), { label: 'Done', color: '#94a3b8' }]}
             table={{ columns: ['Week', 'New for them', 'Completed'], rows: tasks.weekly.map((w) => [dayShort.format(new Date(`${w.week_start}T00:00:00`)), count(w.created), count(w.completed)]) }}
           >
             <SegmentedBar parts={workParts(me, 'Done')} format={count} label="Their tasks" />
@@ -355,13 +355,13 @@ export function ProjectInsights({ project }) {
           <ChartCard
             title="Tasks"
             subtitle={`By stage · done in the last ${q.range.days} days`}
-            legend={[...WORK_STAGES.map((s) => ({ label: s.label, color: s.color })), { label: 'Done', color: '#a29d8f' }]}
+            legend={[...WORK_STAGES.map((s) => ({ label: s.label, color: s.color })), { label: 'Done', color: '#94a3b8' }]}
             table={{ columns: ['Stage', 'Tasks'], rows: tasks.by_column.map((c) => [c.label || c.key, count(c.count)]) }}
           >
             <SegmentedBar
               format={count}
               label="Tasks"
-              parts={tasks.by_column.map((c, i) => ({ label: c.label || c.key, value: c.count, color: c.key === 'done' ? '#a29d8f' : SERIES[i], ink: c.key === 'blocked' ? '#0b0b0b' : '#fff' }))}
+              parts={tasks.by_column.map((c, i) => ({ label: c.label || c.key, value: c.count, color: c.key === 'done' ? '#94a3b8' : SERIES[i], ink: c.key === 'blocked' ? '#0b0b0b' : '#fff' }))}
             />
             <div className="mini-head">Created and completed each week</div>
             <LineChart

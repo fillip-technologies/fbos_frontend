@@ -9,6 +9,7 @@ import { NAV_ITEMS, navItemFor, navSections } from '@/app/navigation.jsx'
 import { preloadPage } from '@/app/pages.js'
 import { PageSkeleton } from '@/shared/components/Skeleton.jsx'
 import TopProgress from '@/shared/components/TopProgress.jsx'
+import fillipMark from '@/assets/brand/fillip-mark.png'
 
 const COLLAPSED_KEY = 'fbos_nav_collapsed'
 
@@ -29,14 +30,10 @@ const ICONS = {
 function Brand() {
   return (
     <div className="sidebar-brand">
-      <span className="brand-mark" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </span>
+      <img className="brand-mark" src={fillipMark} alt="" />
       <span className="brand-word">
         FBOS
-        <small>Admin console</small>
+        <small>by Fillip Technologies</small>
       </span>
     </div>
   )

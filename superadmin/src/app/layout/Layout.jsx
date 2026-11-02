@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import fillipMark from '@/assets/brand/fillip-mark.png'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -45,14 +46,10 @@ export default function Layout() {
     <div className="app-shell">
       <header className="sa-bar">
         <div className="sidebar-brand">
-          <span className="brand-mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
+          <img className="brand-mark" src={fillipMark} alt="" />
           <span className="brand-word">
             FBOS
-            <small>Platform admin</small>
+            <small>Platform admin · Fillip Technologies</small>
           </span>
         </div>
         <nav className="sa-nav" aria-label="Main navigation">

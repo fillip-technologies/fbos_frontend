@@ -70,7 +70,7 @@ const HEALTH = {
   green: { label: 'On track', color: STATUS.good, icon: '●' },
   amber: { label: 'At risk', color: STATUS.warning, icon: '▲' },
   red: { label: 'Off track', color: STATUS.critical, icon: '■' },
-  unknown: { label: 'Not assessed', color: '#a29d8f', icon: '○' },
+  unknown: { label: 'Not assessed', color: '#94a3b8', icon: '○' },
 }
 const WINDOWS = [3, 6, 12]
 
@@ -306,7 +306,7 @@ function SalesSection({ q, names }) {
   if (!opp && !leads) return null
   const stages = opp?.by_stage ?? []
   const owners = (opp?.by_owner ?? []).slice(0, 8)
-  const leadParts = (leads?.by_status ?? []).map((b, i) => ({ label: label(b.key), value: b.count, color: [...SERIES, '#a29d8f'][Math.min(i, 4)] }))
+  const leadParts = (leads?.by_status ?? []).map((b, i) => ({ label: label(b.key), value: b.count, color: [...SERIES, '#94a3b8'][Math.min(i, 4)] }))
   return (
     <Section title="Sales" sub={opp ? `${money(opp.open_value.amount, opp.currency)} open · ${money(opp.weighted_value.amount, opp.currency)} weighted` : undefined}>
       <Row spans={[5, 7]}>
@@ -516,13 +516,13 @@ function WorkSection({ q, names }) {
             key="board"
             title="Task board"
             subtitle={`${count(tasks.due_next_7_days)} due this week · ${count(tasks.unassigned)} waiting for someone`}
-            legend={columns.map((c, i) => ({ label: c.label || label(c.key), color: c.key === 'done' ? '#a29d8f' : SERIES[i] }))}
+            legend={columns.map((c, i) => ({ label: c.label || label(c.key), color: c.key === 'done' ? '#94a3b8' : SERIES[i] }))}
             table={{ columns: ['Column', 'Tasks'], rows: columns.map((c) => [c.label || label(c.key), count(c.count)]) }}
           >
             <SegmentedBar
               format={count}
               label="Tasks"
-              parts={columns.map((c, i) => ({ label: c.key === 'done' ? `Done (last ${tasks.done_within_days} days)` : c.label, value: c.count, color: c.key === 'done' ? '#a29d8f' : SERIES[i], ink: c.key === 'blocked' ? '#0b0b0b' : '#fff' }))}
+              parts={columns.map((c, i) => ({ label: c.key === 'done' ? `Done (last ${tasks.done_within_days} days)` : c.label, value: c.count, color: c.key === 'done' ? '#94a3b8' : SERIES[i], ink: c.key === 'blocked' ? '#0b0b0b' : '#fff' }))}
             />
             <div className="mini-head">Open tasks by priority</div>
             <BarList fill format={count} rows={(tasks.by_priority ?? []).map((p) => ({ key: p.key, label: label(p.key), value: p.count, tipLabel: 'Open tasks' }))} />
@@ -611,7 +611,7 @@ function PeopleSection({ q, names }) {
   if (!people && !util) return null
   const att = people?.attendance_today
   const attParts = (att?.by_status ?? []).map((b, i) => ({ label: label(b.key), value: b.count, color: SERIES[i % SERIES.length] }))
-  if (att?.not_marked) attParts.push({ label: 'Not marked', value: att.not_marked, color: '#d4cec0', ink: '#3c392f' })
+  if (att?.not_marked) attParts.push({ label: 'Not marked', value: att.not_marked, color: '#cbd5e1', ink: '#334155' })
   const utilRows = (util?.data ?? [])
     .map((r, i) => ({ key: r.resource_id, label: r.user?.name || personLabel(names, r.user?.id, i), value: num(r.total_pct ?? r.planned_pct) }))
     .sort((a, b) => b.value - a.value)
