@@ -80,6 +80,7 @@ export const CHANGE_LABELS = {
   demotion: 'Demotion',
   transfer: 'Transfer',
   correction: 'Correction',
+  salary_revision: 'Salary revision',
   add_post: 'New post',
   end_post: 'End post',
   make_primary: 'Make primary',

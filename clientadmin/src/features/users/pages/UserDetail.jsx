@@ -117,6 +117,21 @@ export default function UserDetail() {
     load()
   }
 
+  async function resetMfa() {
+    if (!window.confirm(
+      `Turn off two-factor sign-in for ${user.name}? Their recovery codes stop working and they are signed out everywhere. ` +
+      'They sign in with their password and turn it on again.',
+    )) return
+    setError(null)
+    try {
+      await usersApi.resetMfa(orgId, id)
+      setNotice(`Two-factor sign-in is off for ${user.name}, and they were signed out everywhere. They were told by email.`)
+      load()
+    } catch (err) {
+      setError(err)
+    }
+  }
+
   if (loading) return <DetailSkeleton />
   if (!user)
     return (
@@ -137,6 +152,8 @@ export default function UserDetail() {
     viewSessions: hasAccess(me, ACCESS.viewUserSessions),
     // Only a client admin can sign out a client admin (the backend enforces the same).
     signOutSessions: hasAccess(me, ACCESS.revokeUserSessions) && (!isTenantAdmin || isClientAdmin(me)),
+    // Not your own (a stolen session must not remove the second factor); a client admin's only by a client admin.
+    resetMfa: hasAccess(me, ACCESS.updateUsers) && !isSelf && (!isTenantAdmin || isClientAdmin(me)),
     securityLog: hasAccess(me, ACCESS.auditLog),
   }
 
@@ -255,7 +272,15 @@ export default function UserDetail() {
                 ))}
             </Detail>
             <Detail label="Reports to">{user.manager && <Link to={`/users/${user.manager.id}`}>{user.manager.name}</Link>}</Detail>
-            <Detail label="Two-factor sign-in">{user.mfa_enabled ? 'Enabled' : 'Not set up'}</Detail>
+            <Detail label="Two-factor sign-in">
+              {user.mfa_enabled ? 'Enabled' : 'Not set up'}
+              {user.mfa_enabled && allowed.resetMfa && !isDeactivated && (
+                <>
+                  {' · '}
+                  <button type="button" className="link-btn danger" onClick={resetMfa}>Turn off</button>
+                </>
+              )}
+            </Detail>
             <Detail label="Last sign-in">{user.last_login_at && formatDateTime(user.last_login_at)}</Detail>
             <Detail label="Added">{formatDateTime(user.created_at)}</Detail>
           </div>
