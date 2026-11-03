@@ -41,14 +41,20 @@ export default function SubscriptionOverview() {
   if (error && !client) return <ErrorBanner error={error} onRetry={reload} />
   if (clientQuery.loading || orgsQuery.loading) return <DetailSkeleton />
 
-  const left = daysUntil(client.subscription_end)
-  const period = periodUse(client.subscription_start, client.subscription_end)
+  // No end date (the company that runs FBOS): no countdown, no expiry warning.
+  const noExpiry = client.subscription_end == null
+  const left = noExpiry ? null : daysUntil(client.subscription_end)
+  const period = noExpiry ? null : periodUse(client.subscription_start, client.subscription_end)
   return (
     <div>
       <HomeHero
         eyebrow={
           <>
-            {client.name} <StatusBadge status={client.subscription_state} />
+            {client.name}{' '}
+            <StatusBadge
+              status={client.subscription_state}
+              label={client.subscription_state === 'unlimited' ? 'Unlimited · No expiry' : undefined}
+            />
           </>
         }
         name={user?.name}
@@ -65,9 +71,11 @@ export default function SubscriptionOverview() {
       <div className="cards">
         <div className="panel home-feature">
           <div className="stat-label">Service period ends</div>
-          <div className="stat-value">{formatDate(client.subscription_end)}</div>
+          <div className="stat-value">{noExpiry ? 'No expiry' : formatDate(client.subscription_end)}</div>
           <div className="stat-sub">
-            {formatDate(client.subscription_start)} → {formatDate(client.subscription_end)}
+            {noExpiry
+              ? `Since ${formatDate(client.subscription_start)} · Unlimited`
+              : `${formatDate(client.subscription_start)} → ${formatDate(client.subscription_end)}`}
             {left !== null && left >= 0 && ` · ${left} day${left === 1 ? '' : 's'} left`}
           </div>
           {period && <Meter value={period.used} max={period.total} label="Share of the service period used" />}
@@ -75,17 +83,25 @@ export default function SubscriptionOverview() {
         <div className="panel">
           <div className="stat-label">Companies</div>
           <div className="stat-value">
-            {orgCount} <span className="muted">/ {client.max_organizations}</span>
+            {orgCount} <span className="muted">/ {client.max_organizations ?? 'Unlimited'}</span>
           </div>
           <div className="stat-sub">
             <Link to="/organizations">Manage companies</Link>
           </div>
-          <Meter value={orgCount} max={client.max_organizations} label="Companies used" />
+          {client.max_organizations != null && (
+            <Meter value={orgCount} max={client.max_organizations} label="Companies used" />
+          )}
         </div>
         <div className="panel">
           <div className="stat-label">Users per company</div>
           <div className="stat-value">
-            <span className="muted">up to</span> {client.max_users_per_org}
+            {client.max_users_per_org == null ? (
+              'Unlimited'
+            ) : (
+              <>
+                <span className="muted">up to</span> {client.max_users_per_org}
+              </>
+            )}
           </div>
           <div className="stat-sub">
             <Link to="/users">Manage users</Link>

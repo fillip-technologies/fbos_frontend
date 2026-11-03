@@ -22,6 +22,8 @@ const ASSETS_URL = process.env.ASSETS_URL || process.env.API_URL || 'http://loca
 const PEOPLE_URL = process.env.PEOPLE_URL || process.env.API_URL || 'http://localhost:8010'
 // Management (planning, KPIs, budgets, capacity) is on :8007.
 const MANAGEMENT_URL = process.env.MANAGEMENT_URL || process.env.API_URL || 'http://localhost:8007'
+// The gateway's screens (/api/bff: the CEO Command Center) live on the gateway itself, :8000.
+const GATEWAY_URL = process.env.GATEWAY_URL || process.env.API_URL || 'http://localhost:8000'
 
 export default defineConfig({
   plugins: [react()],
@@ -75,6 +77,10 @@ export default defineConfig({
       },
       '/api/people': {
         target: PEOPLE_URL,
+        changeOrigin: true,
+      },
+      '/api/bff': {
+        target: GATEWAY_URL,
         changeOrigin: true,
       },
       '/api': {

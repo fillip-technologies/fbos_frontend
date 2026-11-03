@@ -23,6 +23,12 @@ export const NAV_ITEMS = [
     icon: icon(<><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6" /><path d="M12 17h.01" /></>),
   },
   {
+    to: '/ceo',
+    label: 'CEO Command Center',
+    access: ACCESS.ceoDashboard,
+    icon: icon(<><path d="M12 3v3M12 18v3M3 12h3M18 12h3" /><circle cx="12" cy="12" r="6" /><path d="M12 12l3-2" /></>),
+  },
+  {
     to: '/insights',
     label: 'Insights',
     access: ACCESS.insights,
@@ -350,6 +356,7 @@ const DESCRIPTIONS = {
   '/': 'Your starting point: what needs you today, and how the company is doing.',
   '/guide': 'How the parts of FBOS fit together, from first enquiry to money in the bank.',
   '/insights': 'Compare branches, departments, teams and people: work, hours, budgets and KPIs.',
+  '/ceo': 'Every company on one screen: revenue, money owed, projects, people, costs and what needs a decision.',
   '/organizations': 'The companies in your account, and switching between them.',
   '/org-units': 'Branches, departments and teams, and who belongs to each.',
   '/assets': 'Company equipment and software: who has what, servicing and disposal.',
@@ -407,7 +414,7 @@ const DESCRIPTIONS = {
 // NAV_ITEMS entry is never hidden. `hint` says what the section is for (guide, tooltips);
 // Settings starts folded: setup is done now and then, daily work every day.
 export const SECTIONS = [
-  { id: 'home', label: 'Home', hint: 'Start here', paths: ['/', '/guide', '/insights'] },
+  { id: 'home', label: 'Home', hint: 'Start here', paths: ['/', '/ceo', '/guide', '/insights'] },
   {
     id: 'work',
     label: 'My work',

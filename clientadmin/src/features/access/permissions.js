@@ -11,6 +11,9 @@ export const SERVICE_LABELS = {
   documents: 'Documents',
   inventory: 'Inventory',
   people: 'People (HR)',
+  management: 'Planning & performance',
+  assets: 'Assets',
+  insight: 'Insight & dashboards',
 }
 
 export const ENTITY_LABELS = {
@@ -77,6 +80,9 @@ export const ENTITY_LABELS = {
   disposal: 'Disposals',
   maintenance_plan: 'Maintenance plans',
   report: 'Inventory reports',
+  // Each service's company-wide totals, read by the CEO Command Center.
+  summary: 'Company-wide totals (CEO Command Center)',
+  ceo_dashboard: 'CEO Command Center',
 }
 
 export function parseCode(code) {

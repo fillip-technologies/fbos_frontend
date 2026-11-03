@@ -3,6 +3,7 @@ import { DELIVERY, IDENTITY, MANAGEMENT, PEOPLE, REVENUE } from '@/shared/api/pa
 import { inOrg } from '@/shared/api/query.js'
 
 // ---------- The caller's own client: subscription window + quotas (read-only) ----------
+// subscription_end / max_organizations / max_users_per_org are null when unlimited.
 export const clientApi = {
   me: ({ signal } = {}) => api.get(`${IDENTITY}/clients/me`, { signal }),
 }

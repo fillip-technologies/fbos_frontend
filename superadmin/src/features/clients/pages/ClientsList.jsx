@@ -91,8 +91,8 @@ export default function ClientsList() {
                   <td>{c.contact_email || <span className="muted">—</span>}</td>
                   <td className="mono">
                     {typeof c.active_organizations_count === 'number'
-                      ? `${c.active_organizations_count} / ${c.max_organizations}`
-                      : c.max_organizations ?? <span className="muted">—</span>}
+                      ? `${c.active_organizations_count} / ${c.max_organizations ?? '∞'}`
+                      : c.max_organizations ?? '∞'}
                   </td>
                   <td>
                     <StatusBadge status={c.status} />
@@ -102,6 +102,8 @@ export default function ClientsList() {
                       <>
                         {c.subscription_end} <StatusBadge status={c.subscription_state} />
                       </>
+                    ) : c.subscription_state === 'unlimited' ? (
+                      <StatusBadge status="unlimited" />
                     ) : (
                       <span className="muted">—</span>
                     )}

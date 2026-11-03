@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clientsApi } from '@/features/clients/api.js'
+import UnlimitedToggle from '@/features/clients/components/UnlimitedToggle.jsx'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { addOneYear, todayIso } from '@/shared/utils/dates.js'
@@ -23,6 +24,8 @@ const INITIAL = {
   // Quotas controlled exclusively by platform_admin (bounds mirror the backend).
   max_organizations: 2,
   max_users_per_org: 50,
+  // Internal operator company (Fillip): no service end and no quotas. Sent as explicit nulls.
+  unlimited: false,
 }
 
 export default function ClientCreate() {
@@ -57,9 +60,9 @@ export default function ClientCreate() {
         base_currency: form.base_currency.trim() || 'INR',
         timezone: form.timezone.trim() || 'Asia/Kolkata',
         subscription_start: form.subscription_start,
-        subscription_end: form.subscription_end,
-        max_organizations: Number(form.max_organizations),
-        max_users_per_org: Number(form.max_users_per_org),
+        subscription_end: form.unlimited ? null : form.subscription_end,
+        max_organizations: form.unlimited ? null : Number(form.max_organizations),
+        max_users_per_org: form.unlimited ? null : Number(form.max_users_per_org),
         contact_email: form.contact_email.trim(),
       }
       if (form.admin_email.trim()) body.admin_email = form.admin_email.trim()
@@ -182,6 +185,8 @@ export default function ClientCreate() {
           Subscription — platform-admin controlled. Client users are locked out outside this period.
         </p>
 
+        <UnlimitedToggle checked={form.unlimited} onChange={(on) => set('unlimited', on)} />
+
         <div className="grid-2">
           <div className="field">
             <label htmlFor="subscription_start">Service start *</label>
@@ -196,20 +201,23 @@ export default function ClientCreate() {
             {fieldErrors.subscription_start && <div className="field-error">{fieldErrors.subscription_start}</div>}
           </div>
           <div className="field">
-            <label htmlFor="subscription_end">Service end *</label>
+            <label htmlFor="subscription_end">Service end{form.unlimited ? '' : ' *'}</label>
             <input
               id="subscription_end"
               type="date"
               min={form.subscription_start}
               className={fieldErrors.subscription_end ? 'invalid' : ''}
-              value={form.subscription_end}
+              value={form.unlimited ? '' : form.subscription_end}
               onChange={(e) => set('subscription_end', e.target.value)}
-              required
+              disabled={form.unlimited}
+              required={!form.unlimited}
             />
             {fieldErrors.subscription_end ? (
               <div className="field-error">{fieldErrors.subscription_end}</div>
             ) : (
-              <div className="hint">Last day the client can sign in. Defaults to one year.</div>
+              <div className="hint">
+                {form.unlimited ? 'No expiry.' : 'Last day the client can sign in. Defaults to one year.'}
+              </div>
             )}
           </div>
         </div>
@@ -229,13 +237,15 @@ export default function ClientCreate() {
               max={1000}
               className={fieldErrors.max_organizations ? 'invalid' : ''}
               aria-invalid={!!fieldErrors.max_organizations}
-              value={form.max_organizations}
+              value={form.unlimited ? '' : form.max_organizations}
               onChange={(e) => set('max_organizations', e.target.value)}
+              disabled={form.unlimited}
+              placeholder={form.unlimited ? 'Unlimited' : undefined}
             />
             {fieldErrors.max_organizations ? (
               <div className="field-error">{fieldErrors.max_organizations}</div>
             ) : (
-              <div className="hint">Between 1 and 1000.</div>
+              <div className="hint">{form.unlimited ? 'Unlimited.' : 'Between 1 and 1000.'}</div>
             )}
           </div>
           <div className="field">
@@ -247,13 +257,15 @@ export default function ClientCreate() {
               max={10000}
               className={fieldErrors.max_users_per_org ? 'invalid' : ''}
               aria-invalid={!!fieldErrors.max_users_per_org}
-              value={form.max_users_per_org}
+              value={form.unlimited ? '' : form.max_users_per_org}
               onChange={(e) => set('max_users_per_org', e.target.value)}
+              disabled={form.unlimited}
+              placeholder={form.unlimited ? 'Unlimited' : undefined}
             />
             {fieldErrors.max_users_per_org ? (
               <div className="field-error">{fieldErrors.max_users_per_org}</div>
             ) : (
-              <div className="hint">Between 1 and 10000.</div>
+              <div className="hint">{form.unlimited ? 'Unlimited.' : 'Between 1 and 10000.'}</div>
             )}
           </div>
         </div>

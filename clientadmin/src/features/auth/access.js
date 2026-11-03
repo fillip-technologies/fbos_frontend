@@ -222,6 +222,11 @@ export const ACCESS = {
       'management.result.read', 'people.employee.read',
     ],
   },
+  // CEO Command Center (gateway screen): in no preset; the administrator grants it. Each card also
+  // needs its service's summary code (`<service>.summary.read`), which the gateway's answer reflects.
+  ceoDashboard: { permissions: ['insight.ceo_dashboard.read'] },
+  // Payroll, expenses, profit, budgets: without it the gateway leaves those figures out.
+  ceoFinancials: { permissions: ['insight.ceo_dashboard.financials'] },
   // Approving a target or a budget happens in Control, not here.
   // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
   viewUserSessions: { permissions: ['identity.session.read'] },

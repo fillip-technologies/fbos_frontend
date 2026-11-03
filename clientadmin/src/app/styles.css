@@ -295,7 +295,7 @@ td a:hover { text-decoration-color: currentColor; }
 /* green */
 .badge.active, .badge.published, .badge.converted, .badge.won, .badge.accepted, .badge.completed,
 .badge.paid, .badge.resolved, .badge.done, .badge.green, .badge.in_stock, .badge.invoiced,
-.badge.present, .badge.cleared, .badge.disbursed, .badge.applied, .badge.promotion { --tone-bg: var(--green-bg); --tone-fg: var(--green-fg); }
+.badge.present, .badge.cleared, .badge.disbursed, .badge.applied, .badge.promotion, .badge.unlimited { --tone-bg: var(--green-bg); --tone-fg: var(--green-fg); }
 /* amber */
 .badge.expiring, .badge.upcoming, .badge.draft, .badge.installing, .badge.contacted, .badge.proposal,
 .badge.pending_approval, .badge.changes_requested, .badge.partially_paid, .badge.promised, .badge.pending,
@@ -1745,3 +1745,19 @@ a.ins-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); tex
 .cust-kind li > a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .cust-kind-meta { display: inline-flex; align-items: center; gap: 6px; flex: none; font-size: 12px; }
 .cust-kind p { margin: 0; }
+
+/* ---------- CEO Command Center (features/ceo) ---------- */
+.ceo.is-refetching .chart-body, .ceo.is-refetching .kpi-row { opacity: 0.6; transition: opacity 0.2s ease; }
+.ceo .kpi-value.muted { color: var(--muted); }
+.ceo-facts { display: grid; gap: 0; margin: 0 0 8px; }
+.ceo-fact { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.ceo-fact:last-child { border-bottom: none; }
+.ceo-fact dt { color: var(--ink-2); }
+.ceo-fact dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.ceo-fact.warn dd { color: #9a5b00; }
+.ceo-fact.bad dd { color: #a2271b; }
+.ceo-fact.good dd { color: #1d6a39; }
+.ceo-alerts { list-style: none; margin: 0; padding: 4px 16px; }
+.ceo-alerts li { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.ceo-alerts li:last-child { border-bottom: none; }
+.ceo-alerts li::before { content: '▲'; color: #d03b3b; font-size: 10px; margin-right: 8px; }
