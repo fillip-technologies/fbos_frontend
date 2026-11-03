@@ -7,6 +7,7 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import CustomerRecords from '@/features/journey/components/CustomerRecords.jsx'
 import { useRecordForm } from '@/shared/utils/useRecordForm.js'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
@@ -159,6 +160,8 @@ export default function CustomerDetail() {
 
       {tab === 'overview' && (
         <>
+          <CustomerRecords customer={customer} />
+
           <div className="panel">
             <div className="details-grid">
               <Detail label="Legal name">{customer.legal_name}</Detail>

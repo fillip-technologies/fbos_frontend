@@ -3,6 +3,9 @@ import { ApiError } from '@/shared/api/http.js'
 // Human-friendly copy keyed by backend error `code`. Mirrors the Identity
 // service's error catalog (exceptions.py) plus gateway/network codes. Anything
 // not listed falls back to the backend's own message.
+// One message for anything on our side that didn't answer, whichever part of FBOS it was.
+const BUSY = 'FBOS is busy right now and couldn\'t do that. Please try again in a moment.'
+
 const FRIENDLY = {
   // ---- Auth / login (identity) ----
   INVALID_CREDENTIALS: 'Invalid email or password.',
@@ -38,10 +41,13 @@ const FRIENDLY = {
   RATE_LIMIT_EXCEEDED: 'Too many requests. Please wait a moment and try again.',
 
   // ---- Gateway / transport ----
-  SERVICE_UNAVAILABLE: 'The service is temporarily unavailable. Please try again shortly.',
+  SERVICE_UNAVAILABLE: BUSY,
   GATEWAY_TIMEOUT: 'The server took too long to respond. Please try again.',
   BAD_REQUEST: 'The server could not process this request.',
-  NETWORK_ERROR: 'Unable to reach the server. Make sure the backend is running (identity on :8001, or the gateway on :8000).',
+  // People see one product; only a developer's own build names the services to start.
+  NETWORK_ERROR: import.meta.env?.DEV
+    ? 'Unable to reach the server. Make sure the backend is running (identity on :8001, or the gateway on :8000).'
+    : 'FBOS can\'t be reached. Check your internet connection and try again.',
 }
 
 // Best human message for any thrown error: friendly copy by code, else the
@@ -51,6 +57,8 @@ export function friendlyMessage(err) {
     const friendly = err.code ? FRIENDLY[err.code] : undefined
     // An entry may be a function of the error, to use the facts the backend sent with it.
     if (friendly) return typeof friendly === 'function' ? friendly(err) : friendly
+    // A part of the system that didn't answer: one plain message, never which part it was.
+    if (err.code?.endsWith('_UNAVAILABLE') || [502, 503, 504].includes(err.status)) return BUSY
     if (err.message && err.message !== 'Unable to reach the server.') return err.message
     return `Something went wrong${err.status ? ` (${err.status})` : ''}.`
   }

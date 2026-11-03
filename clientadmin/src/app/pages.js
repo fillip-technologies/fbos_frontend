@@ -3,6 +3,7 @@
 // before the click lands.
 export const pages = {
   Dashboard: () => import('@/features/dashboard/pages/Dashboard.jsx'),
+  Guide: () => import('@/features/dashboard/pages/Guide.jsx'),
   Organizations: () => import('@/features/organizations/pages/Organizations.jsx'),
   OrganizationCreate: () => import('@/features/organizations/pages/OrganizationCreate.jsx'),
   OrganizationDetail: () => import('@/features/organizations/pages/OrganizationDetail.jsx'),
@@ -101,6 +102,7 @@ export const pages = {
 // and the pages reached from it (detail, create), so neither click waits for code.
 const NAV_PAGES = {
   '/': [pages.Dashboard],
+  '/guide': [pages.Guide],
   '/assets': [pages.Assets, pages.AssetDetail, pages.AssetCreate],
   '/organizations': [pages.Organizations, pages.OrganizationDetail, pages.OrganizationCreate],
   '/org-units': [pages.OrgUnits, pages.OrgUnitDetail, pages.OrgUnitCreate],

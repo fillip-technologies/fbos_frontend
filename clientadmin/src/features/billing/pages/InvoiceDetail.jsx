@@ -12,6 +12,7 @@ import { SUPPLY_TYPES, errorMeta } from '@/features/tax/utils.js'
 import { uuidv4 } from '@/shared/api/http.js'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import JourneyPath from '@/features/journey/components/JourneyPath.jsx'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { todayIso } from '@/shared/utils/dates.js'
@@ -259,6 +260,7 @@ export default function InvoiceDetail() {
       </div>
 
       <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
+      <JourneyPath subject="invoice" id={invoice.id} version={invoice.version} />
       {isPastDue(invoice) && invoice.status !== 'overdue' && (
         <div className="alert warn">Past its due date with money still owed. The next collections refresh marks it overdue.</div>
       )}

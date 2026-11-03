@@ -2,8 +2,9 @@ import { Link } from 'react-router-dom'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import Overview from '@/features/dashboard/components/Overview.jsx'
-import { HomeHero, Workspace } from '@/features/dashboard/components/HomeParts.jsx'
-import { NAV_ITEMS } from '@/app/navigation.jsx'
+import NeedsYou from '@/features/dashboard/components/NeedsYou.jsx'
+import { HomeHero, WelcomeCard, Workspace } from '@/features/dashboard/components/HomeParts.jsx'
+import { CREATE_ACTIONS, NAV_ITEMS } from '@/app/navigation.jsx'
 
 // Home page for organization users who aren't client administrators.
 export default function MyHome() {
@@ -13,7 +14,7 @@ export default function MyHome() {
 
   return (
     <div>
-      <HomeHero eyebrow={where || 'Your workspace'} name={user.name} sub="Everything you can work on today, in one place. Press / anywhere to jump straight to a page.">
+      <HomeHero eyebrow={where || 'Your workspace'} name={user.name} sub="What needs you first, then how things are going. Press / anywhere to find a page.">
         {hasAccess(user, ACCESS.inviteUsers) && (
           <div className="row-actions" style={{ marginTop: 20 }}>
             <Link className="btn" to="/users/new">Invite a user</Link>
@@ -27,6 +28,10 @@ export default function MyHome() {
           Protect your account: <Link to="/profile">turn on two-factor sign-in</Link>.
         </div>
       )}
+
+      <WelcomeCard canCreate={CREATE_ACTIONS.some((a) => hasAccess(user, a.access))} />
+
+      <NeedsYou />
 
       <Overview />
 
