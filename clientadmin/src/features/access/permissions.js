@@ -84,6 +84,9 @@ export const ENTITY_LABELS = {
   // Each service's company-wide totals, read by the CEO Command Center.
   summary: 'Company-wide totals (CEO Command Center)',
   ceo_dashboard: 'CEO Command Center',
+  // Insight: the audit trail and analytics.
+  audit: 'Audit trail',
+  analytics: 'Analytics dashboards & metrics',
   // Finance: operating expenses, investments and income outside sales.
   expense: 'Operating expenses (rent, travel, marketing…)',
   investment: 'Investments & other income',
@@ -93,6 +96,7 @@ export const ENTITY_LABELS = {
 const SERVICE_ENTITY_LABELS = {
   'assets.setup': 'Asset categories, types & vendors',
   'finance.setup': 'Expense categories & approval limit',
+  'insight.report': 'Analytics reports',
 }
 
 export function parseCode(code) {

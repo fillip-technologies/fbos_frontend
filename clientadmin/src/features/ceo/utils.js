@@ -117,3 +117,10 @@ export const label = (key) => LABELS[key] ?? String(key).replace(/_/g, ' ')
 
 // "Government · India": a customer segment, sector by market.
 export const segmentLabel = (s) => `${label(s.sector)} · ${label(s.market)}`
+
+// The sum of one figure over the trend's months, or null when no month has it recorded
+// (a month the nightly snapshots don't cover is unknown, never zero).
+export function trendTotal(months, key) {
+  const recorded = (months ?? []).map((m) => m[key]).filter((v) => v !== null && v !== undefined)
+  return recorded.length ? recorded.reduce((sum, v) => sum + num(v), 0) : null
+}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { ceoApi } from '@/features/ceo/api.js'
-import { change, count, HEALTH_TEXT, label, money, num, periodFor, RANGES, REASON_TEXT, segmentLabel } from '@/features/ceo/utils.js'
+import { change, count, HEALTH_TEXT, label, money, num, periodFor, RANGES, REASON_TEXT, segmentLabel, trendTotal } from '@/features/ceo/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useTaxEntries } from '@/features/tax/useTaxConfig.js'
 import { useLookup, useQuery } from '@/shared/api/useQuery.js'
@@ -93,12 +93,7 @@ function Screen({ screen, names }) {
 
       <Section title="Revenue" sub="Issued invoices net of tax; credit notes taken off">
         <Row spans={[7, 5]}>
-          <Card key="trend" title="Revenue by month" state={screen.revenue} to="/invoices"
-            table={{ columns: ['Month', 'Revenue'], rows: screen.revenue.by_month.map((m) => [monthLong.format(monthOf(m.month)), money(m.amount, cur, false)]) }}>
-            <ColumnChart height="fill" format={fmt}
-              categories={screen.revenue.by_month.map((m) => ({ key: m.month, label: monthShort.format(monthOf(m.month)), title: monthLong.format(monthOf(m.month)) }))}
-              series={[{ key: 'revenue', label: 'Revenue', color: SERIES[0], values: screen.revenue.by_month.map((m) => num(m.amount)) }]} />
-          </Card>
+          <TrendCard key="trend" screen={screen} fmt={fmt} />
           <BucketCard key="vertical" title="Revenue by business line" subtitle="By the vertical of what was billed" state={screen.revenue}
             rows={screen.revenue.by_vertical} name={names.vertical} fmt={fmt} to="/offerings" />
         </Row>
@@ -216,6 +211,52 @@ function Card({ title, subtitle, state, to, table, legend, children }) {
       table={state.available ? table : undefined} legend={state.available ? legend : undefined}>
       {state.available ? children : <p className="chart-empty">{reasonText(state.reason)}</p>}
     </ChartCard>
+  )
+}
+
+// The 12 months to the period's end, from the nightly snapshots. Until those exist (or when
+// Insight can't be read) the period's own months are shown, read live.
+function TrendCard({ screen, fmt }) {
+  const trend = screen.trend
+  const months = trend?.available ? trend.months : []
+  if (!months.some((m) => m.revenue !== null)) return <RevenueByMonthCard section={screen.revenue} cur={screen.currency} fmt={fmt} />
+  const financials = screen.can_see_financials
+  const show = (v) => (v === null || v === undefined ? 'Not recorded' : fmt(v))
+  const title = (m) => `${monthLong.format(monthOf(m.month))}${m.complete ? '' : ' (partly recorded)'}`
+  const series = [{ key: 'revenue', label: 'Revenue', color: SERIES[0], values: months.map((m) => m.revenue) }]
+  if (financials) series.push({ key: 'expenses', label: 'Expenses', color: SERIES[1], values: months.map((m) => m.expenses) })
+  const profit = trendTotal(months, 'profit')
+  const partly = months.some((m) => m.revenue !== null && !m.complete)
+  return (
+    <Card title={financials ? 'Revenue, expenses and profit · 12 months' : 'Revenue · 12 months'} state={trend} to="/invoices"
+      subtitle={`Recorded nightly up to ${dayLong.format(dayOf(trend.through))}${partly ? ' · some months only partly recorded' : ''}`}
+      legend={financials ? series.map((s) => ({ label: s.label, color: s.color })) : undefined}
+      table={{
+        columns: financials ? ['Month', 'Revenue', 'Expenses', 'Profit'] : ['Month', 'Revenue'],
+        rows: months.map((m) => [title(m), show(m.revenue), ...(financials ? [show(m.expenses), show(m.profit)] : [])]),
+      }}>
+      {financials && (
+        <Facts items={[
+          ['Revenue', show(trendTotal(months, 'revenue'))],
+          ['Expenses', show(trendTotal(months, 'expenses'))],
+          ['Profit', show(profit), profit !== null && profit < 0 ? 'bad' : undefined],
+        ]} />
+      )}
+      <ColumnChart height="fill" format={show}
+        categories={months.map((m) => ({ key: m.month, label: monthShort.format(monthOf(m.month)), title: title(m) }))}
+        series={series} />
+    </Card>
+  )
+}
+
+function RevenueByMonthCard({ section, cur, fmt }) {
+  return (
+    <Card title="Revenue by month" state={section} to="/invoices"
+      table={{ columns: ['Month', 'Revenue'], rows: section.by_month.map((m) => [monthLong.format(monthOf(m.month)), money(m.amount, cur, false)]) }}>
+      <ColumnChart height="fill" format={fmt}
+        categories={section.by_month.map((m) => ({ key: m.month, label: monthShort.format(monthOf(m.month)), title: monthLong.format(monthOf(m.month)) }))}
+        series={[{ key: 'revenue', label: 'Revenue', color: SERIES[0], values: section.by_month.map((m) => num(m.amount)) }]} />
+    </Card>
   )
 }
 

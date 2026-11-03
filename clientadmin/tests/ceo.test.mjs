@@ -2,7 +2,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert'
 
-import { change, periodFor } from '../src/features/ceo/utils.js'
+import { change, periodFor, trendTotal } from '../src/features/ceo/utils.js'
 
 describe('periodFor', () => {
   const today = new Date(2026, 10, 18) // 18 Nov 2026
@@ -33,5 +33,15 @@ describe('change', () => {
   it('no previous figure means no comparison', () => {
     assert.strictEqual(change(10, null), null)
     assert.strictEqual(change(null, 10), null)
+  })
+})
+
+describe('trendTotal', () => {
+  it('adds up the months that are recorded', () => {
+    assert.strictEqual(trendTotal([{ profit: 100 }, { profit: null }, { profit: -40 }], 'profit'), 60)
+  })
+  it('is null when no month is recorded, never zero', () => {
+    assert.strictEqual(trendTotal([{ revenue: null }, { revenue: null }], 'revenue'), null)
+    assert.strictEqual(trendTotal(undefined, 'revenue'), null)
   })
 })
