@@ -1,17 +1,21 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import NotificationBell, { NotificationLink } from '@/features/notifications/components/NotificationBell.jsx'
 import { useUnreadCountPolling } from '@/features/notifications/hooks.js'
 import CommandPalette, { rememberPage, shortcutLabel, usePaletteShortcut } from '@/app/layout/CommandPalette.jsx'
-import { NAV_ITEMS, navItemFor, navSections } from '@/app/navigation.jsx'
+import { CREATE_ACTIONS, NAV_ITEMS, navItemFor, navSections } from '@/app/navigation.jsx'
+import NewMenu from '@/app/layout/NewMenu.jsx'
+import PageIntro, { usePageIntros } from '@/app/layout/PageIntro.jsx'
 import { preloadPage } from '@/app/pages.js'
 import { PageSkeleton } from '@/shared/components/Skeleton.jsx'
 import TopProgress from '@/shared/components/TopProgress.jsx'
 import fillipMark from '@/assets/brand/fillip-mark.png'
 
-const COLLAPSED_KEY = 'fbos_nav_collapsed'
+// { [sectionId]: true (open) | false (folded) }; sections without an entry use their default.
+const SECTIONS_KEY = 'fbos_nav_sections'
+const LEGACY_COLLAPSED_KEY = 'fbos_nav_collapsed'
 
 const svg = (children, size = 16) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -44,13 +48,22 @@ function initials(name) {
   return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '·'
 }
 
-function readCollapsed() {
+function readOpenState() {
   try {
-    const list = JSON.parse(localStorage.getItem(COLLAPSED_KEY) || '[]')
-    return new Set(Array.isArray(list) ? list : [])
+    const saved = JSON.parse(localStorage.getItem(SECTIONS_KEY) || 'null')
+    if (saved && typeof saved === 'object' && !Array.isArray(saved)) return saved
+    // Before sections had defaults, only the folded ones were kept.
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_COLLAPSED_KEY) || '[]')
+    return Array.isArray(legacy) ? Object.fromEntries(legacy.map((id) => [id, false])) : {}
   } catch {
-    return new Set()
+    return {}
   }
+}
+
+// The third crumb on a page below a list: a new record, or one record.
+function subPageLabel(pathname, item) {
+  if (!item || pathname === item.to) return null
+  return pathname.endsWith('/new') ? 'New' : 'Details'
 }
 
 const today = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
@@ -84,7 +97,8 @@ export default function Layout() {
   const location = useLocation()
   const [open, setOpen] = useState(false) // off-canvas sidebar on small screens
   const [palette, setPalette] = useState(false)
-  const [collapsed, setCollapsed] = useState(readCollapsed)
+  const [openState, setOpenState] = useState(readOpenState)
+  const intros = usePageIntros()
   const mainRef = useRef(null)
   const firstRender = useRef(true)
   useUnreadCountPolling()
@@ -94,6 +108,9 @@ export default function Layout() {
   const sections = useMemo(() => navSections(items), [items])
   const current = navItemFor(items, location.pathname)
   const currentSection = current ? sections.find((s) => s.items.includes(current)) : null
+  const creates = useMemo(() => CREATE_ACTIONS.filter((a) => hasAccess(user, a.access)), [user])
+  const canOpen = useCallback((to) => items.some((i) => i.to === to), [items])
+  const subPage = subPageLabel(location.pathname, current)
 
   // Each navigation: close the drawer, start at the top, remember the page, and ease the new page in.
   useEffect(() => {
@@ -118,13 +135,11 @@ export default function Layout() {
     if (current) rememberPage(current.to)
   }, [current])
 
-  function toggleSection(id) {
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+  function toggleSection(section, isOpen) {
+    setOpenState((prev) => {
+      const next = { ...prev, [section.id]: !isOpen }
       try {
-        localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]))
+        localStorage.setItem(SECTIONS_KEY, JSON.stringify(next))
       } catch {
         // Not remembered across visits; the toggle still works.
       }
@@ -155,12 +170,12 @@ export default function Layout() {
         <Brand />
         <button type="button" className="sidebar-search" onClick={() => setPalette(true)}>
           {ICONS.search}
-          <span>Jump to…</span>
+          <span>Search anything…</span>
           <kbd>{shortcutLabel}</kbd>
         </button>
         <nav className="sidebar-nav">
           {sections.map((section) => {
-            const isOpen = !showHeaders || section === currentSection || !collapsed.has(section.id)
+            const isOpen = !showHeaders || section === currentSection || (openState[section.id] ?? !section.defaultCollapsed)
             return (
               <div key={section.id} className={`nav-section${isOpen ? ' open' : ''}`}>
                 {showHeaders && (
@@ -168,7 +183,8 @@ export default function Layout() {
                     type="button"
                     className="nav-section-head"
                     aria-expanded={isOpen}
-                    onClick={() => toggleSection(section.id)}
+                    title={section.hint}
+                    onClick={() => toggleSection(section, isOpen)}
                     onMouseEnter={() => section.items.forEach((i) => preloadPage(i.to))}
                   >
                     <span>{section.label}</span>
@@ -184,6 +200,7 @@ export default function Layout() {
                         to={item.to}
                         end={item.end}
                         className="sidebar-link"
+                        title={item.description || undefined}
                         tabIndex={isOpen ? undefined : -1}
                         onMouseEnter={() => preloadPage(item.to)}
                         onFocus={() => preloadPage(item.to)}
@@ -230,11 +247,26 @@ export default function Layout() {
           </button>
           <nav className="crumbs" aria-label="You are here">
             {currentSection && showHeaders && <span className="crumb-section">{currentSection.label}</span>}
-            <span className="crumb-page">{current?.label || (location.pathname.startsWith('/profile') ? 'My profile' : location.pathname.startsWith('/notifications') ? 'Notifications' : 'FBOS')}</span>
+            {current && subPage ? (
+              <>
+                <Link className="crumb-section crumb-link" to={current.to}>{current.label}</Link>
+                <span className="crumb-page" aria-current="page">{subPage}</span>
+              </>
+            ) : (
+              <span className="crumb-page" aria-current="page">
+                {current?.label || (location.pathname.startsWith('/profile') ? 'My profile' : location.pathname.startsWith('/notifications') ? 'Notifications' : 'FBOS')}
+              </span>
+            )}
+            {current && !subPage && current.description && intros.isHidden(current.to) && (
+              <button type="button" className="crumb-about" onClick={() => intros.show(current.to)} title="What is this page for?" aria-label="What is this page for?">
+                ?
+              </button>
+            )}
           </nav>
           <span className="spacer" />
           <span className="pagebar-date">{today.format(new Date())}</span>
-          <button type="button" className="pagebar-search" onClick={() => setPalette(true)} aria-label="Jump to a page">
+          <NewMenu actions={creates} />
+          <button type="button" className="pagebar-search" onClick={() => setPalette(true)} aria-label="Search FBOS">
             {ICONS.search}
             <span>Search</span>
             <kbd>{shortcutLabel}</kbd>
@@ -245,13 +277,16 @@ export default function Layout() {
         </header>
         <main className="container" ref={mainRef}>
           {/* The sidebar stays put while a page's code downloads. */}
+          {current && !subPage && current.to !== '/' && (
+            <PageIntro item={current} section={currentSection} canOpen={canOpen} intros={intros} />
+          )}
           <Suspense fallback={<PageSkeleton />}>
             <Outlet />
           </Suspense>
         </main>
       </div>
 
-      {palette && <CommandPalette sections={sections} extras={extras} onClose={() => setPalette(false)} />}
+      {palette && <CommandPalette sections={sections} extras={extras} createActions={creates} onClose={() => setPalette(false)} />}
     </div>
   )
 }

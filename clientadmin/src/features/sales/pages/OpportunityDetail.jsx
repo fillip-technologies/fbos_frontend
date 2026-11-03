@@ -10,6 +10,7 @@ import { formatMoney } from '@/features/customers/utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import JourneyPath from '@/features/journey/components/JourneyPath.jsx'
 import { useRecordForm } from '@/shared/utils/useRecordForm.js'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
@@ -318,6 +319,7 @@ export default function OpportunityDetail() {
 
       {error && Object.keys(fieldErrors).length === 0 && <ErrorBanner error={error} />}
       {!error && <ErrorBanner error={loadError} onRetry={reload} />}
+      <JourneyPath subject="opportunity" id={opp.id} version={opp.version} />
 
       <div className="panel">
         {canManage && open ? (

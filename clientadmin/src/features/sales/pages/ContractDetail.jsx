@@ -7,6 +7,7 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { formatMoney } from '@/features/customers/utils.js'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import JourneyPath from '@/features/journey/components/JourneyPath.jsx'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
@@ -144,6 +145,7 @@ export default function ContractDetail() {
       </div>
 
       <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
+      <JourneyPath subject="contract" id={contract.id} version={contract.version} />
       {contract.status === 'active' && fulfilment.length > 0 && (
         <div className="alert info">
           <strong>Next:</strong>{' '}

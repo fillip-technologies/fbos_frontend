@@ -13,6 +13,7 @@ import { inventoryPageOn } from '@/features/inventory/flags.js'
 import { PageSkeleton } from '@/shared/components/Skeleton.jsx'
 
 const Dashboard = lazy(pages.Dashboard)
+const Guide = lazy(pages.Guide)
 const Organizations = lazy(pages.Organizations)
 const OrganizationCreate = lazy(pages.OrganizationCreate)
 const OrganizationDetail = lazy(pages.OrganizationDetail)
@@ -136,6 +137,7 @@ export default function App() {
           }
         >
           <Route path="/" element={<RequireAccess rule={ACCESS.dashboard}><Dashboard /></RequireAccess>} />
+          <Route path="/guide" element={<RequireAccess rule={ACCESS.dashboard}><Guide /></RequireAccess>} />
           <Route path="/organizations" element={<RequireAccess rule={ACCESS.organizations}><Organizations /></RequireAccess>} />
           <Route path="/organizations/new" element={<RequireAccess rule={ACCESS.organizations}><OrganizationCreate /></RequireAccess>} />
           <Route path="/organizations/:id" element={<RequireAccess rule={ACCESS.organizations}><OrganizationDetail /></RequireAccess>} />

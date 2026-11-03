@@ -7,6 +7,7 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { formatMoney } from '@/features/customers/utils.js'
 import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import JourneyPath from '@/features/journey/components/JourneyPath.jsx'
 import { useRecordForm } from '@/shared/utils/useRecordForm.js'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
@@ -169,6 +170,7 @@ export default function QuotationDetail() {
       </div>
 
       <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
+      <JourneyPath subject="quotation" id={quote.id} version={quote.version} />
       <div className="alert info">
         <strong>{QUOTATION_STATUS_LABELS[quote.status] || quote.status}.</strong> {NEXT_STEP[quote.status] || ''}
         {quote.is_expired && ' Its validity has run out: extend it, or accept it anyway if the customer agreed.'}

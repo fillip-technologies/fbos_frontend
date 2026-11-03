@@ -17,6 +17,12 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></>),
   },
   {
+    to: '/guide',
+    label: 'How FBOS works',
+    access: ACCESS.dashboard,
+    icon: icon(<><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6" /><path d="M12 17h.01" /></>),
+  },
+  {
     to: '/insights',
     label: 'Insights',
     access: ACCESS.insights,
@@ -338,29 +344,185 @@ export const NAV_ITEMS = [
   },
 ]
 
-// Sidebar sections, in display order. Each page belongs to the first section listing its path;
-// a page listed nowhere lands in the last one, so a new NAV_ITEMS entry is never hidden.
-const SECTIONS = [
-  { id: 'overview', label: 'Overview', paths: ['/', '/insights', '/scorecard', '/planning', '/budgets', '/capacity'] },
-  { id: 'sales', label: 'Sales', paths: ['/leads', '/opportunities', '/customers', '/contracts', '/offerings'] },
-  { id: 'billing', label: 'Billing & tax', paths: ['/invoices', '/billing-schedules', '/payments', '/collections', '/tax-reports', '/tax-setup'] },
-  { id: 'delivery', label: 'Delivery', paths: ['/projects', '/tasks', '/requests', '/client-services', '/service-providers', '/task-types', '/project-templates'] },
+// What each page is for, in a sentence a new person understands. Shown in the sidebar's
+// tooltip, the command palette, the home directory and the page's own intro.
+const DESCRIPTIONS = {
+  '/': 'Your starting point: what needs you today, and how the company is doing.',
+  '/guide': 'How the parts of FBOS fit together, from first enquiry to money in the bank.',
+  '/insights': 'Compare branches, departments, teams and people: work, hours, budgets and KPIs.',
+  '/organizations': 'The companies in your account, and switching between them.',
+  '/org-units': 'Branches, departments and teams, and who belongs to each.',
+  '/assets': 'Company equipment and software: who has what, servicing and disposal.',
+  '/scorecard': 'How each KPI is doing against its target this period.',
+  '/planning': 'Financial years, quarters and the goals set for them.',
+  '/budgets': 'What each unit may spend, and what it has spent so far.',
+  '/capacity': 'Who is busy and who is free: hours available against hours booked.',
+  '/people/jobs': 'Open positions, candidates and where each one is in hiring.',
+  '/people/interviews': 'Interviews you are on the panel for, and their feedback.',
+  '/people/attendance': 'Who is in today, late or away.',
+  '/people/leaves': 'Apply for leave, and approve your team\'s requests.',
+  '/people/payroll': 'Salaries, payslips and expense claims.',
+  '/people/role-changes': 'Promotions, transfers and new posts waiting for approval.',
+  '/people/approvals': 'Who approves role changes, and the access each job gives.',
+  '/people/org-chart': 'Who reports to whom.',
+  '/people/post-report': 'Posts and headcount (FTE) by department.',
+  '/people/offboarding': 'People leaving the company: notice, handover and final settlement.',
+  '/calendars': 'Working days, hours and holidays for the company and its teams.',
+  '/custom-fields': 'Add your own fields to forms such as leads, projects and tasks.',
+  '/verticals': 'Your business lines (e.g. IT services, solar), used to tailor forms and routing.',
+  '/leads': 'New enquiries. Qualify them, then turn the good ones into opportunities.',
+  '/opportunities': 'Sales you are working on: quotations, negotiation, won or lost.',
+  '/customers': 'Everyone you sell to: contacts, contracts, invoices and services in one place.',
+  '/contracts': 'Signed agreements. Activating one starts delivery and its billing schedule.',
+  '/projects': 'Work you deliver for a customer or for the company: milestones, team, risks.',
+  '/tasks': 'Your work and your team\'s: to do, in progress, in review, done.',
+  '/requests': 'Work you asked other teams to do, and where it stands.',
+  '/task-types': 'Kinds of task, how work is routed to teams, and delivery settings.',
+  '/project-templates': 'Ready-made project plans: phases, milestones and workflows.',
+  '/inventory/devices': 'Every device you track, where it is installed and its history.',
+  '/inventory/stock': 'What is in each store or warehouse.',
+  '/inventory/transfers': 'Moving stock between locations.',
+  '/inventory/issues': 'Faults reported on devices, and who is fixing them.',
+  '/inventory/repairs': 'Devices sent out for repair.',
+  '/inventory/disposals': 'Devices being scrapped or sold off.',
+  '/inventory/reports': 'Inventory numbers: stock, faults, repairs and costs.',
+  '/inventory/purchase-orders': 'Buying devices: orders to vendors and goods received.',
+  '/invoices': 'Bills sent to customers, credit notes, and what is still owed.',
+  '/billing-schedules': 'Contract payments that are due now. Bill them with one click.',
+  '/payments': 'Money received, and which invoices it pays.',
+  '/collections': 'Customers who are late paying, and follow-ups with them.',
+  '/tax-reports': 'GST charged against cash received, and TDS customers withheld.',
+  '/client-services': 'Services running for customers, such as hosting or support plans.',
+  '/service-providers': 'Vendors behind the services you resell.',
+  '/offerings': 'What you sell, with prices and how each is delivered.',
+  '/tax-setup': 'Tax registrations, rates, rules and invoice numbering.',
+  '/document-categories': 'The kinds of document people can attach to records.',
+  '/users': 'Everyone who can sign in, and the employees behind them.',
+  '/roles': 'Bundles of permissions you give to people.',
+  '/audit-log': 'Who signed in and changed access, for security checks.',
+}
+
+// Sidebar sections, by the job people come to do, in display order. Each page belongs to the
+// first section listing its path; a page listed nowhere lands in Settings (the last), so a new
+// NAV_ITEMS entry is never hidden. `hint` says what the section is for (guide, tooltips);
+// Settings starts folded: setup is done now and then, daily work every day.
+export const SECTIONS = [
+  { id: 'home', label: 'Home', hint: 'Start here', paths: ['/', '/guide', '/insights'] },
+  {
+    id: 'work',
+    label: 'My work',
+    hint: 'What is on your plate',
+    paths: ['/tasks', '/requests', '/people/interviews', '/people/leaves'],
+  },
+  {
+    id: 'sales',
+    label: 'Sell',
+    hint: 'Win customers: from first enquiry to signed contract',
+    paths: ['/leads', '/opportunities', '/contracts', '/customers'],
+  },
+  {
+    id: 'delivery',
+    label: 'Deliver',
+    hint: 'Do the work customers paid for',
+    paths: ['/projects', '/client-services'],
+  },
+  {
+    id: 'billing',
+    label: 'Bill & collect',
+    hint: 'Invoice the work and get paid',
+    paths: ['/billing-schedules', '/invoices', '/payments', '/collections', '/tax-reports'],
+  },
   {
     id: 'people',
     label: 'People',
-    paths: ['/users', '/people/jobs', '/people/interviews', '/people/attendance', '/people/leaves', '/people/payroll', '/people/role-changes', '/people/approvals', '/people/org-chart', '/people/post-report', '/people/offboarding'],
+    hint: 'Hire, look after and pay your team',
+    paths: ['/users', '/people/jobs', '/people/attendance', '/people/payroll', '/people/role-changes', '/people/offboarding', '/people/org-chart', '/people/post-report'],
+  },
+  {
+    id: 'plan',
+    label: 'Plan & measure',
+    hint: 'Set goals and budgets, then see how you are doing',
+    paths: ['/planning', '/budgets', '/capacity', '/scorecard'],
   },
   {
     id: 'assets',
     label: 'Assets & inventory',
-    paths: ['/assets', '/inventory/devices', '/inventory/stock', '/inventory/transfers', '/inventory/issues', '/inventory/repairs', '/inventory/disposals', '/inventory/reports', '/inventory/purchase-orders'],
+    hint: 'Equipment and stock: buy, track, fix and retire',
+    paths: ['/assets', '/inventory/purchase-orders', '/inventory/stock', '/inventory/devices', '/inventory/transfers', '/inventory/issues', '/inventory/repairs', '/inventory/disposals', '/inventory/reports'],
   },
   {
-    id: 'company',
-    label: 'Company',
-    paths: ['/organizations', '/org-units', '/calendars', '/custom-fields', '/verticals', '/document-categories', '/roles', '/audit-log'],
+    id: 'settings',
+    label: 'Settings',
+    hint: 'Set the company up once; change it now and then',
+    defaultCollapsed: true,
+    paths: [
+      '/organizations', '/org-units', '/calendars', '/roles', '/people/approvals', '/offerings', '/tax-setup',
+      '/task-types', '/project-templates', '/service-providers', '/custom-fields', '/verticals', '/document-categories', '/audit-log',
+    ],
   },
 ]
+
+// The end-to-end flows pages belong to, step by step. A page's intro shows its flow, so a person
+// sees what comes before and after the page they are on, and can go there in one click.
+export const FLOWS = [
+  {
+    id: 'lead-to-cash',
+    label: 'From enquiry to payment',
+    steps: [
+      { to: '/leads', label: 'Enquiry', hint: 'Someone shows interest' },
+      { to: '/opportunities', label: 'Opportunity', hint: 'Quote and negotiate' },
+      { to: '/contracts', label: 'Contract', hint: 'Signed and activated' },
+      { to: '/projects', label: 'Delivery', hint: 'Do the work' },
+      { to: '/billing-schedules', label: 'Bill', hint: 'Payment terms fall due' },
+      { to: '/invoices', label: 'Invoice', hint: 'Sent to the customer' },
+      { to: '/payments', label: 'Paid', hint: 'Money received' },
+      { to: '/collections', label: 'Chase', hint: 'Only if they pay late' },
+    ],
+  },
+  {
+    id: 'hire-to-exit',
+    label: 'A person\'s time with you',
+    steps: [
+      { to: '/people/jobs', label: 'Hire', hint: 'Post a job, interview' },
+      { to: '/users', label: 'Onboard', hint: 'Employee record and sign-in' },
+      { to: '/people/attendance', label: 'Attend', hint: 'Day to day' },
+      { to: '/people/leaves', label: 'Leave', hint: 'Time off' },
+      { to: '/people/payroll', label: 'Pay', hint: 'Salary and expenses' },
+      { to: '/people/role-changes', label: 'Grow', hint: 'Promotions, transfers' },
+      { to: '/people/offboarding', label: 'Exit', hint: 'Notice and settlement' },
+    ],
+  },
+  {
+    id: 'plan-to-review',
+    label: 'Plan, then measure',
+    steps: [
+      { to: '/planning', label: 'Plan', hint: 'Years, quarters, goals' },
+      { to: '/budgets', label: 'Budget', hint: 'What units may spend' },
+      { to: '/capacity', label: 'Staff', hint: 'Who is free to do it' },
+      { to: '/scorecard', label: 'Review', hint: 'KPIs against targets' },
+    ],
+  },
+  {
+    id: 'buy-to-retire',
+    label: 'An item\'s life',
+    steps: [
+      { to: '/inventory/purchase-orders', label: 'Buy', hint: 'Order and receive' },
+      { to: '/inventory/stock', label: 'Store', hint: 'In stock' },
+      { to: '/inventory/devices', label: 'Install', hint: 'In use at a site' },
+      { to: '/inventory/issues', label: 'Fault', hint: 'Something broke' },
+      { to: '/inventory/repairs', label: 'Repair', hint: 'Sent to be fixed' },
+      { to: '/inventory/disposals', label: 'Retire', hint: 'Scrap or sell' },
+    ],
+  },
+]
+
+// The flow a page is a step of (its first), or null.
+export function flowFor(path) {
+  return FLOWS.find((flow) => flow.steps.some((step) => step.to === path)) ?? null
+}
+
+// Every item carries its description, so each place that lists pages can say what they are for.
+for (const item of NAV_ITEMS) item.description = DESCRIPTIONS[item.to] ?? null
 
 // The items a user may open, grouped into sections (empty sections dropped).
 export function navSections(items) {
@@ -373,6 +535,15 @@ export function navSections(items) {
   return groups.filter((g) => g.items.length > 0)
 }
 
+// Pages with no sidebar entry of their own, and the entry they belong under (for the breadcrumb
+// and the open section): a quotation is part of a deal, an employee of Users and employees.
+const BELONGS_UNDER = {
+  '/quotations': '/opportunities',
+  '/people/employees': '/users',
+  '/task-workflows': '/task-types',
+  '/project-workflows': '/project-templates',
+}
+
 // The nav item a path belongs to: the longest `to` that is the path or a parent of it.
 export function navItemFor(items, pathname) {
   let best = null
@@ -380,5 +551,28 @@ export function navItemFor(items, pathname) {
     const match = item.to === '/' ? pathname === '/' : pathname === item.to || pathname.startsWith(`${item.to}/`)
     if (match && (!best || item.to.length > best.to.length)) best = item
   }
-  return best
+  if (best && best.to !== '/') return best
+  const parent = Object.keys(BELONGS_UNDER).find((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  return (parent && items.find((item) => item.to === BELONGS_UNDER[parent])) || best
 }
+
+// Things a person can start from anywhere (the top bar's "New" menu and the command palette),
+// shown only when they may do them. `hint` says what it is in plain words.
+export const CREATE_ACTIONS = [
+  { to: '/leads/new', label: 'Lead', hint: 'Someone interested in buying', access: ACCESS.manageLeads },
+  { to: '/customers/new', label: 'Customer', hint: 'A company or person you sell to', access: ACCESS.manageCustomers },
+  { to: '/opportunities/new', label: 'Opportunity', hint: 'A sale to quote for', access: ACCESS.manageOpportunities },
+  { to: '/projects/new', label: 'Project', hint: 'Work to deliver, with milestones', access: ACCESS.manageProjects },
+  { to: '/tasks/new', label: 'Task', hint: 'One piece of work for someone', access: ACCESS.manageTasks },
+  { to: '/requests/new', label: 'Request to a team', hint: 'Ask another team to do something', access: ACCESS.requestWork },
+  { to: '/invoices/new', label: 'Invoice', hint: 'Bill a customer for an extra charge', access: ACCESS.manageInvoices },
+  { to: '/payments/new', label: 'Payment received', hint: 'Record money a customer paid', access: ACCESS.recordPayments },
+  { to: '/users/new', label: 'User', hint: 'Invite someone to sign in', access: ACCESS.inviteUsers },
+  { to: '/assets/new', label: 'Asset', hint: 'Equipment or software to track', access: ACCESS.manageAssets },
+  ...(inventoryPageOn('purchasing')
+    ? [{ to: '/inventory/purchase-orders/new', label: 'Purchase order', hint: 'Buy from a vendor', access: ACCESS.managePurchaseOrders }]
+    : []),
+  ...(inventoryPageOn('transfers')
+    ? [{ to: '/inventory/transfers/new', label: 'Stock transfer', hint: 'Move stock between locations', access: ACCESS.manageStockTransfers }]
+    : []),
+]

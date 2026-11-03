@@ -85,7 +85,7 @@ export function Workspace({ user, exclude = HOME_ONLY }) {
             <ul>
               {section.items.map((item) => (
                 <li key={item.to}>
-                  <Link to={item.to} className="directory-link" onMouseEnter={() => preloadPage(item.to)} onFocus={() => preloadPage(item.to)}>
+                  <Link to={item.to} className="directory-link" title={item.description || undefined} onMouseEnter={() => preloadPage(item.to)} onFocus={() => preloadPage(item.to)}>
                     <span className="place-icon">{item.icon}</span>
                     <span className="place-label">{item.label}</span>
                     {arrow}
@@ -109,5 +109,54 @@ export function Meter({ value, max, label }) {
     <div className={`meter${tone}`} role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={value} aria-label={label}>
       <span style={{ width: `${share * 100}%` }} />
     </div>
+  )
+}
+
+const WELCOME_KEY = 'fbos_welcome_done'
+
+function welcomeDone() {
+  try {
+    return localStorage.getItem(WELCOME_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+// For someone new: three things that make the rest easy to find. Gone for good once dismissed.
+export function WelcomeCard({ canCreate }) {
+  const [done, setDone] = useState(welcomeDone)
+  if (done) return null
+  const dismiss = () => {
+    try {
+      localStorage.setItem(WELCOME_KEY, '1')
+    } catch {
+      // Shown again next visit; nothing else to do.
+    }
+    setDone(true)
+  }
+  return (
+    <section className="welcome panel" aria-labelledby="welcome-title">
+      <div className="welcome-text">
+        <h2 id="welcome-title">New here? Three things to know</h2>
+        <ol>
+          <li>
+            <strong>Everything is connected.</strong> A sale moves from enquiry to opportunity, contract, project, invoice and
+            payment; each record shows where it stands and what to do next.
+          </li>
+          <li>
+            <strong>Find anything by typing.</strong> Press <kbd>/</kbd> and type what you want: “invoice”, “leave”, “salary”.
+          </li>
+          {canCreate && (
+            <li>
+              <strong>Start from anywhere.</strong> The <b>New</b> button at the top creates a lead, task, invoice and more.
+            </li>
+          )}
+        </ol>
+      </div>
+      <div className="welcome-actions">
+        <Link className="btn" to="/guide" onMouseEnter={() => preloadPage('/guide')}>Show me how it works</Link>
+        <button type="button" className="btn secondary" onClick={dismiss}>I know my way around</button>
+      </div>
+    </section>
   )
 }

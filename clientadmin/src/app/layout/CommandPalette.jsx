@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { preloadPage } from '@/app/pages.js'
+import useRecordSearch from '@/features/search/useRecordSearch.js'
 
 const RECENT_KEY = 'fbos_recent_pages'
 const RECENT_MAX = 5
@@ -69,13 +70,37 @@ export function usePaletteShortcut(setOpen) {
   }, [setOpen])
 }
 
-// sections: navSections(...) output; extras: [{ id, label, hint, icon, run }] actions.
-export default function CommandPalette({ sections, extras, onClose }) {
+const ICON_RECORD = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5z" />
+    <path d="M14 3v5h5" />
+  </svg>
+)
+
+const ICON_NEW = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+)
+
+// Every word of the query starts a word of the text (plain words, any order): for descriptions,
+// where a fuzzy match would find nonsense.
+function wordMatch(text, query) {
+  if (!text) return false
+  const words = text.toLowerCase().split(/[^a-z0-9]+/)
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every((q) => words.some((w) => w.startsWith(q)))
+}
+
+// sections: navSections(...) output; extras: [{ id, label, hint, icon, run }] actions;
+// createActions: CREATE_ACTIONS the person may do ({ to, label, hint }).
+export default function CommandPalette({ sections, extras, createActions = [], onClose }) {
   const ref = useRef(null)
   const listRef = useRef(null)
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
+  // Records anywhere in FBOS (customers, deals, projects, people, ...), alongside pages.
+  const records = useRecordSearch(query)
 
   useEffect(() => {
     const dialog = ref.current
@@ -85,8 +110,11 @@ export default function CommandPalette({ sections, extras, onClose }) {
 
   const entries = useMemo(() => {
     const pages = sections.flatMap((s) =>
-      s.items.map((item) => ({ id: `page:${item.to}`, label: item.label, hint: s.label, icon: item.icon, to: item.to })),
+      s.items.map((item) => ({
+        id: `page:${item.to}`, label: item.label, hint: s.label, section: s.id, description: item.description, icon: item.icon, to: item.to,
+      })),
     )
+    const creates = createActions.map((x) => ({ ...x, id: `new:${x.to}`, label: `New ${x.label.toLowerCase()}`, description: x.hint, hint: 'Create', icon: ICON_NEW }))
     const actions = extras.map((x) => ({ ...x, id: `action:${x.id}` }))
     const q = query.trim()
     if (!q) {
@@ -95,18 +123,24 @@ export default function CommandPalette({ sections, extras, onClose }) {
         .filter(Boolean)
       const groups = []
       if (recent.length) groups.push({ label: 'Recent', items: recent })
-      for (const s of sections) groups.push({ label: s.label, items: pages.filter((p) => p.hint === s.label) })
+      for (const s of sections) groups.push({ label: s.label, items: pages.filter((p) => p.section === s.id) })
+      if (creates.length) groups.push({ label: 'Create', items: creates })
       groups.push({ label: 'Account', items: actions })
       return groups
     }
-    const ranked = [...pages, ...actions]
-      .map((e) => ({ e, s: Math.max(score(e.label, q) ?? -1, (score(`${e.hint} ${e.label}`, q) ?? -1) - 20) }))
+    // Names first, then the section, then what the page is for: "salary" finds Payroll.
+    const ranked = [...pages, ...creates, ...actions]
+      .map((e) => ({
+        e,
+        s: Math.max(score(e.label, q) ?? -1, (score(`${e.hint} ${e.label}`, q) ?? -1) - 20, wordMatch(e.description, q) ? 10 : -1),
+      }))
       .filter((r) => r.s >= 0)
       .sort((a, b) => b.s - a.s)
-      .slice(0, 12)
+      .slice(0, 6)
       .map((r) => r.e)
-    return ranked.length ? [{ label: 'Best matches', items: ranked }] : []
-  }, [sections, extras, query])
+    const found = records.groups.map((g) => ({ ...g, items: g.items.map((item) => ({ ...item, icon: ICON_RECORD })) }))
+    return [...(ranked.length ? [{ label: 'Pages and actions', items: ranked }] : []), ...found]
+  }, [sections, extras, createActions, query, records.groups])
 
   const flat = useMemo(() => entries.flatMap((g) => g.items), [entries])
   const active = flat[Math.min(cursor, flat.length - 1)]
@@ -143,7 +177,7 @@ export default function CommandPalette({ sections, extras, onClose }) {
     <dialog
       ref={ref}
       className="cmdk"
-      aria-label="Jump to a page"
+      aria-label="Search FBOS"
       onCancel={(e) => {
         e.preventDefault()
         onClose()
@@ -160,8 +194,8 @@ export default function CommandPalette({ sections, extras, onClose }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Jump to a page or action…"
-          aria-label="Search pages"
+          placeholder="Search pages, customers, invoices, projects, people…"
+          aria-label="Search FBOS"
           role="combobox"
           aria-expanded="true"
           aria-controls="cmdk-list"
@@ -170,7 +204,7 @@ export default function CommandPalette({ sections, extras, onClose }) {
         <kbd>Esc</kbd>
       </div>
       <div className="cmdk-list" id="cmdk-list" role="listbox" ref={listRef}>
-        {flat.length === 0 && <p className="cmdk-empty">Nothing matches “{query}”.</p>}
+        {flat.length === 0 && !records.searching && <p className="cmdk-empty">Nothing matches “{query}”.</p>}
         {entries.map((g) =>
           g.items.length ? (
             <div key={g.label} className="cmdk-group" role="group" aria-label={g.label}>
@@ -191,7 +225,10 @@ export default function CommandPalette({ sections, extras, onClose }) {
                     onClick={() => choose(item)}
                   >
                     <span className="cmdk-icon">{item.icon}</span>
-                    <span className="cmdk-label">{item.label}</span>
+                    <span className="cmdk-label">
+                      {item.label}
+                      {item.description && <small>{item.description}</small>}
+                    </span>
                     {item.hint && <span className="cmdk-hint">{item.hint}</span>}
                     <span className="cmdk-enter" aria-hidden="true">↵</span>
                   </div>
@@ -201,6 +238,11 @@ export default function CommandPalette({ sections, extras, onClose }) {
           ) : null,
         )}
       </div>
+      {records.searching && (
+        <p className="cmdk-searching" role="status">
+          Searching customers, sales, projects, people…
+        </p>
+      )}
       <div className="cmdk-foot">
         <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
         <span><kbd>↵</kbd> open</span>

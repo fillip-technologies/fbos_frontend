@@ -17,6 +17,7 @@ import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import JourneyPath from '@/features/journey/components/JourneyPath.jsx'
 import { ProjectInsights } from '@/features/insights/panels.jsx'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
@@ -84,6 +85,8 @@ export default function ProjectDetail() {
         </div>
         <button className="btn secondary" onClick={() => navigate('/projects')}>← Back</button>
       </div>
+
+      {project.contract?.id && <JourneyPath subject="project" id={project.id} contractId={project.contract.id} />}
 
       <div className="version-tabs" role="tablist">
         {TABS.map(([key, label]) => (

@@ -2,7 +2,10 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { clientApi } from '@/features/dashboard/api.js'
 import Overview from '@/features/dashboard/components/Overview.jsx'
-import { HomeHero, Meter, Workspace } from '@/features/dashboard/components/HomeParts.jsx'
+import { HomeHero, Meter, WelcomeCard, Workspace } from '@/features/dashboard/components/HomeParts.jsx'
+import NeedsYou from '@/features/dashboard/components/NeedsYou.jsx'
+import { CREATE_ACTIONS } from '@/app/navigation.jsx'
+import { hasAccess } from '@/features/auth/access.js'
 import { organizationsApi } from '@/features/organizations/api.js'
 import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -90,6 +93,10 @@ export default function SubscriptionOverview() {
         </div>
       </div>
       <p className="muted small">Subscription dates and quotas are set by the platform administrator.</p>
+
+      <WelcomeCard canCreate={CREATE_ACTIONS.some((a) => hasAccess(user, a.access))} />
+
+      <NeedsYou />
 
       <Overview />
 

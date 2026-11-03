@@ -23,3 +23,17 @@ export const overviewApi = {
   // Capacity is minutes on the API; this month, first day to last.
   utilization: (orgId, from, to, opts) => get(orgId, `${MANAGEMENT}/utilization?from=${from}&to=${to}`, opts),
 }
+
+// ---------- "Needs you": what is waiting on the signed-in person, each behind its own permission ----------
+export const attentionApi = {
+  // { assigned_open, due_today, overdue }: the caller's own open tasks.
+  myTasks: (orgId, opts) => get(orgId, `${DELIVERY}/tasks/summary`, opts),
+  // Quotations waiting for approval, newest first.
+  quotationsToApprove: (orgId, opts) => get(orgId, `${REVENUE}/quotations?status=pending_approval&limit=5`, opts),
+  // Contract payment terms due to be invoiced now (a plain list).
+  readyToBill: (orgId, opts) => get(orgId, `${REVENUE}/billing-schedule-lines?billable=true`, opts),
+  // Role changes still waiting for an approval step.
+  roleChanges: (orgId, opts) => get(orgId, `${PEOPLE}/role-changes?status=pending`, opts),
+  // Leave requests not yet decided: the caller's own and those of the people they approve for.
+  pendingLeave: (orgId, opts) => get(orgId, `${PEOPLE}/leaves/requests?status=pending`, opts),
+}

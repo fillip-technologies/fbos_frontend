@@ -7,6 +7,7 @@ import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import useOwners from '@/features/customers/useOwners.js'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import JourneyPath from '@/features/journey/components/JourneyPath.jsx'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
@@ -128,6 +129,7 @@ export default function LeadDetail() {
       </div>
 
       <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
+      <JourneyPath subject="lead" id={lead.id} version={lead.version} />
 
       {lead.status === 'converted' && (
         <div className="alert success">
