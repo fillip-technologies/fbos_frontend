@@ -11,6 +11,8 @@ export const DOCUMENT_SUBJECTS = {
   employee: 'people.employee',
   project: 'delivery.project',
   task: 'delivery.task',
+  expense: 'finance.expense',
+  investment: 'finance.investment',
 }
 
 export const documentsApi = {

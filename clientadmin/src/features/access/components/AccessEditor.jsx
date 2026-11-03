@@ -300,7 +300,7 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
             {openServices.has(group.service) &&
               group.entities.map(({ entity, permissions }) => (
                 <div key={entity} className="perm-entity">
-                  <div className="perm-entity-name">{entityLabel(entity)}</div>
+                  <div className="perm-entity-name">{entityLabel(entity, group.service)}</div>
                   {permissions.map((perm) => {
                     const entries = entriesFor(perm.code)
                     return (

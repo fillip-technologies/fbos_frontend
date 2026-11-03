@@ -20,6 +20,8 @@ const INVENTORY_URL = process.env.INVENTORY_URL || process.env.API_URL || 'http:
 const ASSETS_URL = process.env.ASSETS_URL || process.env.API_URL || 'http://localhost:8009'
 // People (HCM, ATS, employee directory, attendance, leaves, payroll) is on :8010.
 const PEOPLE_URL = process.env.PEOPLE_URL || process.env.API_URL || 'http://localhost:8010'
+// Finance (operating expenses, investments, other income) is on :8011.
+const FINANCE_URL = process.env.FINANCE_URL || process.env.API_URL || 'http://localhost:8011'
 // Management (planning, KPIs, budgets, capacity) is on :8007.
 const MANAGEMENT_URL = process.env.MANAGEMENT_URL || process.env.API_URL || 'http://localhost:8007'
 // The gateway's screens (/api/bff: the CEO Command Center) live on the gateway itself, :8000.
@@ -77,6 +79,10 @@ export default defineConfig({
       },
       '/api/people': {
         target: PEOPLE_URL,
+        changeOrigin: true,
+      },
+      '/api/finance': {
+        target: FINANCE_URL,
         changeOrigin: true,
       },
       '/api/bff': {

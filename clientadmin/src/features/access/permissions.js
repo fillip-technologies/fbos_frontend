@@ -13,6 +13,7 @@ export const SERVICE_LABELS = {
   people: 'People (HR)',
   management: 'Planning & performance',
   assets: 'Assets',
+  finance: 'Expenses & investments',
   insight: 'Insight & dashboards',
 }
 
@@ -83,6 +84,15 @@ export const ENTITY_LABELS = {
   // Each service's company-wide totals, read by the CEO Command Center.
   summary: 'Company-wide totals (CEO Command Center)',
   ceo_dashboard: 'CEO Command Center',
+  // Finance: operating expenses, investments and income outside sales.
+  expense: 'Operating expenses (rent, travel, marketing…)',
+  investment: 'Investments & other income',
+}
+
+// Where two services use the same entity name for different things: `<service>.<entity>` wins.
+const SERVICE_ENTITY_LABELS = {
+  'assets.setup': 'Asset categories, types & vendors',
+  'finance.setup': 'Expense categories & approval limit',
 }
 
 export function parseCode(code) {
@@ -91,7 +101,8 @@ export function parseCode(code) {
 }
 
 export const actionLabel = (code) => titleCase(parseCode(code).action)
-export const entityLabel = (entity) => ENTITY_LABELS[entity] || titleCase(entity)
+export const entityLabel = (entity, service) =>
+  (service && SERVICE_ENTITY_LABELS[`${service}.${entity}`]) || ENTITY_LABELS[entity] || titleCase(entity)
 export const serviceLabel = (service) => SERVICE_LABELS[service] || titleCase(service)
 
 // Codes still in the catalog that no screen uses any more (vertical packs gave way to

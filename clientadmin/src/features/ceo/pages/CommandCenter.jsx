@@ -122,7 +122,7 @@ function Screen({ screen, names }) {
         </Row>
       </Section>
 
-      <Section title="Costs" sub={screen.can_see_financials ? 'What FBOS records as spend so far' : undefined}>
+      <Section title="Costs" sub={screen.can_see_financials ? 'Everything FBOS records as spend, each in one place only' : undefined}>
         <Row spans={[6, 6]}>
           <ExpensesCard key="expenses" section={screen.expenses} fmt={fmt} />
           <BudgetCard key="budget" section={screen.budget} fmt={fmt} />
@@ -133,6 +133,10 @@ function Screen({ screen, names }) {
             rows={screen.delivery.costs_by_category ?? []} name={label} fmt={fmt} to="/projects" />
           <BucketCard key="assets" title="Software & assets" subtitle={screen.asset_costs.available ? `${fmt(screen.asset_costs.subscriptions_monthly)} a month in ${count(screen.asset_costs.active_subscriptions)} subscriptions` : undefined}
             state={screen.asset_costs} rows={screen.asset_costs.by_family ?? []} name={label} fmt={fmt} to="/assets" />
+        </Row>
+        <Row spans={[6, 6]}>
+          <OperatingExpensesCard key="operating" section={screen.finance} fmt={fmt} />
+          <InvestmentsCard key="investments" section={screen.finance} fmt={fmt} />
         </Row>
       </Section>
 
@@ -158,7 +162,7 @@ function Screen({ screen, names }) {
 function Headlines({ kpis, fmt }) {
   const tiles = [
     { key: 'revenue', title: 'Total revenue', metric: kpis.total_revenue, format: fmt, to: '/invoices' },
-    { key: 'expenses', title: 'Total expenses', metric: kpis.total_expenses, format: fmt, to: '/budgets', higherIsBetter: false, note: 'Recorded so far' },
+    { key: 'expenses', title: 'Total expenses', metric: kpis.total_expenses, format: fmt, to: '/budgets', higherIsBetter: false, note: 'All recorded spend' },
     { key: 'profit', title: 'Total profit', metric: kpis.total_profit, format: fmt },
     { key: 'pipeline', title: 'Sales pipeline', metric: kpis.sales_pipeline, format: fmt, to: '/opportunities', note: 'Open opportunities' },
     { key: 'receivables', title: 'Receivables', metric: kpis.receivables, format: fmt, to: '/collections', note: 'Owed to you today' },
@@ -292,13 +296,56 @@ function AmcCard({ section, fmt }) {
 function ExpensesCard({ section, fmt }) {
   const parts = (section.components ?? []).filter((c) => c.available)
   const missing = (section.components ?? []).filter((c) => !c.available).map((c) => label(c.key))
-  const subtitle = section.available
-    ? `Office, travel and other operating expenses are not recorded in FBOS yet${missing.length ? ` · not available: ${missing.join(', ')}` : ''}`
-    : undefined
+  const subtitle = section.available && missing.length ? `Not included (can’t be loaded or no access): ${missing.join(', ')}` : undefined
   return (
     <Card title="Where the money goes" subtitle={subtitle} state={section} to="/budgets"
       table={{ columns: ['', 'This period', 'Previous'], rows: parts.map((c) => [label(c.key), fmt(c.amount.amount), fmt(c.amount.previous)]) }}>
       <BarList fill format={fmt} rows={parts.map((c) => ({ key: c.key, label: label(c.key), value: num(c.amount.amount), sub: change(c.amount.amount, c.amount.previous, { higherIsBetter: false })?.text }))} />
+    </Card>
+  )
+}
+
+// Rent, travel, marketing… recorded as expenses (approved ones, before tax).
+function OperatingExpensesCard({ section, fmt }) {
+  const rows = section.by_category ?? []
+  const subtitle = section.available
+    ? [
+        section.operating_expenses && change(section.operating_expenses.amount, section.operating_expenses.previous, { higherIsBetter: false })?.text,
+        section.awaiting_approval > 0 && `${count(section.awaiting_approval)} waiting for approval (${fmt(section.awaiting_approval_amount)})`,
+        section.unpaid > 0 && `${fmt(section.unpaid)} not paid yet`,
+      ].filter(Boolean).join(' · ') || 'Approved expenses, before tax'
+    : undefined
+  return (
+    <Card title="Operating expenses" subtitle={subtitle} state={section} to="/expenses"
+      table={{ columns: ['Category', 'Amount'], rows: rows.map((r) => [r.name, fmt(r.amount)]) }}>
+      <BarList fill format={fmt} emptyText="No expenses recorded in this period."
+        rows={rows.slice(0, 8).map((r) => ({ key: r.key, label: r.name, value: num(r.amount) }))} />
+    </Card>
+  )
+}
+
+// Income outside sales (interest, dividends, rent) and what the companies hold today.
+function InvestmentsCard({ section, fmt }) {
+  const holdings = section.investments
+  const income = section.other_income
+  return (
+    <Card title="Finance & investment income" subtitle="Income other than sales in the period; investments as held today" state={section} to="/investments"
+      table={{
+        columns: ['', 'Amount'],
+        rows: [
+          ...(section.income_by_type ?? []).map((b) => [`Income · ${label(b.key)}`, fmt(b.amount)]),
+          ...(holdings?.by_type ?? []).map((b) => [`Invested · ${label(b.key)}`, fmt(b.amount)]),
+        ],
+      }}>
+      <Facts items={[
+        income && ['Other income', fmt(income.amount)],
+        income && change(income.amount, income.previous) && ['Against previous period', change(income.amount, income.previous).text],
+        holdings && ['Active investments', count(holdings.active)],
+        holdings && ['Invested (principal)', fmt(holdings.principal)],
+        holdings && ['Current value', fmt(holdings.current_value), holdings.current_value < holdings.principal ? 'bad' : 'good'],
+        holdings && holdings.maturing_soon > 0 && ['Maturing within 30 days', count(holdings.maturing_soon), 'warn'],
+      ]} />
+      <BarList format={fmt} rows={(holdings?.by_type ?? []).map((b) => ({ key: b.key, label: label(b.key), value: num(b.amount) }))} />
     </Card>
   )
 }
@@ -395,6 +442,7 @@ function Alerts({ alerts, fmt }) {
     alerts.at_risk_projects > 0 && { key: 'risk', text: `${alerts.at_risk_projects} projects at risk of delay`, to: '/projects' },
     alerts.renewals_due > 0 && { key: 'renewals', text: `${alerts.renewals_due} AMC renewals due in 30 days`, to: '/contracts' },
     alerts.open_repairs > 0 && { key: 'repairs', text: `${alerts.open_repairs} devices out for repair`, to: '/inventory/repairs' },
+    alerts.expenses_awaiting_approval > 0 && { key: 'expenses', text: `${alerts.expenses_awaiting_approval} expenses waiting for approval`, to: '/expenses?approval_status=pending_approval' },
   ].filter(Boolean)
   const unknown = [alerts.approvals_pending, alerts.overdue_receivables, alerts.at_risk_projects].every((v) => v === null)
   if (!items.length) {
@@ -404,7 +452,7 @@ function Alerts({ alerts, fmt }) {
     <ul className="panel ceo-alerts">
       {items.map((item) => (
         <li key={item.key}>
-          <Link to={item.to}>{item.text}</Link>
+          {item.to ? <Link to={item.to}>{item.text}</Link> : item.text}
         </li>
       ))}
     </ul>

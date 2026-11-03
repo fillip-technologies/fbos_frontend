@@ -157,7 +157,7 @@ function RoleForm({ orgId, catalog, role, onCancel, onSaved }) {
             return (
               <div key={entity} className="perm-entity">
                 <div className="perm-entity-name">
-                  {entityLabel(entity)}
+                  {entityLabel(entity, group.service)}
                   <button type="button" className="link-btn" onClick={() => toggleEntity(permissions, !allOn)}>
                     {allOn ? 'Clear' : 'Select all'}
                   </button>

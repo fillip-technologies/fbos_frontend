@@ -200,6 +200,16 @@ export const ACCESS = {
   // role changes may delegate their own approvals.
   roleChangeSetup: { anyPermissions: ['people.role_change.manage', 'people.role_change.approve'] },
   manageRoleChangeSetup: { permissions: ['people.role_change.manage'] },
+  // Finance: operating expenses (rent, travel, marketing…), investments and income outside sales.
+  // The reads are company-wide money, so they are not in the member preset.
+  expenses: { permissions: ['finance.expense.read'] },
+  manageExpenses: { permissions: ['finance.expense.write'] },
+  approveExpenses: { permissions: ['finance.expense.approve'] },
+  investments: { permissions: ['finance.investment.read'] },
+  manageInvestments: { permissions: ['finance.investment.write'] },
+  // The setup page shows the approval limit and categories (read with expense access).
+  financeSetupPage: { permissions: ['finance.expense.read'] },
+  financeSetup: { permissions: ['finance.setup.manage'] },
   // Management: planning (fiscal years, goals), the scorecard, budgets and capacity. Each reads and
   // manages with its own pair of codes; the sensitive reads (cost rates, targets) are not for members.
   planning: { anyPermissions: ['management.fiscal_year.read', 'management.goal.read'] },
