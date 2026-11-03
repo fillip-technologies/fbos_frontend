@@ -137,6 +137,18 @@ export default function CustomerFields({ form, set, setAddress, fieldErrors, own
           />
         </Field>
       </div>
+      <div className="grid-3">
+        <Field id="country" label="Country" error={fieldErrors.country} hint="Two-letter code: IN for India, US, AE, GB… Tells India and international customers apart.">
+          <input
+            id="country"
+            className="mono-input"
+            maxLength={2}
+            value={form.address.country}
+            onChange={(e) => setAddress('country', e.target.value.toUpperCase())}
+            placeholder="IN"
+          />
+        </Field>
+      </div>
 
       {isCreate && (
         <Field id="source" label="Source" hint="Where this customer came from, e.g. referral or website.">

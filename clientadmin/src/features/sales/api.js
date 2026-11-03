@@ -94,7 +94,7 @@ export const offeringsApi = {
   list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/offerings?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
   listAll: (orgId, { signal } = {}) => listAll(`${REVENUE}/offerings`, orgId, {}, { signal }),
   create: (orgId, body) => api.post(`${REVENUE}/offerings`, body, { headers: inOrg(orgId) }),
-  // { fulfilment }: what a won contract for it is delivered as.
+  // { fulfilment, product_line }: what a won contract for it is delivered as, and its kind of business.
   update: (orgId, id, body) => api.patch(`${REVENUE}/offerings/${id}`, body, { headers: inOrg(orgId) }),
 }
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { ceoApi } from '@/features/ceo/api.js'
-import { change, count, HEALTH_TEXT, label, money, num, periodFor, RANGES, REASON_TEXT } from '@/features/ceo/utils.js'
+import { change, count, HEALTH_TEXT, label, money, num, periodFor, RANGES, REASON_TEXT, segmentLabel } from '@/features/ceo/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useTaxEntries } from '@/features/tax/useTaxConfig.js'
 import { useLookup, useQuery } from '@/shared/api/useQuery.js'
@@ -107,10 +107,18 @@ function Screen({ screen, names }) {
           <BucketCard key="state" title="Revenue by state" subtitle="By the invoice's place of supply" state={screen.revenue}
             rows={screen.revenue.by_state} name={names.place} fmt={fmt} to="/invoices" />
         </Row>
+        <Row spans={[6, 6]}>
+          <SegmentCard key="segment" section={screen.revenue} fmt={fmt} />
+          <BucketCard key="product-line" title="Revenue by product line" subtitle="Hardware, software, services, AMC… as set on each offering"
+            state={screen.revenue} rows={screen.revenue.by_product_line} name={(k) => (k === 'none' ? 'Not set on the offering' : label(k))} fmt={fmt} to="/offerings" />
+        </Row>
         <Row spans={[4, 4, 4]}>
-          <BucketCard key="client-type" title="By customer type" state={screen.revenue} rows={screen.revenue.by_client_type} name={label} fmt={fmt} to="/customers" />
           <BucketCard key="contract-type" title="By contract type" state={screen.revenue} rows={screen.revenue.by_contract_type} name={label} fmt={fmt} to="/contracts" />
+          <CustomersCard key="customers" section={screen.revenue} names={names} />
           <AmcCard key="amc" section={screen.revenue} fmt={fmt} />
+        </Row>
+        <Row spans={[12]}>
+          <AssociatesCard key="associates" section={screen.associates} fmt={fmt} />
         </Row>
       </Section>
 
@@ -237,6 +245,9 @@ function CompaniesCard({ section, fmt }) {
           r.headcount ?? '—',
         ]),
       }}>
+      {(section.by_relationship ?? []).length > 1 && (
+        <Facts items={section.by_relationship.map((t) => [`${label(t.relationship)} · ${count(t.companies)}`, fmt(t.revenue)])} />
+      )}
       <BarList fill format={fmt} emptyText="No revenue in this period."
         rows={rows.filter((r) => r.revenue).map((r) => ({
           key: r.organization_id,
@@ -330,6 +341,8 @@ function FieldCard({ field, procurement, people }) {
       <Facts items={[
         ['Technicians', count(field.technicians)],
         ['Available now', count(field.technicians_available)],
+        people.available && ['On the field today', count(people.working_today?.field)],
+        people.available && ['At the office today', count(people.working_today?.office)],
         people.available && ['On leave today (everyone)', count(people.on_leave_today)],
         procurement.available && ['Devices installed this period', count(procurement.installations)],
         procurement.available && ['New installations', count(procurement.new_installs)],
@@ -341,7 +354,7 @@ function FieldCard({ field, procurement, people }) {
 
 function PeopleCard({ section, fmt }) {
   return (
-    <Card title="People" subtitle={section.available ? `${count(section.headcount)} employed · ${count(section.on_leave_today)} on leave today` : undefined}
+    <Card title="People" subtitle={section.available ? `${count(section.headcount)} people · ${count(section.freelancers)} freelancers · ${count(section.on_leave_today)} on leave today` : undefined}
       state={section} to="/users"
       table={{ columns: ['Employment type', 'People'], rows: (section.by_employment_type ?? []).map((b) => [label(b.key), count(b.count)]) }}>
       {section.payroll && (
@@ -395,5 +408,59 @@ function Alerts({ alerts, fmt }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+// ---------- B2 cards: segments, customers, associates ----------
+function SegmentCard({ section, fmt }) {
+  const rows = section.by_segment ?? []
+  return (
+    <Card title="Revenue by segment" subtitle="Government or private, in India or international" state={section} to="/customers"
+      table={{ columns: ['Segment', 'Revenue'], rows: rows.map((s) => [segmentLabel(s), fmt(s.amount)]) }}>
+      <BarList fill format={fmt} emptyText="No revenue in this period."
+        rows={rows.map((s) => ({ key: `${s.sector}-${s.market}`, label: segmentLabel(s), value: num(s.amount) }))} />
+    </Card>
+  )
+}
+
+function CustomersCard({ section, names }) {
+  const segments = section.clients_by_segment ?? []
+  const states = (section.clients_by_state ?? []).slice(0, 6)
+  return (
+    <Card title="Customers" subtitle="By segment and billing state" state={section} to="/customers"
+      table={{
+        columns: ['', 'Customers'],
+        rows: [...segments.map((s) => [segmentLabel(s), count(s.count)]), ...(section.clients_by_state ?? []).map((s) => [s.key === 'none' ? 'No state' : names.place(s.key), count(s.count)])],
+      }}>
+      <Facts items={segments.map((s) => [segmentLabel(s), count(s.count)])} />
+      <BarList format={count} rows={states.map((s) => ({ key: s.key, label: s.key === 'none' ? 'No state' : names.place(s.key), value: s.count }))} />
+    </Card>
+  )
+}
+
+function AssociatesCard({ section, fmt }) {
+  const rows = section.rows ?? []
+  const money_ = section.revenue !== null && section.revenue !== undefined
+  return (
+    <Card title="Business from associates" subtitle="Projects given to associate companies: revenue on them, what we paid, and the margin"
+      state={section} to="/projects"
+      table={{
+        columns: ['Associate', 'Projects', 'Running', 'Revenue', 'Paid to them', 'Margin'],
+        rows: rows.map((r) => [r.name, count(r.projects), count(r.running), r.revenue === null ? '—' : fmt(r.revenue), r.paid === null ? '—' : fmt(r.paid), r.margin === null ? '—' : fmt(r.margin)]),
+      }}>
+      {rows.length === 0 ? (
+        <p className="chart-empty">No projects given to associates yet. Name the associate on a project to see it here.</p>
+      ) : (
+        <>
+          <Facts items={[
+            ['Projects with associates', count(section.projects)],
+            money_ && ['Revenue on them', fmt(section.revenue)],
+            section.paid !== null && section.paid !== undefined && ['Paid to associates', fmt(section.paid)],
+            money_ && ['Margin', fmt(section.margin), section.margin < 0 ? 'bad' : 'good'],
+          ]} />
+          {money_ && <BarList format={fmt} rows={rows.map((r) => ({ key: r.organization_id, label: r.name, value: num(r.margin), sub: `${count(r.projects)} projects` }))} />}
+        </>
+      )}
+    </Card>
   )
 }

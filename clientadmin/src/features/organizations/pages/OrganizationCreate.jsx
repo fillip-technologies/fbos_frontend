@@ -16,6 +16,7 @@ export default function OrganizationCreate() {
     base_currency: 'INR',
     timezone: 'Asia/Kolkata',
     fiscal_year_start: DEFAULT_FISCAL_YEAR_START,
+    relationship: 'own',
     admin_email: '',
     admin_name: '',
   })
@@ -40,6 +41,7 @@ export default function OrganizationCreate() {
         base_currency: form.base_currency.trim(),
         timezone: form.timezone.trim(),
         fiscal_year_start: form.fiscal_year_start.trim(),
+        relationship: form.relationship,
       }
       if (form.admin_email.trim()) body.admin_email = form.admin_email.trim()
       if (form.admin_name.trim()) body.admin_name = form.admin_name.trim()

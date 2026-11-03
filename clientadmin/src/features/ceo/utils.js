@@ -83,6 +83,18 @@ const LABELS = {
   project_costs: 'Project costs',
   procurement: 'Purchases (inventory)',
   asset_costs: 'Software & assets',
+  hardware: 'Hardware',
+  software: 'Software',
+  services: 'Services',
+  training: 'Training',
+  other: 'Other',
+  own: 'Own companies',
+  associate: 'Associate companies (total)',
+  investment: 'Investments',
+  government: 'Government',
+  private: 'Private',
+  india: 'India',
+  international: 'International',
   draft: 'Draft',
   submitted: 'Submitted',
   approved: 'Approved',
@@ -91,3 +103,6 @@ const LABELS = {
   cancelled: 'Cancelled',
 }
 export const label = (key) => LABELS[key] ?? String(key).replace(/_/g, ' ')
+
+// "Government · India": a customer segment, sector by market.
+export const segmentLabel = (s) => `${label(s.sector)} · ${label(s.market)}`

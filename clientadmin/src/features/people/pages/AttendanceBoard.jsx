@@ -13,8 +13,13 @@ const newForm = () => ({
   clock_in_time: '',
   clock_out_time: '',
   status: 'present',
+  work_location: '',
   notes: '',
 })
+
+// Where a day was worked (People's daily_attendance.work_location): the CEO Command Center's
+// "on field vs at office".
+const WORK_LOCATIONS = { office: 'Office', field: 'Field (customer site)', remote: 'Remote' }
 
 const workerLabel = (w) => `${w.worker_code ? `${w.worker_code} - ` : ''}${w.first_name} ${w.last_name}`.trim()
 
@@ -68,6 +73,7 @@ export default function AttendanceBoard() {
         ...form,
         clock_in_time: form.clock_in_time ? `${form.work_date}T${form.clock_in_time}:00Z` : null,
         clock_out_time: form.clock_out_time ? `${form.work_date}T${form.clock_out_time}:00Z` : null,
+        work_location: form.work_location || null,
         notes: form.notes.trim() || null,
       })
       setModalOpen(false)
@@ -105,14 +111,15 @@ export default function AttendanceBoard() {
               <th>Clock out</th>
               <th>Worked</th>
               <th>Status</th>
+              <th>Where</th>
               <th>Notes</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="center-note">Loading attendance...</td></tr>
+              <tr><td colSpan={8} className="center-note">Loading attendance...</td></tr>
             ) : records.length === 0 ? (
-              <tr><td colSpan={7} className="center-note">No attendance records yet.</td></tr>
+              <tr><td colSpan={8} className="center-note">No attendance records yet.</td></tr>
             ) : (
               records.map((r) => (
                 <tr key={r.id}>
@@ -124,6 +131,7 @@ export default function AttendanceBoard() {
                     {r.working_minutes > 0 ? `${Math.floor(r.working_minutes / 60)}h ${r.working_minutes % 60}m` : '—'}
                   </td>
                   <td><StatusBadge status={r.status} label={statusLabel(r.status)} /></td>
+                  <td>{WORK_LOCATIONS[r.work_location] || <span className="muted">—</span>}</td>
                   <td className="muted small">{r.notes || '—'}</td>
                 </tr>
               ))
@@ -166,6 +174,14 @@ export default function AttendanceBoard() {
                 <option value="absent">Absent</option>
                 <option value="holiday">Holiday</option>
                 <option value="on_leave">On leave</option>
+              </select>
+            </Field>
+            <Field label="Where" error={fieldErrors.work_location}>
+              <select value={form.work_location} onChange={(e) => setForm({ ...form, work_location: e.target.value })}>
+                <option value="">Not said</option>
+                {Object.entries(WORK_LOCATIONS).map(([value, text]) => (
+                  <option key={value} value={value}>{text}</option>
+                ))}
               </select>
             </Field>
             <Field label="Clock in" error={fieldErrors.clock_in_time}>
