@@ -102,6 +102,17 @@ export const FULFILMENTS = {
   project: 'A delivery project',
   service: 'A customer service',
 }
+
+// The kind of business an offering is (revenue's offerings.product_line): revenue by product line on
+// the CEO Command Center. Blank = not said.
+export const PRODUCT_LINES = {
+  hardware: 'Hardware',
+  software: 'Software',
+  services: 'Services',
+  amc: 'AMC',
+  training: 'Training',
+  other: 'Other',
+}
 export const OFFERING_UNITS = { project: 'Project', hour: 'Hour', month: 'Month', unit: 'Unit' }
 export const BILLING_MODELS = {
   one_time: 'One-time',

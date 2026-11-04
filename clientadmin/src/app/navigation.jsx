@@ -23,6 +23,12 @@ export const NAV_ITEMS = [
     icon: icon(<><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6" /><path d="M12 17h.01" /></>),
   },
   {
+    to: '/ceo',
+    label: 'CEO Command Center',
+    access: ACCESS.ceoDashboard,
+    icon: icon(<><path d="M12 3v3M12 18v3M3 12h3M18 12h3" /><circle cx="12" cy="12" r="6" /><path d="M12 12l3-2" /></>),
+  },
+  {
     to: '/insights',
     label: 'Insights',
     access: ACCESS.insights,
@@ -45,6 +51,24 @@ export const NAV_ITEMS = [
     label: 'Assets',
     access: ACCESS.assets,
     icon: icon(<><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></>),
+  },
+  {
+    to: '/expenses',
+    label: 'Expenses',
+    access: ACCESS.expenses,
+    icon: icon(<><path d="M4 3h16v18l-3-2-3 2-2-2-2 2-3-2-3 2V3z" /><path d="M8 8h8M8 12h8M8 16h5" /></>),
+  },
+  {
+    to: '/investments',
+    label: 'Investments & income',
+    access: ACCESS.investments,
+    icon: icon(<><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>),
+  },
+  {
+    to: '/finance-setup',
+    label: 'Expense setup',
+    access: ACCESS.financeSetupPage,
+    icon: icon(<><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" /></>),
   },
   {
     to: '/scorecard',
@@ -350,6 +374,7 @@ const DESCRIPTIONS = {
   '/': 'Your starting point: what needs you today, and how the company is doing.',
   '/guide': 'How the parts of FBOS fit together, from first enquiry to money in the bank.',
   '/insights': 'Compare branches, departments, teams and people: work, hours, budgets and KPIs.',
+  '/ceo': 'Every company on one screen: revenue, money owed, projects, people, costs and what needs a decision.',
   '/organizations': 'The companies in your account, and switching between them.',
   '/org-units': 'Branches, departments and teams, and who belongs to each.',
   '/assets': 'Company equipment and software: who has what, servicing and disposal.',
@@ -357,6 +382,9 @@ const DESCRIPTIONS = {
   '/planning': 'Financial years, quarters and the goals set for them.',
   '/budgets': 'What each unit may spend, and what it has spent so far.',
   '/capacity': 'Who is busy and who is free: hours available against hours booked.',
+  '/expenses': 'Running costs such as rent, travel and marketing, with bills attached and approval above a limit.',
+  '/investments': 'Fixed deposits, funds, shares and property, and income such as interest, dividends and rent.',
+  '/finance-setup': 'When expenses need approval, and the categories they are filed under.',
   '/people/jobs': 'Open positions, candidates and where each one is in hiring.',
   '/people/interviews': 'Interviews you are on the panel for, and their feedback.',
   '/people/attendance': 'Who is in today, late or away.',
@@ -407,7 +435,7 @@ const DESCRIPTIONS = {
 // NAV_ITEMS entry is never hidden. `hint` says what the section is for (guide, tooltips);
 // Settings starts folded: setup is done now and then, daily work every day.
 export const SECTIONS = [
-  { id: 'home', label: 'Home', hint: 'Start here', paths: ['/', '/guide', '/insights'] },
+  { id: 'home', label: 'Home', hint: 'Start here', paths: ['/', '/ceo', '/guide', '/insights'] },
   {
     id: 'work',
     label: 'My work',
@@ -431,6 +459,12 @@ export const SECTIONS = [
     label: 'Bill & collect',
     hint: 'Invoice the work and get paid',
     paths: ['/billing-schedules', '/invoices', '/payments', '/collections', '/tax-reports'],
+  },
+  {
+    id: 'spend',
+    label: 'Spend & invest',
+    hint: 'Record what the company spends and invests',
+    paths: ['/expenses', '/investments'],
   },
   {
     id: 'people',
@@ -457,7 +491,7 @@ export const SECTIONS = [
     defaultCollapsed: true,
     paths: [
       '/organizations', '/org-units', '/calendars', '/roles', '/people/approvals', '/offerings', '/tax-setup',
-      '/task-types', '/project-templates', '/service-providers', '/custom-fields', '/verticals', '/document-categories', '/audit-log',
+      '/task-types', '/project-templates', '/service-providers', '/finance-setup', '/custom-fields', '/verticals', '/document-categories', '/audit-log',
     ],
   },
 ]
@@ -569,6 +603,7 @@ export const CREATE_ACTIONS = [
   { to: '/payments/new', label: 'Payment received', hint: 'Record money a customer paid', access: ACCESS.recordPayments },
   { to: '/users/new', label: 'User', hint: 'Invite someone to sign in', access: ACCESS.inviteUsers },
   { to: '/assets/new', label: 'Asset', hint: 'Equipment or software to track', access: ACCESS.manageAssets },
+  { to: '/expenses?new=1', label: 'Expense', hint: 'Rent, travel, marketing or another running cost', access: ACCESS.manageExpenses },
   ...(inventoryPageOn('purchasing')
     ? [{ to: '/inventory/purchase-orders/new', label: 'Purchase order', hint: 'Buy from a vendor', access: ACCESS.managePurchaseOrders }]
     : []),

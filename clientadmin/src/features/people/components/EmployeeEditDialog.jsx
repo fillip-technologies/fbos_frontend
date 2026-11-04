@@ -94,6 +94,7 @@ export default function EmployeeEditDialog({ worker, onClose, onSaved }) {
             <option value="full_time">Full time</option>
             <option value="part_time">Part time</option>
             <option value="contractor">Contractor</option>
+            <option value="freelancer">Freelancer</option>
             <option value="intern">Intern</option>
           </select>
         </Field>

@@ -87,8 +87,14 @@ const RequestCreate = lazy(pages.RequestCreate)
 const Assets = lazy(pages.Assets)
 const Scorecard = lazy(pages.Scorecard)
 const Insights = lazy(pages.Insights)
+const CommandCenter = lazy(pages.CommandCenter)
 const Planning = lazy(pages.Planning)
 const Budgets = lazy(pages.Budgets)
+const Expenses = lazy(pages.Expenses)
+const ExpenseDetail = lazy(pages.ExpenseDetail)
+const Investments = lazy(pages.Investments)
+const InvestmentDetail = lazy(pages.InvestmentDetail)
+const FinanceSetup = lazy(pages.FinanceSetup)
 const BudgetDetail = lazy(pages.BudgetDetail)
 const Capacity = lazy(pages.Capacity)
 const AssetDetail = lazy(pages.AssetDetail)
@@ -153,9 +159,15 @@ export default function App() {
           <Route path="/assets/:id" element={<RequireAccess rule={ACCESS.assets}><AssetDetail /></RequireAccess>} />
           <Route path="/scorecard" element={<RequireAccess rule={ACCESS.scorecard}><Scorecard /></RequireAccess>} />
           <Route path="/insights" element={<RequireAccess rule={ACCESS.insights}><Insights /></RequireAccess>} />
+          <Route path="/ceo" element={<RequireAccess rule={ACCESS.ceoDashboard}><CommandCenter /></RequireAccess>} />
           <Route path="/planning" element={<RequireAccess rule={ACCESS.planning}><Planning /></RequireAccess>} />
           <Route path="/budgets" element={<RequireAccess rule={ACCESS.budgets}><Budgets /></RequireAccess>} />
           <Route path="/budgets/:id" element={<RequireAccess rule={ACCESS.budgets}><BudgetDetail /></RequireAccess>} />
+          <Route path="/expenses" element={<RequireAccess rule={ACCESS.expenses}><Expenses /></RequireAccess>} />
+          <Route path="/expenses/:id" element={<RequireAccess rule={ACCESS.expenses}><ExpenseDetail /></RequireAccess>} />
+          <Route path="/investments" element={<RequireAccess rule={ACCESS.investments}><Investments /></RequireAccess>} />
+          <Route path="/investments/:id" element={<RequireAccess rule={ACCESS.investments}><InvestmentDetail /></RequireAccess>} />
+          <Route path="/finance-setup" element={<RequireAccess rule={ACCESS.financeSetupPage}><FinanceSetup /></RequireAccess>} />
           <Route path="/capacity" element={<RequireAccess rule={ACCESS.capacity}><Capacity /></RequireAccess>} />
           <Route path="/calendars" element={<RequireAccess rule={ACCESS.calendars}><Calendars /></RequireAccess>} />
           <Route path="/custom-fields" element={<RequireAccess rule={ACCESS.customFields}><CustomFields /></RequireAccess>} />

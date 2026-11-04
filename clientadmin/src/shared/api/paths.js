@@ -16,3 +16,7 @@ export const ASSETS = '/api/assets/v1'
 export const PEOPLE = '/api/people/v1'
 // Base path of the Management service: fiscal years, goals, KPIs and scorecards, budgets, capacity.
 export const MANAGEMENT = '/api/management/v1'
+// Base path of the Finance service: operating expenses, investments and income outside sales.
+export const FINANCE = '/api/finance/v1'
+// Base path of the gateway's screens (BFF): one response that adds up several services (CEO Command Center).
+export const BFF = '/api/bff/v1'

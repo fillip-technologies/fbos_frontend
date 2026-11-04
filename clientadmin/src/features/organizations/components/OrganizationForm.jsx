@@ -1,5 +1,13 @@
 import { DEFAULT_FISCAL_YEAR_START, FISCAL_YEAR_PATTERN, formatFiscalYearStart } from '@/shared/utils/format.js'
 
+// How the account relates to the company (Identity's organizations.relationship). The CEO Command
+// Center groups companies by it; work given to an associate is a project naming it as the partner.
+export const RELATIONSHIPS = [
+  { value: 'own', label: 'Our own company' },
+  { value: 'associate', label: 'Associate (we give it work)' },
+  { value: 'investment', label: 'Investment (we hold a stake)' },
+]
+
 // Shared field block for creating / editing an organization.
 // `fieldErrors` is the { field: message } map from getFieldErrors().
 export default function OrganizationFields({ form, set, fieldErrors, isCreate }) {
@@ -35,6 +43,18 @@ export default function OrganizationFields({ form, set, fieldErrors, isCreate })
             <div className="hint">{isCreate ? 'Unique slug used to identify the company.' : 'Cannot be changed.'}</div>
           )}
         </div>
+      </div>
+
+      <div className="field">
+        <label htmlFor="relationship">Relationship</label>
+        <select id="relationship" value={form.relationship} onChange={(e) => set('relationship', e.target.value)}>
+          {RELATIONSHIPS.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+        {fieldErrors.relationship && <div className="field-error">{fieldErrors.relationship}</div>}
       </div>
 
       <div className="field">

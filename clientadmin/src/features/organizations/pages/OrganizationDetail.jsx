@@ -20,6 +20,7 @@ const toForm = (o) => ({
   timezone: o.timezone || '',
   fiscal_year_start: o.fiscal_year_start || '',
   status: o.status || 'active',
+  relationship: o.relationship || 'own',
   calendar_id: o.calendar_id || '',
 })
 
@@ -58,7 +59,7 @@ export default function OrganizationDetail() {
     try {
       // Send only what changed.
       const body = {}
-      for (const k of ['name', 'email', 'base_currency', 'timezone', 'fiscal_year_start', 'status']) {
+      for (const k of ['name', 'email', 'base_currency', 'timezone', 'fiscal_year_start', 'status', 'relationship']) {
         if (form[k].trim() !== (base[k] || '')) body[k] = form[k].trim() // vs. what the form was taken from
       }
       if (form.calendar_id && form.calendar_id !== (base.calendar_id || '')) body.calendar_id = form.calendar_id

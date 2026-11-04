@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { clientsApi } from '@/features/clients/api.js'
+import UnlimitedToggle, { isUnlimitedClient } from '@/features/clients/components/UnlimitedToggle.jsx'
 import { friendlyMessage, getFieldErrors } from '@/shared/api/errors.js'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -8,6 +9,19 @@ import { addOneYear, todayIso } from '@/shared/utils/dates.js'
 
 // Only these fields are editable per ClientUpdateRequest in the Identity service.
 const STATUS_OPTIONS = ['active', 'suspended', 'archived']
+
+function toForm(c) {
+  return {
+    name: c.name || '',
+    contact_email: c.contact_email || '',
+    status: c.status || 'active',
+    max_organizations: c.max_organizations ?? '',
+    max_users_per_org: c.max_users_per_org ?? '',
+    subscription_start: c.subscription_start || '',
+    subscription_end: c.subscription_end || '',
+    unlimited: isUnlimitedClient(c),
+  }
+}
 
 export default function ClientDetail() {
   const { id } = useParams()
@@ -25,6 +39,7 @@ export default function ClientDetail() {
     max_users_per_org: '',
     subscription_start: '',
     subscription_end: '',
+    unlimited: false,
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -46,15 +61,7 @@ export default function ClientDetail() {
       .then((c) => {
         if (cancelled) return
         setClient(c)
-        setForm({
-          name: c.name || '',
-          contact_email: c.contact_email || '',
-          status: c.status || 'active',
-          max_organizations: c.max_organizations ?? '',
-          max_users_per_org: c.max_users_per_org ?? '',
-          subscription_start: c.subscription_start || '',
-          subscription_end: c.subscription_end || '',
-        })
+        setForm(toForm(c))
       })
       .catch((err) => {
         if (!cancelled) setError(err)
@@ -84,14 +91,9 @@ export default function ClientDetail() {
       if (form.contact_email.trim() !== (client.contact_email || ''))
         body.contact_email = form.contact_email.trim()
       if (form.status !== client.status) body.status = form.status
-      if (Number(form.max_organizations) !== client.max_organizations)
-        body.max_organizations = Number(form.max_organizations)
-      if (Number(form.max_users_per_org) !== client.max_users_per_org)
-        body.max_users_per_org = Number(form.max_users_per_org)
       if (form.subscription_start && form.subscription_start !== client.subscription_start)
         body.subscription_start = form.subscription_start
-      if (form.subscription_end && form.subscription_end !== client.subscription_end)
-        body.subscription_end = form.subscription_end
+      Object.assign(body, form.unlimited ? unlimitedChanges() : limitChanges())
 
       if (Object.keys(body).length === 0) {
         setSaved(true)
@@ -99,21 +101,45 @@ export default function ClientDetail() {
       }
       const updated = await clientsApi.update(id, body)
       setClient(updated)
-      setForm({
-        name: updated.name || '',
-        contact_email: updated.contact_email || '',
-        status: updated.status || 'active',
-        max_organizations: updated.max_organizations ?? '',
-        max_users_per_org: updated.max_users_per_org ?? '',
-        subscription_start: updated.subscription_start || '',
-        subscription_end: updated.subscription_end || '',
-      })
+      setForm(toForm(updated))
       setSaved(true)
     } catch (err) {
       setError(err)
     } finally {
       setSaving(false)
     }
+  }
+
+  // Identity reads an explicit null as unlimited / no expiry.
+  function unlimitedChanges() {
+    const changes = {}
+    if (client.max_organizations != null) changes.max_organizations = null
+    if (client.max_users_per_org != null) changes.max_users_per_org = null
+    if (client.subscription_end != null) changes.subscription_end = null
+    return changes
+  }
+
+  function limitChanges() {
+    const changes = {}
+    if (form.max_organizations !== '' && Number(form.max_organizations) !== client.max_organizations)
+      changes.max_organizations = Number(form.max_organizations)
+    if (form.max_users_per_org !== '' && Number(form.max_users_per_org) !== client.max_users_per_org)
+      changes.max_users_per_org = Number(form.max_users_per_org)
+    if (form.subscription_end && form.subscription_end !== client.subscription_end)
+      changes.subscription_end = form.subscription_end
+    return changes
+  }
+
+  // Leaving "unlimited" needs real limits: start from the platform defaults (2 / 50 / one year).
+  function setUnlimited(on) {
+    setForm((f) => ({
+      ...f,
+      unlimited: on,
+      max_organizations: on ? f.max_organizations : f.max_organizations || 2,
+      max_users_per_org: on ? f.max_users_per_org : f.max_users_per_org || 50,
+      subscription_end: on ? f.subscription_end : f.subscription_end || addOneYear(todayIso()),
+    }))
+    setSaved(false)
   }
 
   async function handleDelete() {
@@ -216,6 +242,8 @@ export default function ClientDetail() {
           {client.subscription_state === 'expired' && ' (currently expired)'}.
         </p>
 
+        <UnlimitedToggle checked={form.unlimited} onChange={setUnlimited} />
+
         <div className="grid-2">
           <div className="field">
             <label htmlFor="subscription_start">Service start</label>
@@ -235,14 +263,19 @@ export default function ClientDetail() {
               type="date"
               min={form.subscription_start}
               className={fieldErrors.subscription_end ? 'invalid' : ''}
-              value={form.subscription_end}
+              value={form.unlimited ? '' : form.subscription_end}
               onChange={(e) => set('subscription_end', e.target.value)}
+              disabled={form.unlimited}
             />
             {fieldErrors.subscription_end && <div className="field-error">{fieldErrors.subscription_end}</div>}
             <div className="hint">
-              <button type="button" className="btn secondary" onClick={renewOneYear}>
-                Renew +1 year
-              </button>
+              {form.unlimited ? (
+                'No expiry.'
+              ) : (
+                <button type="button" className="btn secondary" onClick={renewOneYear}>
+                  Renew +1 year
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -262,14 +295,18 @@ export default function ClientDetail() {
               max={1000}
               className={fieldErrors.max_organizations ? 'invalid' : ''}
               aria-invalid={!!fieldErrors.max_organizations}
-              value={form.max_organizations}
+              value={form.unlimited ? '' : form.max_organizations}
               onChange={(e) => set('max_organizations', e.target.value)}
+              disabled={form.unlimited}
+              placeholder={form.unlimited ? 'Unlimited' : undefined}
             />
             {fieldErrors.max_organizations ? (
               <div className="field-error">{fieldErrors.max_organizations}</div>
             ) : typeof client.active_organizations_count === 'number' ? (
               <div className="hint">
-                {client.active_organizations_count} of {form.max_organizations || client.max_organizations} in use.
+                {form.unlimited || !(form.max_organizations || client.max_organizations)
+                  ? `${client.active_organizations_count} in use, no limit.`
+                  : `${client.active_organizations_count} of ${form.max_organizations || client.max_organizations} in use.`}
               </div>
             ) : (
               <div className="hint">Between 1 and 1000.</div>
@@ -284,13 +321,15 @@ export default function ClientDetail() {
               max={10000}
               className={fieldErrors.max_users_per_org ? 'invalid' : ''}
               aria-invalid={!!fieldErrors.max_users_per_org}
-              value={form.max_users_per_org}
+              value={form.unlimited ? '' : form.max_users_per_org}
               onChange={(e) => set('max_users_per_org', e.target.value)}
+              disabled={form.unlimited}
+              placeholder={form.unlimited ? 'Unlimited' : undefined}
             />
             {fieldErrors.max_users_per_org ? (
               <div className="field-error">{fieldErrors.max_users_per_org}</div>
             ) : (
-              <div className="hint">Between 1 and 10000.</div>
+              <div className="hint">{form.unlimited ? 'Unlimited.' : 'Between 1 and 10000.'}</div>
             )}
           </div>
         </div>

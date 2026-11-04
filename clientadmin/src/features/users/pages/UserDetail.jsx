@@ -477,7 +477,7 @@ function GrantsTable({ grants, unitsById, describe, jobRoleCodes = null }) {
             lastGroup = group
             rows.push(
               <tr key={`h-${group}-${g.id}`} className="group-row">
-                <td colSpan={4}>{serviceLabel(service)} › {entityLabel(entity)}</td>
+                <td colSpan={4}>{serviceLabel(service)} › {entityLabel(entity, service)}</td>
               </tr>
             )
           }

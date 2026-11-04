@@ -200,6 +200,16 @@ export const ACCESS = {
   // role changes may delegate their own approvals.
   roleChangeSetup: { anyPermissions: ['people.role_change.manage', 'people.role_change.approve'] },
   manageRoleChangeSetup: { permissions: ['people.role_change.manage'] },
+  // Finance: operating expenses (rent, travel, marketing…), investments and income outside sales.
+  // The reads are company-wide money, so they are not in the member preset.
+  expenses: { permissions: ['finance.expense.read'] },
+  manageExpenses: { permissions: ['finance.expense.write'] },
+  approveExpenses: { permissions: ['finance.expense.approve'] },
+  investments: { permissions: ['finance.investment.read'] },
+  manageInvestments: { permissions: ['finance.investment.write'] },
+  // The setup page shows the approval limit and categories (read with expense access).
+  financeSetupPage: { permissions: ['finance.expense.read'] },
+  financeSetup: { permissions: ['finance.setup.manage'] },
   // Management: planning (fiscal years, goals), the scorecard, budgets and capacity. Each reads and
   // manages with its own pair of codes; the sensitive reads (cost rates, targets) are not for members.
   planning: { anyPermissions: ['management.fiscal_year.read', 'management.goal.read'] },
@@ -222,6 +232,11 @@ export const ACCESS = {
       'management.result.read', 'people.employee.read',
     ],
   },
+  // CEO Command Center (gateway screen): in no preset; the administrator grants it. Each card also
+  // needs its service's summary code (`<service>.summary.read`), which the gateway's answer reflects.
+  ceoDashboard: { permissions: ['insight.ceo_dashboard.read'] },
+  // Payroll, expenses, profit, budgets: without it the gateway leaves those figures out.
+  ceoFinancials: { permissions: ['insight.ceo_dashboard.financials'] },
   // Approving a target or a budget happens in Control, not here.
   // Other people's sign-ins: where they're signed in, and the security log (IPs, failures).
   viewUserSessions: { permissions: ['identity.session.read'] },

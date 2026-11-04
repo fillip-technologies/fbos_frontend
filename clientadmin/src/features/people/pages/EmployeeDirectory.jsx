@@ -271,6 +271,7 @@ export default function EmployeeDirectory({ embedded = false, hasLogin } = {}) {
                 <option value="full_time">Full time</option>
                 <option value="part_time">Part time</option>
                 <option value="contractor">Contractor</option>
+                <option value="freelancer">Freelancer</option>
                 <option value="intern">Intern</option>
               </select>
             </Field>

@@ -53,7 +53,7 @@ const LABELS = {
   planned: 'Planned', on_hold: 'On hold', completed: 'Completed', closed: 'Closed',
   active: 'Active', probation: 'Probation', on_leave: 'On leave', noticed: 'Serving notice', exited: 'Left',
   present: 'Present', half_day: 'Half day', regularized: 'Regularized', absent: 'Absent', holiday: 'Holiday',
-  full_time: 'Full time', part_time: 'Part time', contractor: 'Contractor', intern: 'Intern',
+  full_time: 'Full time', part_time: 'Part time', contractor: 'Contractor', intern: 'Intern', freelancer: 'Freelancer',
   website: 'Website', referral: 'Referral', campaign: 'Campaign', walk_in: 'Walk-in', partner: 'Partner', other: 'Other', unknown: 'Not recorded',
   bank_transfer: 'Bank transfer', upi: 'UPI', cheque: 'Cheque', card: 'Card', gateway: 'Online', cash: 'Cash',
   p1: 'P1 · urgent', p2: 'P2 · high', p3: 'P3 · normal', p4: 'P4 · low',

@@ -295,7 +295,7 @@ td a:hover { text-decoration-color: currentColor; }
 /* green */
 .badge.active, .badge.published, .badge.converted, .badge.won, .badge.accepted, .badge.completed,
 .badge.paid, .badge.resolved, .badge.done, .badge.green, .badge.in_stock, .badge.invoiced,
-.badge.present, .badge.cleared, .badge.disbursed, .badge.applied, .badge.promotion { --tone-bg: var(--green-bg); --tone-fg: var(--green-fg); }
+.badge.present, .badge.cleared, .badge.disbursed, .badge.applied, .badge.promotion, .badge.unlimited { --tone-bg: var(--green-bg); --tone-fg: var(--green-fg); }
 /* amber */
 .badge.expiring, .badge.upcoming, .badge.draft, .badge.installing, .badge.contacted, .badge.proposal,
 .badge.pending_approval, .badge.changes_requested, .badge.partially_paid, .badge.promised, .badge.pending,

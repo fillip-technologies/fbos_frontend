@@ -49,6 +49,12 @@ export const pages = {
   DocumentCategories: () => import('@/features/documents/pages/DocumentCategories.jsx'),
   Scorecard: () => import('@/features/management/pages/Scorecard.jsx'),
   Insights: () => import('@/features/insights/pages/Insights.jsx'),
+  CommandCenter: () => import('@/features/ceo/pages/CommandCenter.jsx'),
+  Expenses: () => import('@/features/finance/pages/Expenses.jsx'),
+  ExpenseDetail: () => import('@/features/finance/pages/ExpenseDetail.jsx'),
+  Investments: () => import('@/features/finance/pages/Investments.jsx'),
+  InvestmentDetail: () => import('@/features/finance/pages/InvestmentDetail.jsx'),
+  FinanceSetup: () => import('@/features/finance/pages/FinanceSetup.jsx'),
   Planning: () => import('@/features/management/pages/Planning.jsx'),
   Budgets: () => import('@/features/management/pages/Budgets.jsx'),
   BudgetDetail: () => import('@/features/management/pages/BudgetDetail.jsx'),
@@ -153,6 +159,10 @@ const NAV_PAGES = {
   '/people/org-chart': [pages.OrgChart],
   '/people/post-report': [pages.PostsReport],
   '/insights': [pages.Insights],
+  '/ceo': [pages.CommandCenter],
+  '/expenses': [pages.Expenses, pages.ExpenseDetail],
+  '/investments': [pages.Investments, pages.InvestmentDetail],
+  '/finance-setup': [pages.FinanceSetup],
 }
 
 // Starts downloading a section's code; a failed preload is ignored (the click retries it).

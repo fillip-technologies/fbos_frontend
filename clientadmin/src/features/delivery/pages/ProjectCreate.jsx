@@ -19,7 +19,9 @@ export default function ProjectCreate() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const { user: me } = useAuth()
-  const { orgId, activeOrg } = useActiveOrg()
+  const { orgId, activeOrg, orgs } = useActiveOrg()
+  // The account's other companies: one may do this work as an associate (CEO Command Center).
+  const partnerOptions = (orgs || []).filter((o) => o.id !== orgId && o.status !== 'deleted')
   const names = useDeliveryNames(orgId)
   const enabled = Boolean(orgId)
   const { data: types = [] } = useLookup(['project-types', orgId], ({ signal }) => setupApi.projectTypes(orgId, { signal }), { enabled })
@@ -41,6 +43,7 @@ export default function ProjectCreate() {
     planned_end: '',
     priority: 'medium',
     billable: true,
+    partner_organization_id: '',
   })
   const [customAttributes, setCustomAttributes] = useState({})
   const [problems, setProblems] = useState({})
@@ -117,6 +120,7 @@ export default function ProjectCreate() {
       if (contractId) body.contract_id = contractId
       if (form.start_workflow && templateWorkflow && canStartWorkflow) body.start_workflow = true
       if (form.vertical_id) body.vertical_id = form.vertical_id
+      if (form.partner_organization_id) body.partner_organization_id = form.partner_organization_id
 
       const attributes = toAttributes(customFields, customAttributes)
       if (Object.keys(attributes).length > 0) body.attributes = attributes
@@ -231,6 +235,23 @@ export default function ProjectCreate() {
             {names.units?.length === 0 && <div className="hint">No branches, departments or teams yet. Add them under Company structure.</div>}
           </div>
         </div>
+
+        {partnerOptions.length > 0 && (
+          <div className="field">
+            <label htmlFor="partner_organization_id">Associate doing the work</label>
+            <select
+              id="partner_organization_id"
+              value={form.partner_organization_id}
+              onChange={(e) => set('partner_organization_id', e.target.value)}
+            >
+              <option value="">— None: our own team —</option>
+              {partnerOptions.map((o) => (
+                <option key={o.id} value={o.id}>{o.name}{o.relationship === 'associate' ? ' (associate)' : ''}</option>
+              ))}
+            </select>
+            <div className="hint">What you pay them goes on the project as a “subcontract” cost.</div>
+          </div>
+        )}
 
         <div className="grid-3">
           <div className="field">

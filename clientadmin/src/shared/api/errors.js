@@ -58,6 +58,16 @@ const FRIENDLY = {
   NOT_AN_APPROVER: 'This change is waiting on someone else\'s approval, not yours.',
   // The backend says which kind (a role change, leave, a bonus, bank details...); fall back to the general rule.
   SELF_APPROVAL_FORBIDDEN: (err) => err.message || 'Someone else has to decide this: you can\'t approve your own request or one about yourself.',
+  // ---- Finance: operating expenses and investments ----
+  SELF_APPROVAL_NOT_ALLOWED: 'Someone else has to approve an expense you recorded.',
+  EXPENSE_NOT_PENDING: 'This expense isn\'t waiting for approval any more. Reload to see where it stands.',
+  EXPENSE_NOT_FOUND: 'That expense is no longer there. Reload and try again.',
+  EXPENSE_CATEGORY_NOT_FOUND: 'That expense category is no longer there. Reload and pick another.',
+  EXPENSE_CATEGORY_INACTIVE: 'That expense category is switched off. Pick another one.',
+  EXPENSE_CATEGORY_CODE_TAKEN: 'An expense category with this code already exists.',
+  INVESTMENT_NOT_FOUND: 'That investment is no longer there. Reload and try again.',
+  INVESTMENT_HAS_INCOME: 'This investment has income recorded against it. Close it instead, or delete its income first.',
+  INCOME_ENTRY_NOT_FOUND: 'That income entry is no longer there. Reload and try again.',
   ROLE_CHANGE_OPEN: 'This person already has a role change waiting. Decide or cancel it first.',
   ROLE_CHANGE_ALREADY_APPROVED: 'You already approved an earlier step of this change. Another person decides this one.',
   BONUS_STATE: 'This bonus has already been decided. Reload to see it.',

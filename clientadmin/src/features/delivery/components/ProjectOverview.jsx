@@ -11,6 +11,7 @@ import {
 } from '@/features/delivery/utils.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import CustomFieldsSection, { CustomizeFormLink } from '@/features/verticals/components/CustomFieldsSection.jsx'
 import useFormFields from '@/features/verticals/useFormFields.js'
 import { changedFields, formatMoney } from '@/features/customers/utils.js'
@@ -39,7 +40,14 @@ const toForm = (p) => ({
   manager_user_id: p.manager.id,
   priority: p.priority,
   planned_end: p.planned_end,
+  partner_organization_id: p.partner_organization_id || '',
 })
+
+// The account's other companies, one of which may do a project's work as an associate.
+function usePartnerOptions(orgId) {
+  const { orgs } = useActiveOrg()
+  return (orgs || []).filter((o) => o.id !== orgId && o.status !== 'deleted')
+}
 
 // A project's custom fields: those kept for its vertical, else its team's verticals, as its
 // values (kind, priority) show them.
@@ -72,6 +80,7 @@ export default function ProjectOverview({ orgId, project, setProject, names }) {
           </Detail>
           <Detail label="Contract">{project.contract && <Link to={`/contracts/${project.contract.id}`}>Open contract</Link>}</Detail>
           <Detail label="Manager">{names.personName(project.manager)}</Detail>
+          {project.partner_organization_id && <PartnerDetail orgId={orgId} partnerId={project.partner_organization_id} />}
           <Detail label="Delivering team">{names.unitName(project.owning_unit)}</Detail>
           <Detail label="Vertical">{project.vertical && names.verticalName(project.vertical)}</Detail>
           <Detail label="Priority">{PROJECT_PRIORITY_LABELS[project.priority]}</Detail>
@@ -179,6 +188,11 @@ function StatusChange({ orgId, project, setProject }) {
   )
 }
 
+function PartnerDetail({ orgId, partnerId }) {
+  const partner = usePartnerOptions(orgId).find((o) => o.id === partnerId)
+  return <Detail label="Associate doing the work">{partner?.name || 'Another company'}</Detail>
+}
+
 function EditProject({ orgId, project, setProject, names }) {
   const { user: me } = useAuth()
   const { form, base, setForm, rebase } = useRecordForm(project, toForm)
@@ -189,6 +203,7 @@ function EditProject({ orgId, project, setProject, names }) {
   const [error, setError] = useState(null)
   const [saved, setSaved] = useState(false)
   const fieldErrors = getFieldErrors(error)
+  const partners = usePartnerOptions(orgId)
   if (!form) return null
   const values = customValues ?? toFormValues(customFields, base.attributes)
   const set = (key, value) => {
@@ -209,6 +224,7 @@ function EditProject({ orgId, project, setProject, names }) {
     if (Object.keys(attributes).length > 0) changes.attributes = attributes
     if (Object.keys(changes).length === 0) return
     if ('objective' in changes) changes.objective = changes.objective.trim() // "" clears it; null would be ignored
+    if ('partner_organization_id' in changes) changes.partner_organization_id = changes.partner_organization_id || null
     setError(null)
     setBusy(true)
     try {
@@ -267,6 +283,21 @@ function EditProject({ orgId, project, setProject, names }) {
           {!canMoveDueDate && <div className="hint">Work has started: move the date with a change request.</div>}
         </div>
       </div>
+      {(partners.length > 0 || form.partner_organization_id) && (
+        <div className="field">
+          <label htmlFor="edit_partner">Associate doing the work</label>
+          <select id="edit_partner" value={form.partner_organization_id} onChange={(e) => set('partner_organization_id', e.target.value)}>
+            <option value="">— None: our own team —</option>
+            {partners.map((o) => (
+              <option key={o.id} value={o.id}>{o.name}{o.relationship === 'associate' ? ' (associate)' : ''}</option>
+            ))}
+            {form.partner_organization_id && !partners.some((o) => o.id === form.partner_organization_id) && (
+              <option value={form.partner_organization_id}>Another company</option>
+            )}
+          </select>
+          <div className="hint">What you pay them goes on the project as a “subcontract” cost.</div>
+        </div>
+      )}
       <CustomFieldsSection
         formCode="work.work_unit"
         fields={customFields}
