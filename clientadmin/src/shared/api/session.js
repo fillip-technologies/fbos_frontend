@@ -11,8 +11,7 @@
 // - The token is refreshed proactively at 80% of its lifetime, and when a sleeping tab
 //   becomes visible again after that point.
 //
-// This file is identical in superadmin/ and clientadmin/; each app passes its endpoints
-// and cookie names to configureSession().
+// Configure endpoints and cookie names via configureSession().
 
 let config = null
 let accessToken = null
