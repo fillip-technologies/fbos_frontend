@@ -8,16 +8,14 @@ const LEGACY_STORAGE_KEY = 'fbos_clientadmin_session'
 const AuthContext = createContext(null)
 
 // Every user who belongs to an organization may use this console; what each one sees is
-// decided per page by their permissions (see access.js). The platform super-admin has
-// no organization and is refused inside organizations by the backend, so they are sent
-// to their own console.
+// decided per page by their permissions (see access.js).
 function canUseConsole(user) {
-  return Boolean(user?.organization) && user.user_type !== 'platform_admin'
+  return Boolean(user?.organization)
 }
 
 export class ConsoleNotAvailableError extends Error {
   constructor() {
-    super('This account has no company. Platform administrators sign in to the super-admin console.')
+    super('This account has no company. Please contact your administrator.')
     this.name = 'ConsoleNotAvailableError'
   }
 }

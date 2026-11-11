@@ -1,9 +1,8 @@
 # FBOS — Admin Console (clientadmin)
 
-Vite + React 18 (plain JS) admin console for **every user of a client's organizations**. The
-client administrator (the person a platform admin invites when creating a client) sees
-everything; other users see only the pages and actions their permissions allow. Runs on
-**http://localhost:5174**, next to `superadmin/` (:5173).
+Vite + React 18 (plain JS) enterprise operating system console for **Fillip Technologies**. The
+administrators see everything; other users see only the pages and actions their permissions allow.
+Runs on **http://localhost:5174**.
 
 **Naming:** on screen an organization is called a **company**, and its org units (branches,
 departments, teams) the **company structure**; a person's home unit shows as **"Works in"**.
@@ -12,12 +11,10 @@ The API, routes and code keep the original names (`organizations`, `org-units`, 
 ## What it does
 
 - **Sign in** (`/auth/login`, optional organization code, MFA step). Any user who belongs to an
-  organization can sign in (client admin, employee, contractor, client user). The platform
-  super-admin has no organization and is pointed to the super-admin console.
+  organization can sign in (admin, employee, contractor, client user).
 - **Accept invitation** (`/accept-invitation?token=…`) and **reset password** (`/reset-password?token=…`) —
   the pages the invitation / reset emails link to. **Forgot password** at `/forgot-password`.
-- **Dashboard**: the client's service period (start → end, days left, expiring warning) and quotas,
-  from `GET /clients/me`. These are set by the platform admin and are read-only here.
+- **Dashboard**: Fillip Technologies workspace overview and quick access to authorized areas.
 - **Organizations**: list, create (with optional first-admin invite), edit. The **fiscal year start
   (DD-MM, default `01-04`)** is owned and edited here, per organization.
 - **Users** (`/users`, `/users/new`, `/users/:id`): list with search and status / unit / role filters;

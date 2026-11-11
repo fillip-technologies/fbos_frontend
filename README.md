@@ -1,13 +1,12 @@
-# FBOS Frontend
+# FBOS Frontend (Fillip Technologies)
 
-Administrative web consoles for the FBOS platform, built with React and Vite.
+Administrative operating system web console for Fillip Technologies, built with React and Vite.
 
 ## Applications
 
 | Application | Port | Description |
 | :--- | :--- | :--- |
-| **[`superadmin`](./superadmin)** | `5173` | Platform Super-Admin console for onboarding clients, setting quotas, and managing platform tenants. |
-| **[`clientadmin`](./clientadmin)** | `5174` | Client Admin console for managing client organizations, units, users, and role-based access. |
+| **[`clientadmin`](./clientadmin)** | `5174` | Enterprise portal for Fillip Technologies: organizations/subsidiaries, units, users, roles, revenue, delivery, documents, and management. |
 
 ## Prerequisites
 
@@ -15,17 +14,9 @@ Administrative web consoles for the FBOS platform, built with React and Vite.
 
 ## Quick Start
 
-Each application is managed independently. Navigate to the desired application directory:
+Navigate to the `clientadmin` application directory:
 
 ```bash
-# Super Admin Console
-cd superadmin
-npm install
-npm run dev
-```
-
-```bash
-# Client Admin Console
 cd clientadmin
 npm install
 npm run dev
@@ -33,16 +24,17 @@ npm run dev
 
 ### Production Build
 
-From either app directory, build optimized static assets into `dist/` and preview them locally:
+Build optimized static assets into `dist/` and preview them locally:
 
 ```bash
+cd clientadmin
 npm run build
 npm run preview
 ```
 
 ## Backend Configuration
 
-During development, the Vite dev servers proxy `/api/*` calls to avoid CORS issues:
+During development, the Vite dev server proxies `/api/*` calls to avoid CORS issues:
 
 - **Default Proxy:** `http://localhost:8001` (Identity Service)
 - **API Gateway (Optional):** Set the `API_URL` environment variable (e.g., `API_URL=http://localhost:8000`)
@@ -55,14 +47,14 @@ API_URL=http://localhost:8000 npm run dev
 
 ```text
 fbos_frontend/
-├── clientadmin/    # Client administrator portal (:5174)
-├── superadmin/     # Platform super-administrator portal (:5173)
+├── clientadmin/    # Fillip Technologies enterprise portal (:5174)
+├── server/         # Backend microservices
 └── README.md
 ```
 
-## Source Layout (both apps)
+## Source Layout
 
-Each app uses the same feature-based structure under `src/`, with `@` aliased to `src/`
+The app uses a feature-based structure under `src/`, with `@` aliased to `src/`
 (e.g. `import { friendlyMessage } from '@/shared/api/errors.js'`):
 
 ```text

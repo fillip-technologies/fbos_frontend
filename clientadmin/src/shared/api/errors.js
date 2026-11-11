@@ -19,7 +19,7 @@ const FRIENDLY = {
   PASSWORD_TOO_WEAK: 'Password must be at least 12 characters and not previously breached.',
 
   // ---- Access control ----
-  PLATFORM_ADMIN_REQUIRED: 'This action is for platform super-admins only.',
+  PLATFORM_ADMIN_REQUIRED: 'This action is for system administrators only.',
   CLIENT_ADMIN_REQUIRED: 'You do not have permission for this action.',
 
   // ---- Session / token ----
@@ -32,8 +32,8 @@ const FRIENDLY = {
   SESSION_NOT_FOUND: 'That session has already ended.',
 
   // ---- Subscription / quotas ----
-  CLIENT_ORGANIZATION_LIMIT_REACHED: 'Your plan\'s company limit has been reached. Contact the platform admin to raise it.',
-  ORGANIZATION_USER_LIMIT_REACHED: 'This company has reached its user limit. Contact the platform admin to raise it.',
+  CLIENT_ORGANIZATION_LIMIT_REACHED: 'Your company limit has been reached. Contact an administrator to raise it.',
+  ORGANIZATION_USER_LIMIT_REACHED: 'This company has reached its user limit. Contact an administrator to raise it.',
   ORGANIZATION_CODE_EXISTS: 'A company with this code already exists. Choose a different code.',
   ORGANIZATION_NOT_FOUND: 'This company no longer exists.',
   EMAIL_ALREADY_EXISTS: 'A user with this email already exists.',

@@ -1,4 +1,4 @@
-# On every pull request to main: lints and builds both apps, so a broken page can't be merged.
+# On every pull request to main: lints and builds clientadmin, so a broken page can't be merged.
 # On every push to main: the same checks, then deploys the client admin to the aaPanel server.
 # Setup: growth-fbos DEPLOY_AAPANEL.md.
 name: CI/CD
@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [clientadmin, superadmin]
+        app: [clientadmin]
     defaults:
       run:
         working-directory: ${{ matrix.app }}

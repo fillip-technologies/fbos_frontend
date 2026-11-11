@@ -58,23 +58,23 @@ export default function SubscriptionOverview() {
           </>
         }
         name={user?.name}
-        sub="Your subscription at a glance, and every area of the console you can open."
+        sub="Workspace overview and every area of the console you can open."
       />
 
       {client.subscription_state === 'expiring' && (
         <div className="alert warn">
-          Your subscription ends on {formatDate(client.subscription_end)} ({left} day{left === 1 ? '' : 's'} left).
-          Contact the platform admin to renew before then — all users are locked out once it ends.
+          Your service period ends on {formatDate(client.subscription_end)} ({left} day{left === 1 ? '' : 's'} left).
+          Contact your administrator to extend it — all users are locked out once it ends.
         </div>
       )}
 
       <div className="cards">
         <div className="panel home-feature">
-          <div className="stat-label">Service period ends</div>
-          <div className="stat-value">{noExpiry ? 'No expiry' : formatDate(client.subscription_end)}</div>
+          <div className="stat-label">{noExpiry ? 'Service status' : 'Service period ends'}</div>
+          <div className="stat-value">{noExpiry ? 'Unlimited' : formatDate(client.subscription_end)}</div>
           <div className="stat-sub">
             {noExpiry
-              ? `Since ${formatDate(client.subscription_start)} · Unlimited`
+              ? `Since ${formatDate(client.subscription_start)} · No expiry`
               : `${formatDate(client.subscription_start)} → ${formatDate(client.subscription_end)}`}
             {left !== null && left >= 0 && ` · ${left} day${left === 1 ? '' : 's'} left`}
           </div>
@@ -108,7 +108,6 @@ export default function SubscriptionOverview() {
           </div>
         </div>
       </div>
-      <p className="muted small">Subscription dates and quotas are set by the platform administrator.</p>
 
       <WelcomeCard canCreate={CREATE_ACTIONS.some((a) => hasAccess(user, a.access))} />
 
