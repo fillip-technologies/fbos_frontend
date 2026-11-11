@@ -256,7 +256,7 @@ A long-term plan for tasks across many teams and domains, built phase by phase. 
 
 ## Brand (2026-11-02)
 
-- Both consoles use the Fillip Technologies brand from the company website (`fillip-technologies-v2`, `src/app/globals.css`): primary `#0242a2`, accent `#38bdf8`, enterprise navy `#081C2E` (sidebar, top bar, sign-in panel), slate text (`#0f172a` / `#64748b`), surfaces `#f8fafc` / white, borders `#e2e8f0`, focus ring `#0f6fff`, and the primary → accent gradient. Tokens live at the top of each app's `styles.css` (`--brand`, `--sky`, `--night`, ...); the two stylesheets are the same apart from superadmin's top-bar section at the end.
+- The console uses the Fillip Technologies brand from the company website (`fillip-technologies-v2`, `src/app/globals.css`): primary `#0242a2`, accent `#38bdf8`, enterprise navy `#081C2E` (sidebar, top bar, sign-in panel), slate text (`#0f172a` / `#64748b`), surfaces `#f8fafc` / white, borders `#e2e8f0`, focus ring `#0f6fff`, and the primary → accent gradient. Tokens live at the top of `clientadmin/src/app/styles.css` (`--brand`, `--sky`, `--night`, ...).
 - Type: Geist (bold, tight headlines like the website) and Geist Mono for ids and money, self-hosted via `@fontsource-variable/geist` and `geist-mono`.
 - Logos in `src/assets/brand/`: `fillip-mark.png` (the F mark: sidebar / top bar, and `public/favicon.png`), `fillip-logo.png` (colour, for light backgrounds), `fillip-logo-white.png` (sign-in panel). Chart colours stay the validated data palette in `Charts.jsx` (not the brand blue, which is too dark for a series colour).
 

@@ -58,16 +58,27 @@ export default function SubscriptionOverview() {
           </>
         }
         name={user?.name}
-        sub="Workspace overview and platform access for Fillip Technologies."
+        sub="Workspace overview and every area of the console you can open."
       />
+
+      {client.subscription_state === 'expiring' && (
+        <div className="alert warn">
+          Your service period ends on {formatDate(client.subscription_end)} ({left} day{left === 1 ? '' : 's'} left).
+          Contact your administrator to extend it — all users are locked out once it ends.
+        </div>
+      )}
 
       <div className="cards">
         <div className="panel home-feature">
-          <div className="stat-label">Service status</div>
-          <div className="stat-value">Unlimited</div>
+          <div className="stat-label">{noExpiry ? 'Service status' : 'Service period ends'}</div>
+          <div className="stat-value">{noExpiry ? 'Unlimited' : formatDate(client.subscription_end)}</div>
           <div className="stat-sub">
-            Internal operating system · Fillip Technologies
+            {noExpiry
+              ? `Since ${formatDate(client.subscription_start)} · No expiry`
+              : `${formatDate(client.subscription_start)} → ${formatDate(client.subscription_end)}`}
+            {left !== null && left >= 0 && ` · ${left} day${left === 1 ? '' : 's'} left`}
           </div>
+          {period && <Meter value={period.used} max={period.total} label="Share of the service period used" />}
         </div>
         <div className="panel">
           <div className="stat-label">Companies</div>
