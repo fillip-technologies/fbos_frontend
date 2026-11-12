@@ -206,6 +206,7 @@ const FRIENDLY = {
   SUBJECT_LOCKED: 'This record is closed and no longer takes new files.',
   SUBJECT_NOT_FOUND: 'The record these files belong to wasn\'t found, or you can\'t see it.',
   SUBJECT_SERVICE_UNAVAILABLE: 'Access to this record couldn\'t be checked right now. Please try again shortly.',
+  DATABASE_UNAVAILABLE: 'The files couldn\'t be loaded just now. Please try again.',
   UPLOAD_EXPIRED: 'The upload took too long and expired. Please try again.',
   CHECKSUM_MISMATCH: 'The file didn\'t arrive intact. Please upload it again.',
   DOCUMENT_SCAN_PENDING: 'This file is still being scanned. Try again in a moment.',
