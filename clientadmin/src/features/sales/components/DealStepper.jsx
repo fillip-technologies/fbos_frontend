@@ -26,7 +26,7 @@ export function dealSteps({ opp, quotations, contracts, customer, canSeeContract
       key: 'lead',
       label: 'Lead',
       state: opp.lead_id ? 'done' : 'skipped',
-      sub: opp.lead_id ? 'Converted' : 'Added directly',
+      sub: opp.lead_id ? 'Qualified' : 'Added directly',
       to: opp.lead_id ? `/leads/${opp.lead_id}` : null,
     },
     {

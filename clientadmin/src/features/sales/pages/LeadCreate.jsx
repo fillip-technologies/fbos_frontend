@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { leadsApi } from '@/features/sales/api.js'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
-import useOwners from '@/features/customers/useOwners.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import useLeadPeople from '@/features/sales/useLeadPeople.js'
 import useVerticals from '@/features/sales/useVerticals.js'
-import { CONSENT_CHANNELS, DEFAULT_CONSENT_TEXT, LEAD_SOURCES } from '@/features/sales/utils.js'
+import { CONSENT_CHANNELS, DEFAULT_CONSENT_TEXT, LEAD_SOURCES, OUTREACH_LABEL } from '@/features/sales/utils.js'
 import { invalidate } from '@/shared/api/useQuery.js'
 import CustomFieldsSection from '@/features/verticals/components/CustomFieldsSection.jsx'
 import useFormFields from '@/features/verticals/useFormFields.js'
@@ -17,7 +18,6 @@ export default function LeadCreate() {
   const navigate = useNavigate()
   const { user: me } = useAuth()
   const { orgId, activeOrg } = useActiveOrg()
-  const { owners } = useOwners(orgId)
   const { verticals } = useVerticals(orgId)
   const [form, setForm] = useState({
     vertical_id: '',
@@ -38,7 +38,10 @@ export default function LeadCreate() {
   const [error, setError] = useState(null)
   const fieldErrors = getFieldErrors(error)
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
-  const ownerChoices = owners || [me].filter(Boolean)
+  // Sales managers may hand a new lead to anyone who takes leads; everyone else to themselves or nobody.
+  const { people } = useLeadPeople(orgId)
+  const canAssign = hasAccess(me, ACCESS.assignLeads)
+  const ownerChoices = canAssign && people.length ? people : [me].filter(Boolean)
   // The company's custom fields for leads of this vertical; rules see the form's values (source).
   const customFields = useFormFields(orgId, 'revenue.lead', { verticalId: form.vertical_id, values: form })
 
@@ -136,9 +139,9 @@ export default function LeadCreate() {
             </select>
           </div>
           <div className="field">
-            <label htmlFor="owner_user_id">Owner</label>
+            <label htmlFor="owner_user_id">{OUTREACH_LABEL}</label>
             <select id="owner_user_id" value={form.owner_user_id} onChange={(e) => set('owner_user_id', e.target.value)}>
-              <option value="">— Unassigned —</option>
+              <option value="">— Unclaimed: anyone may claim it —</option>
               {ownerChoices.map((u) => (
                 <option key={u.id} value={u.id}>{u.id === me?.id ? `${u.name} (you)` : u.name}</option>
               ))}

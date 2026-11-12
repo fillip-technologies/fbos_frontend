@@ -6,16 +6,28 @@ const ifMatch = (orgId, version) => inOrg(orgId, { 'If-Match': `"${version}"` })
 
 // ---------- Leads ----------
 export const leadsApi = {
-  // Filters: status, source, vertical_id, owner_user_id.
+  // Filters: status, source, vertical_id, owner_user_id, unclaimed (true), follow_up_due (YYYY-MM-DD).
   list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/leads?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
   get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/leads/${id}`, { headers: inOrg(orgId), signal }),
   create: (orgId, body) => api.post(`${REVENUE}/leads`, body, { headers: inOrg(orgId) }),
+  // Score and details only: status and who handles the lead have their own actions below.
   update: (orgId, id, version, body) => api.patch(`${REVENUE}/leads/${id}`, body, { headers: ifMatch(orgId, version) }),
+  // The lead's history, oldest first: added, claimed, passed on, status changes.
+  events: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/leads/${id}/events`, { headers: inOrg(orgId), signal }),
+  // Who may take leads: [{ id, name }]. Also names the person handling a lead.
+  assignablePeople: (orgId, { signal } = {}) => api.get(`${REVENUE}/leads/assignable-people`, { headers: inOrg(orgId), signal }),
+  // First to claim wins (409 LEAD_ALREADY_CLAIMED otherwise).
+  claim: (orgId, id) => api.post(`${REVENUE}/leads/${id}/claim`, undefined, { headers: inOrg(orgId) }),
+  // { to_user_id | null (back to unclaimed), reason }
+  transfer: (orgId, id, version, body) => api.post(`${REVENUE}/leads/${id}/transfer`, body, { headers: ifMatch(orgId, version) }),
+  // { summary, requirements?, expectations?, next_action?, follow_up_on?, occurred_at? } → { lead, activity }
+  logCall: (orgId, id, body) => api.post(`${REVENUE}/leads/${id}/calls`, body, { headers: inOrg(orgId) }),
+  // { existing_client_id | new_client, opportunity: { name, expected_value?, expected_close_date } }
+  //   → { lead, client, opportunity, client_created }
+  qualify: (orgId, id, version, body) => api.post(`${REVENUE}/leads/${id}/qualify`, body, { headers: ifMatch(orgId, version) }),
   disqualify: (orgId, id, version, body) =>
     api.post(`${REVENUE}/leads/${id}/disqualify`, body, { headers: ifMatch(orgId, version) }),
-  // { existing_client_id | new_client, opportunity } → { lead, client, opportunity, client_created }
-  convert: (orgId, id, version, body) =>
-    api.post(`${REVENUE}/leads/${id}/convert`, body, { headers: ifMatch(orgId, version) }),
+  reopen: (orgId, id, version) => api.post(`${REVENUE}/leads/${id}/reopen`, undefined, { headers: ifMatch(orgId, version) }),
 }
 
 // ---------- Opportunities ----------

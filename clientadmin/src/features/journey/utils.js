@@ -58,7 +58,12 @@ export function journeyStages(journey, projects, { canSeeProjects }) {
       ? 'hidden'
       : !lead
         ? journey.opportunity || later ? 'skipped' : 'todo'
-        : lead.status === 'disqualified' ? 'lost' : OPEN_LEAD.includes(lead.status) ? 'current' : 'done',
+        : lead.status === 'disqualified'
+          ? 'lost'
+          : // A qualified lead has handed over to its opportunity; it converts when a quotation is accepted.
+            OPEN_LEAD.includes(lead.status) && !(lead.status === 'qualified' && journey.opportunity)
+            ? 'current'
+            : 'done',
     title: lead?.name || lead?.number,
     detail: lead ? words(lead.status) : null,
     to: lead && `/leads/${lead.id}`,
@@ -152,7 +157,7 @@ export function nextStep(journey, stages, projects, can) {
     return { tone: 'lost', text: 'This sale was lost. Nothing more to do here.' }
   }
   if (by.lead?.state === 'current') {
-    return { text: 'Qualify the enquiry, then convert it into an opportunity.', action: { label: 'Open the enquiry', to: by.lead.to } }
+    return { text: 'Call the enquiry, then qualify it into an opportunity.', action: { label: 'Open the enquiry', to: by.lead.to } }
   }
   if (by.opportunity?.state === 'current' && by.quotation?.state === 'todo') {
     return { text: 'Prepare a quotation for this opportunity.', action: { label: 'Open the opportunity', to: by.opportunity.to } }

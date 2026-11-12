@@ -12,12 +12,14 @@ import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
-import ConvertLead from '@/features/sales/components/ConvertLead.jsx'
 import LeadCustomFields from '@/features/sales/components/LeadCustomFields.jsx'
+import LeadHistory from '@/features/sales/components/LeadHistory.jsx'
+import LogCall from '@/features/sales/components/LogCall.jsx'
+import QualifyLead from '@/features/sales/components/QualifyLead.jsx'
+import TransferLead from '@/features/sales/components/TransferLead.jsx'
+import useLeadPeople from '@/features/sales/useLeadPeople.js'
 import useVerticals from '@/features/sales/useVerticals.js'
-import { DISQUALIFY_REASONS, LEAD_SOURCES, SUBJECTS } from '@/features/sales/utils.js'
-
-const OPEN_STATUSES = ['new', 'contacted', 'qualified']
+import { DISQUALIFY_REASONS, LEAD_SOURCES, OPEN_LEAD_STATUSES, OUTREACH_LABEL, SUBJECTS } from '@/features/sales/utils.js'
 
 function Detail({ label, children }) {
   return (
@@ -68,19 +70,24 @@ export default function LeadDetail() {
     setData(next)
     invalidate(['leads', orgId])
   }
-  const { owners, ownerName } = useOwners(orgId)
+  const { owners } = useOwners(orgId)
+  const { people, personName } = useLeadPeople(orgId)
   const { verticalName } = useVerticals(orgId)
-  const canManage = hasAccess(me, ACCESS.manageLeads)
-  const canConvert = canManage && (hasAccess(me, ACCESS.manageCustomers) || hasAccess(me, ACCESS.customers))
+
+  const canWorkLeads = hasAccess(me, ACCESS.manageLeads)
+  const canAssign = canWorkLeads && hasAccess(me, ACCESS.assignLeads)
+  const canMakeCustomer = hasAccess(me, ACCESS.manageCustomers) || hasAccess(me, ACCESS.customers)
 
   const [opportunity, setOpportunity] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  // null | 'convert' | 'disqualify'
+  // null | 'call' | 'qualify' | 'transfer' | 'disqualify'
   const [panel, setPanel] = useState(null)
   const [disqualify, setDisqualify] = useState({ reason: 'no_need', note: '' })
+  // Bumped after a call so the timeline shows it.
+  const [timelineKey, setTimelineKey] = useState(0)
 
-  // A converted lead's opportunity, found through its customer.
+  // A qualified lead's opportunity, found through its customer.
   useEffect(() => {
     if (!lead?.client_id || !hasAccess(me, ACCESS.opportunities)) return
     opportunitiesApi
@@ -97,6 +104,8 @@ export default function LeadDetail() {
       setPanel(null)
     } catch (err) {
       setError(err)
+      // Someone else claimed it, or it changed: show what it is now.
+      if (['LEAD_ALREADY_CLAIMED', 'VERSION_CONFLICT'].includes(err?.code)) reload()
     } finally {
       setBusy(false)
     }
@@ -111,7 +120,15 @@ export default function LeadDetail() {
       </div>
     )
 
-  const open = !['converted', 'disqualified'].includes(lead.status)
+  const open = OPEN_LEAD_STATUSES.includes(lead.status)
+  const owner = lead.owner?.id
+  const mine = owner && owner === me?.id
+  // The person handling it works it; a sales manager may work any lead.
+  const canWork = canWorkLeads && Boolean(owner) && (mine || canAssign)
+  const canQualify = canWork && canMakeCustomer && (lead.status === 'contacted' || (lead.status === 'qualified' && !lead.client_id))
+  // Unclaimed junk (spam, duplicates) may be closed by anyone who works leads.
+  const canClose = canWorkLeads && (!owner || canWork)
+  const canReopen = lead.status === 'disqualified' && !lead.client_id && canClose
 
   return (
     <div>
@@ -131,10 +148,12 @@ export default function LeadDetail() {
       <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />
       <JourneyPath subject="lead" id={lead.id} version={lead.version} />
 
-      {lead.status === 'converted' && (
+      {lead.client_id && lead.status !== 'disqualified' && (
         <div className="alert success">
-          Converted.{' '}
-          {lead.client_id && <Link to={`/customers/${lead.client_id}`}>Open the customer</Link>}
+          {lead.status === 'converted'
+            ? `Converted${lead.converted_at ? ` on ${formatDate(lead.converted_at.slice(0, 10))}` : ''}: the customer accepted a quotation.`
+            : 'Qualified. The work continues on the opportunity until the customer accepts a quotation.'}{' '}
+          <Link to={`/customers/${lead.client_id}`}>Open the customer</Link>
           {opportunity && (
             <>
               {' · '}
@@ -143,9 +162,19 @@ export default function LeadDetail() {
           )}
         </div>
       )}
+      {lead.status === 'qualified' && !lead.client_id && (
+        <div className="alert warning">This lead was marked qualified before qualifying created a customer and an opportunity. Finish qualifying it below.</div>
+      )}
 
       <div className="panel">
         <div className="details-grid">
+          <Detail label={OUTREACH_LABEL}>
+            {owner ? (
+              personName(owner) || 'Someone'
+            ) : (
+              <span className="muted">Unclaimed</span>
+            )}
+          </Detail>
           <Detail label="Company">{lead.company_name}</Detail>
           <Detail label="Email">{lead.contact_email && <a href={`mailto:${lead.contact_email}`}>{lead.contact_email}</a>}</Detail>
           <Detail label="Phone">{lead.contact_phone}</Detail>
@@ -154,54 +183,76 @@ export default function LeadDetail() {
             {LEAD_SOURCES[lead.source] || lead.source}
             {lead.campaign_ref && ` · ${lead.campaign_ref}`}
           </Detail>
+          <Detail label="Next follow-up">{open && lead.next_follow_up_on && formatDate(lead.next_follow_up_on)}</Detail>
           <Detail label="Score">{lead.score ?? null}</Detail>
           <Detail label="Added">{formatDate(lead.created_at.slice(0, 10))}</Detail>
-          <Detail label="Owner">
-            {canManage && open ? (
-              <select
-                aria-label="Owner"
-                value={lead.owner?.id || ''}
-                disabled={busy}
-                onChange={(e) =>
-                  e.target.value && run(() => leadsApi.update(orgId, lead.id, lead.version, { owner_user_id: e.target.value }))
-                }
-              >
-                <option value="">— Unassigned —</option>
-                {(owners || [me]).map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
-            ) : (
-              lead.owner && ownerName(lead.owner.id)
-            )}
-          </Detail>
+          {lead.status === 'converted' && lead.converted_by_user_id && (
+            <Detail label="Won by">{personName(lead.converted_by_user_id) || 'Someone'}</Detail>
+          )}
         </div>
 
-        {/* Any open status, either way; a disqualified lead can be reopened. Converted is final. */}
-        {canManage && lead.status !== 'converted' && !panel && (
+        {!panel && (open || canReopen) && (
           <div className="row-actions" style={{ marginTop: 16 }}>
-            {OPEN_STATUSES.filter((status) => status !== lead.status).map((status) => (
-              <button
-                key={status}
-                className="btn secondary"
-                disabled={busy}
-                onClick={() => run(() => leadsApi.update(orgId, lead.id, lead.version, { status }))}
-              >
-                {open ? `Mark ${status}` : `Reopen as ${status}`}
+            {open && !owner && canWorkLeads && (
+              <button className="btn" disabled={busy} aria-busy={busy} onClick={() => run(() => leadsApi.claim(orgId, lead.id))}>
+                Claim this lead
               </button>
-            ))}
-            {open && canConvert && <button className="btn" onClick={() => setPanel('convert')}>Convert…</button>}
-            {open && <button className="btn danger-outline" onClick={() => setPanel('disqualify')}>Disqualify…</button>}
+            )}
+            {open && canWork && <button className="btn" onClick={() => setPanel('call')}>Log a call</button>}
+            {canQualify && <button className="btn secondary" onClick={() => setPanel('qualify')}>{lead.status === 'qualified' ? 'Finish qualifying…' : 'Qualify…'}</button>}
+            {open && canWork && lead.status === 'new' && (
+              <span className="muted small" style={{ alignSelf: 'center' }}>Log a call before qualifying.</span>
+            )}
+            {open && ((owner && canWork) || (!owner && canAssign)) && (
+              <button className="btn secondary" onClick={() => setPanel('transfer')}>{owner ? 'Pass on…' : 'Assign…'}</button>
+            )}
+            {open && canClose && <button className="btn danger-outline" onClick={() => setPanel('disqualify')}>Disqualify…</button>}
+            {canReopen && (
+              <button className="btn secondary" disabled={busy} aria-busy={busy} onClick={() => run(() => leadsApi.reopen(orgId, lead.id, lead.version))}>
+                Reopen
+              </button>
+            )}
           </div>
         )}
+        {!panel && open && owner && !canWork && canWorkLeads && (
+          <p className="muted small" style={{ margin: '16px 0 0' }}>
+            {personName(owner) || 'Someone else'} handles this lead. Ask them, or a sales manager, to pass it to you.
+          </p>
+        )}
 
-        {panel === 'convert' && (
-          <ConvertLead
+        {panel === 'call' && (
+          <LogCall
+            orgId={orgId}
+            lead={lead}
+            onLogged={(result) => {
+              setLead(result.lead)
+              setPanel(null)
+              setTimelineKey((k) => k + 1)
+            }}
+            onCancel={() => setPanel(null)}
+          />
+        )}
+
+        {panel === 'transfer' && (
+          <TransferLead
+            orgId={orgId}
+            lead={lead}
+            people={people}
+            onTransferred={(next) => {
+              setLead(next)
+              setPanel(null)
+            }}
+            onCancel={() => setPanel(null)}
+          />
+        )}
+
+        {panel === 'qualify' && (
+          <QualifyLead
             orgId={orgId}
             lead={lead}
             owners={owners}
             defaultCurrency={activeOrg?.base_currency || 'INR'}
-            onConverted={(result) => {
+            onQualified={(result) => {
               invalidate(['leads', orgId])
               invalidate(['lead', orgId])
               invalidate(['opportunities', orgId])
@@ -223,6 +274,9 @@ export default function LeadDetail() {
             }}
           >
             <h3>Disqualify lead</h3>
+            {lead.client_id && (
+              <p className="muted small" style={{ marginTop: 0 }}>Its opportunity is marked lost too, and the lead can’t be reopened afterwards.</p>
+            )}
             <div className="grid-2">
               <div className="field">
                 <label htmlFor="dq-reason">Reason</label>
@@ -249,10 +303,13 @@ export default function LeadDetail() {
         )}
       </div>
 
-      <LeadCustomFields orgId={orgId} lead={lead} canEdit={canManage} onSaved={setLead} />
+      <LeadCustomFields orgId={orgId} lead={lead} canEdit={canWorkLeads && (!owner || canWork)} onSaved={setLead} />
       {lead.attributes?.website_lead_id && <WebsiteEnquiry details={lead.attributes} />}
 
-      {hasAccess(me, ACCESS.activities) && <ActivityTimeline orgId={orgId} subjectType={SUBJECTS.lead} subjectId={lead.id} />}
+      {hasAccess(me, ACCESS.activities) && (
+        <ActivityTimeline key={timelineKey} orgId={orgId} subjectType={SUBJECTS.lead} subjectId={lead.id} />
+      )}
+      <LeadHistory orgId={orgId} leadId={lead.id} version={lead.version} personName={personName} />
     </div>
   )
 }

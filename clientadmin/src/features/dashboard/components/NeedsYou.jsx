@@ -4,6 +4,7 @@ import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { attentionApi, overviewApi } from '@/features/dashboard/api.js'
 import { useQuery } from '@/shared/api/useQuery.js'
+import { todayIso } from '@/shared/utils/dates.js'
 
 // The overview's default period; its invoice summary is shared with this card (same key).
 const OVERVIEW_MONTHS = 6
@@ -61,6 +62,15 @@ export default function NeedsYou() {
   const leave = useQuery(['attention', orgId, 'leave'], (o) => attentionApi.pendingLeave(orgId, o), {
     enabled: may(ACCESS.approveLeaves),
   })
+  const today = todayIso()
+  const unclaimed = useQuery(['attention', orgId, 'unclaimed-leads'], (o) => attentionApi.unclaimedLeads(orgId, o), {
+    enabled: may(ACCESS.manageLeads),
+  })
+  const followUps = useQuery(['attention', orgId, 'lead-follow-ups', today], (o) => attentionApi.leadFollowUps(orgId, user?.id, today, o), {
+    enabled: may(ACCESS.manageLeads) && Boolean(user?.id),
+  })
+  const count = (page) => (page?.data?.length ?? 0)
+  const countLabel = (page) => `${count(page)}${page?.page?.has_more ? '+' : ''}`
 
   const items = []
   const t = tasks.data
@@ -81,6 +91,14 @@ export default function NeedsYou() {
       to: quoteList.length === 1 ? `/quotations/${first.id}` : `/opportunities`,
     })
   }
+  if (count(followUps.data) > 0) {
+    const n = count(followUps.data)
+    items.push({ key: 'follow-ups', tone: 'late', figure: countLabel(followUps.data), title: `${plural(n, 'lead follow-up')} due`, hint: 'Calls you planned for today or earlier', to: '/leads?tab=follow_ups' })
+  }
+  if (count(unclaimed.data) > 0) {
+    const n = count(unclaimed.data)
+    items.push({ key: 'unclaimed', figure: countLabel(unclaimed.data), title: `${plural(n, 'lead')} waiting to be claimed`, hint: 'New enquiries nobody is handling yet', to: '/leads?tab=unclaimed' })
+  }
   const due = Array.isArray(billing.data) ? billing.data.length : 0
   if (due > 0) {
     items.push({ key: 'bill', figure: due, title: `${plural(due, 'payment term')} ready to bill`, hint: 'Contract payments that have fallen due', to: '/billing-schedules' })
@@ -98,8 +116,8 @@ export default function NeedsYou() {
     items.push({ key: 'leave', figure: leaveList.length, title: `${plural(leaveList.length, 'leave request')} pending`, hint: 'Waiting for a decision', to: '/people/leaves' })
   }
 
-  const sources = [tasks, quotes, billing, invoices, roles, leave]
-  const asked = [may(ACCESS.tasks), may(ACCESS.approveQuotations) && may(ACCESS.opportunities), may(ACCESS.billingSchedules), may(ACCESS.invoices), may(ACCESS.approveRoleChanges), may(ACCESS.approveLeaves)]
+  const sources = [tasks, quotes, billing, invoices, roles, leave, unclaimed, followUps]
+  const asked = [may(ACCESS.tasks), may(ACCESS.approveQuotations) && may(ACCESS.opportunities), may(ACCESS.billingSchedules), may(ACCESS.invoices), may(ACCESS.approveRoleChanges), may(ACCESS.approveLeaves), may(ACCESS.manageLeads), may(ACCESS.manageLeads)]
   const anyAsked = asked.some(Boolean)
   const stillLoading = sources.some((q, i) => asked[i] && q.loading)
   if (!anyAsked) return null

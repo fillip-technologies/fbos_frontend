@@ -80,10 +80,13 @@ export const ACCESS = {
   manageCustomers: { permissions: ['revenue.client.write'] },
   clientServices: { permissions: ['revenue.client_service.read'] },
   manageClientServices: { permissions: ['revenue.client_service.write'] },
-  // Sales: lead → opportunity → quotation → contract. Converting into a new customer also
+  // Sales: lead → opportunity → quotation → contract. Qualifying into a new customer also
   // needs manageCustomers; quotations follow their opportunity's access.
   leads: { permissions: ['revenue.lead.read'] },
+  // Claim leads and work the ones you handle.
   manageLeads: { permissions: ['revenue.lead.write'] },
+  // Sales managers: hand anyone's lead to someone else, and work any lead.
+  assignLeads: { permissions: ['revenue.lead.assign'] },
   opportunities: { permissions: ['revenue.opportunity.read'] },
   manageOpportunities: { permissions: ['revenue.opportunity.write'] },
   approveQuotations: { permissions: ['revenue.quotation.approve'] },

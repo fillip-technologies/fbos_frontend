@@ -5,6 +5,7 @@ import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import { formatDate } from '@/shared/utils/format.js'
 import { ACTIVITY_TYPES, formatDateTime, nowLocalInput } from '@/features/sales/utils.js'
 
 // Revenue keeps activity times in UTC without saying so: read them as UTC, not local time.
@@ -119,6 +120,13 @@ export default function ActivityTimeline({ orgId, subjectType, subjectId }) {
                 <td>
                   <div style={{ whiteSpace: 'pre-line' }}>{a.summary}</div>
                   {a.outcome && <div className="muted small">Outcome: {a.outcome}</div>}
+                  {a.requirements && <div className="small" style={{ whiteSpace: 'pre-line' }}>Requirements: {a.requirements}</div>}
+                  {a.expectations && <div className="small" style={{ whiteSpace: 'pre-line' }}>Interests and expectations: {a.expectations}</div>}
+                  {(a.next_action || a.follow_up_on) && (
+                    <div className="muted small">
+                      Next: {[a.next_action, a.follow_up_on && `by ${formatDate(a.follow_up_on)}`].filter(Boolean).join(' ')}
+                    </div>
+                  )}
                   {a.source?.type === 'task.task' && (
                     <div className="small"><Link to={`/tasks/${a.source.id}`}>From a task</Link></div>
                   )}

@@ -1,4 +1,20 @@
 export const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'converted', 'disqualified']
+// Still being worked; converted (a quotation accepted) and disqualified are closed.
+export const OPEN_LEAD_STATUSES = ['new', 'contacted', 'qualified']
+// The person who handles a lead, as every lead screen calls them.
+export const OUTREACH_LABEL = 'Sales outreach by'
+// A lead's history (GET /leads/{id}/events), in words.
+export const LEAD_EVENT_LABELS = {
+  created: 'Added',
+  claimed: 'Claimed',
+  transferred: 'Passed on',
+  released: 'Put back with the unclaimed leads',
+  contacted: 'Contacted (first call logged)',
+  qualified: 'Qualified',
+  disqualified: 'Disqualified',
+  reopened: 'Reopened',
+  converted: 'Converted: the customer accepted a quotation',
+}
 export const LEAD_SOURCES = {
   website: 'Website',
   referral: 'Referral',

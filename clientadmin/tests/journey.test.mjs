@@ -41,6 +41,21 @@ describe('journeyStages', () => {
     assert.strictEqual(states(stages).paid, 'hidden')
   })
 
+  it('a qualified enquiry hands over to its opportunity', () => {
+    const open = { ...base, lead: { ...base.lead, status: 'qualified' }, opportunity: { ...base.opportunity, status: 'qualification' }, quotations: [], contracts: [] }
+    const stages = journeyStages(open, [], { canSeeProjects: false })
+    assert.strictEqual(states(stages).lead, 'done')
+    assert.strictEqual(states(stages).opportunity, 'current')
+    assert.match(nextStep(open, stages, [], ALL).text, /Prepare a quotation/)
+  })
+
+  it('an enquiry still being called is the step to work on', () => {
+    const calling = { ...base, lead: { ...base.lead, status: 'contacted' }, opportunity: null, quotations: [], contracts: [] }
+    const stages = journeyStages(calling, [], { canSeeProjects: false })
+    assert.strictEqual(states(stages).lead, 'current')
+    assert.match(nextStep(calling, stages, [], ALL).text, /qualify it/)
+  })
+
   it('a deal without an enquiry skips that step', () => {
     assert.strictEqual(states(journeyStages({ ...base, lead: null }, [], { canSeeProjects: false })).lead, 'skipped')
   })

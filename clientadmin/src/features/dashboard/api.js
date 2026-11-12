@@ -37,4 +37,9 @@ export const attentionApi = {
   roleChanges: (orgId, opts) => get(orgId, `${PEOPLE}/role-changes?status=pending`, opts),
   // Leave requests not yet decided: the caller's own and those of the people they approve for.
   pendingLeave: (orgId, opts) => get(orgId, `${PEOPLE}/leaves/requests?status=pending`, opts),
+  // Open leads nobody has claimed yet (a page of up to 25).
+  unclaimedLeads: (orgId, opts) => get(orgId, `${REVENUE}/leads?unclaimed=true&limit=25`, opts),
+  // The caller's open leads with a follow-up due on or before `today`.
+  leadFollowUps: (orgId, userId, today, opts) =>
+    get(orgId, `${REVENUE}/leads?owner_user_id=${encodeURIComponent(userId)}&follow_up_due=${today}&limit=25`, opts),
 }

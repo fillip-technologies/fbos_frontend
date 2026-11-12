@@ -398,7 +398,7 @@ const DESCRIPTIONS = {
   '/calendars': 'Working days, hours and holidays for the company and its teams.',
   '/custom-fields': 'Add your own fields to forms such as leads, projects and tasks.',
   '/verticals': 'Your business lines (e.g. IT services, solar), used to tailor forms and routing.',
-  '/leads': 'New enquiries. Qualify them, then turn the good ones into opportunities.',
+  '/leads': 'New enquiries. Claim one, log your calls, then qualify the good ones into opportunities.',
   '/opportunities': 'Sales you are working on: quotations, negotiation, won or lost.',
   '/customers': 'Everyone you sell to: contacts, contracts, invoices and services in one place.',
   '/contracts': 'Signed agreements. Activating one starts delivery and its billing schedule.',
