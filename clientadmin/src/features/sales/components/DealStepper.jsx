@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { OPEN_QUOTATION_STATUSES, QUOTATION_STATUS_LABELS, humanize } from '@/features/sales/utils.js'
+import { OPEN_QUOTATION_STATUSES, QUOTATION_STATUS_LABELS, humanize, proposalLabel, proposalStatusText } from '@/features/sales/utils.js'
 
 const STATE_WORDS = { done: 'done', current: 'in progress', todo: 'not yet', lost: 'stopped', skipped: 'skipped' }
 
@@ -10,9 +10,10 @@ const ICONS = {
 
 /**
  * The five steps of a sale as the team talks about it — Lead → Proposal → Quotation → Contract →
- * Customer — worked out from what the opportunity page already loads. The proposal is this page.
+ * Customer — worked out from what the opportunity page already loads. `proposals`: newest first.
  */
-export function dealSteps({ opp, quotations, contracts, customer, canSeeContracts }) {
+export function dealSteps({ opp, proposals = [], quotations, contracts, customer, canSeeContracts }) {
+  const proposal = proposals.find((p) => p.status === 'accepted') || proposals[0]
   const accepted = quotations.find((q) => q.status === 'accepted')
   const openQuote =
     quotations.find((q) => q.is_main && OPEN_QUOTATION_STATUSES.includes(q.status)) ||
@@ -32,8 +33,11 @@ export function dealSteps({ opp, quotations, contracts, customer, canSeeContract
     {
       key: 'proposal',
       label: 'Proposal',
-      state: lost ? 'lost' : opp.stage === 'won' ? 'done' : 'current',
-      sub: humanize(opp.stage),
+      // Deals quoted directly (repeat business, or before proposals) skip it.
+      state: proposal?.status === 'accepted'
+        ? 'done'
+        : lost ? 'lost' : proposal ? 'current' : quotations.length ? 'skipped' : opp.lead_id ? 'current' : 'skipped',
+      sub: proposal ? `${proposalLabel(proposal)} · ${proposalStatusText(proposal)}` : quotations.length || !opp.lead_id ? 'Quoted directly' : 'Not yet',
       here: true,
     },
     {

@@ -18,6 +18,7 @@ const words = (status) => (status ? String(status).replace(/_/g, ' ') : '')
 const OPEN_LEAD = ['new', 'contacted', 'qualified']
 const OPEN_DEAL = ['open', 'qualification', 'proposal', 'negotiation']
 const OPEN_QUOTE = ['draft', 'pending_approval', 'approved', 'sent', 'changes_requested']
+const OPEN_PROPOSAL = ['draft', 'sent', 'under_discussion']
 const LIVE_CONTRACT = ['active', 'completed', 'expired']
 const DRAFT_CONTRACT = ['draft', 'pending_signature']
 const DONE_PROJECT = ['completed', 'closed']
@@ -81,7 +82,26 @@ export function journeyStages(journey, projects, { canSeeProjects }) {
     to: opp && `/opportunities/${opp.id}`,
   })
 
+  // A sale from an enquiry is quoted from its accepted proposal; repeat business, and deals
+  // quoted before proposals existed, go straight to the quotation.
+  const proposals = journey.proposals || []
+  const proposal = pick(proposals, (p) => p.status === 'accepted')
   const quotes = journey.quotations || []
+  stages.push({
+    key: 'proposal',
+    label: 'Proposal',
+    state: hidden.has('proposals')
+      ? 'hidden'
+      : proposals.some((p) => p.status === 'accepted')
+        ? 'done'
+        : proposals.length
+          ? lostDeal ? 'lost' : 'current'
+          : quotes.length || later || !lead ? 'skipped' : 'todo',
+    title: proposal ? `${proposal.number} ${proposal.kind || ''}`.trim() : null,
+    detail: proposal ? [words(proposal.status), formatMoney(proposal.amount)].filter(Boolean).join(' · ') : null,
+    to: opp && `/opportunities/${opp.id}`,
+  })
+
   stages.push({
     key: 'quotation',
     label: 'Quote',
@@ -159,17 +179,38 @@ export function nextStep(journey, stages, projects, can) {
   if (by.lead?.state === 'current') {
     return { text: 'Call the enquiry, then qualify it into an opportunity.', action: { label: 'Open the enquiry', to: by.lead.to } }
   }
+  if (by.opportunity?.state === 'current' && by.proposal?.state === 'todo') {
+    return {
+      text: 'Write the proposal for this opportunity: the requirements from the calls are already in it.',
+      action: { label: 'Open the opportunity', to: by.opportunity.to },
+    }
+  }
+  if (by.proposal?.state === 'current') {
+    const p = pick(journey.proposals, (x) => OPEN_PROPOSAL.includes(x.status))
+    const texts = {
+      draft: 'Finish the proposal and email it to the customer.',
+      sent: 'The proposal is with the customer. Follow up for their answer.',
+      under_discussion: 'The proposal is under discussion: revise it, or record the customer’s answer.',
+      rejected: 'The proposal was rejected: revise it into a new version.',
+    }
+    return { text: texts[p?.status] || 'Move the proposal forward.', action: by.proposal.to && { label: 'Open the proposal', to: by.proposal.to } }
+  }
   if (by.opportunity?.state === 'current' && by.quotation?.state === 'todo') {
-    return { text: 'Prepare a quotation for this opportunity.', action: { label: 'Open the opportunity', to: by.opportunity.to } }
+    return {
+      text: by.proposal?.state === 'done'
+        ? 'The customer accepted the proposal. Make the quotation from it.'
+        : 'Prepare a quotation for this opportunity.',
+      action: { label: 'Open the opportunity', to: by.opportunity.to },
+    }
   }
   if (by.quotation?.state === 'current') {
     const q = pick(journey.quotations, (x) => x.is_main && OPEN_QUOTE.includes(x.status)) ?? pick(journey.quotations, (x) => OPEN_QUOTE.includes(x.status))
     const texts = {
-      draft: 'Finish the quotation and submit it.',
+      draft: 'Finish the quotation and send it.',
       pending_approval: can.approveQuotations ? 'A quotation is waiting for your approval.' : 'The quotation is waiting for approval.',
       approved: 'The quotation is approved: send it to the customer.',
       sent: 'The quotation is with the customer. Follow up for their answer.',
-      changes_requested: 'The customer asked for changes: revise the quotation.',
+      changes_requested: 'The quotation is under discussion: revise it to answer the customer.',
     }
     return { text: texts[q?.status] || 'Move the quotation forward.', action: q && { label: `Open ${q.number || 'the quotation'}`, to: `/quotations/${q.id}` } }
   }

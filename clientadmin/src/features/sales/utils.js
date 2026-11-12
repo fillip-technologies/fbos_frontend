@@ -57,11 +57,11 @@ export const QUOTATION_STATUS_LABELS = {
   pending_approval: 'Waiting for approval',
   approved: 'Approved',
   sent: 'Sent',
-  changes_requested: 'Changes requested',
+  changes_requested: 'Under discussion',
   accepted: 'Accepted',
   rejected: 'Rejected',
   withdrawn: 'Withdrawn',
-  superseded: 'Superseded',
+  superseded: 'Replaced',
   not_chosen: 'Not chosen',
 }
 // Revising answers the customer: a new draft revision after they have seen this one.
@@ -91,6 +91,42 @@ export const QUOTATION_EVENT_LABELS = {
   renamed: 'Renamed',
   made_main: 'Made the main quotation',
 }
+// Over this discount (of the subtotal) a quotation is approved before it goes out: Send
+// then sends it for approval instead.
+export const APPROVAL_DISCOUNT_PCT = 20
+export function needsDiscountApproval(quote) {
+  const subtotal = Number(quote?.totals?.subtotal?.amount || 0)
+  const discount = Number(quote?.totals?.discount_total?.amount || 0)
+  return subtotal > 0 && (discount / subtotal) * 100 > APPROVAL_DISCOUNT_PCT
+}
+
+// ---------- Proposals ----------
+export const PROPOSAL_STATUS_LABELS = {
+  draft: 'Draft',
+  sent: 'Sent',
+  under_discussion: 'Under discussion',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  superseded: 'Replaced',
+}
+// Being worked on: one at a time per opportunity.
+export const OPEN_PROPOSAL_STATUSES = ['draft', 'sent', 'under_discussion']
+export const PROPOSAL_EVENT_LABELS = {
+  created: 'Created',
+  edited: 'Edited',
+  sent: 'Marked as sent',
+  emailed: 'Emailed to the customer',
+  changes_requested: 'Customer feedback',
+  revised: 'Revised',
+  accepted: 'Customer accepted',
+  rejected: 'Customer rejected',
+  quoted: 'Quotation made from it',
+}
+export const proposalLabel = (p) => `${p.proposal_no} v${p.version_no}`
+// The status in words, with the version that replaced it ("Replaced by v2").
+export const proposalStatusText = (p) =>
+  p.status === 'superseded' && p.replaced_by ? `Replaced by v${p.replaced_by.version_no}` : PROPOSAL_STATUS_LABELS[p.status] || p.status
+
 // Still open on the opportunity: not yet answered for good.
 export const OPEN_QUOTATION_STATUSES = ['draft', 'pending_approval', 'approved', 'sent', 'changes_requested']
 // "Option A - Basic", else its number and revision.

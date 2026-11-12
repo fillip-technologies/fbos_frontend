@@ -5,6 +5,7 @@ import { inOrg, pageQuery } from '@/shared/api/query.js'
 // Record types documents attach to: `<service>.<entity>`. The documents service asks the
 // owning service whether the user may see / attach to the record.
 export const DOCUMENT_SUBJECTS = {
+  proposal: 'revenue.proposal',
   quotation: 'revenue.quotation',
   contract: 'revenue.contract',
   device: 'inventory.device',
@@ -25,6 +26,10 @@ export const documentsApi = {
   // { url, expires_at, file_name } — the link works for 60 seconds.
   downloadUrl: (orgId, documentId, versionNo) =>
     api.get(`${DOCUMENTS}/documents/${documentId}/versions/${versionNo}/download`, { headers: inOrg(orgId) }),
+  // Attach every document of one record to another too (a sale's proposal and quotation onto
+  // its project): { copied }. Needs read on `source` and attach rights on `target`.
+  copyLinks: (orgId, source, target) =>
+    api.post(`${DOCUMENTS}/document-link-copies`, { source, target }, { headers: inOrg(orgId) }),
   startUpload: (orgId, body) => api.post(`${DOCUMENTS}/uploads`, body, { headers: inOrg(orgId) }),
   completeUpload: (orgId, uploadId) => api.post(`${DOCUMENTS}/uploads/${uploadId}/complete`, undefined, { headers: inOrg(orgId) }),
 }

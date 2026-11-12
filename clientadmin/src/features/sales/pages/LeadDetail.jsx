@@ -15,6 +15,7 @@ import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
 import LeadCustomFields from '@/features/sales/components/LeadCustomFields.jsx'
 import LeadHistory from '@/features/sales/components/LeadHistory.jsx'
 import LogCall from '@/features/sales/components/LogCall.jsx'
+import ProposalsSection from '@/features/sales/components/ProposalsSection.jsx'
 import QualifyLead from '@/features/sales/components/QualifyLead.jsx'
 import TransferLead from '@/features/sales/components/TransferLead.jsx'
 import useLeadPeople from '@/features/sales/useLeadPeople.js'
@@ -152,7 +153,7 @@ export default function LeadDetail() {
         <div className="alert success">
           {lead.status === 'converted'
             ? `Converted${lead.converted_at ? ` on ${formatDate(lead.converted_at.slice(0, 10))}` : ''}: the customer accepted a quotation.`
-            : 'Qualified. The work continues on the opportunity until the customer accepts a quotation.'}{' '}
+            : 'Qualified. Work the proposal below; once the customer accepts it, the quotation follows.'}{' '}
           <Link to={`/customers/${lead.client_id}`}>Open the customer</Link>
           {opportunity && (
             <>
@@ -257,7 +258,10 @@ export default function LeadDetail() {
               invalidate(['lead', orgId])
               invalidate(['opportunities', orgId])
               invalidate(['customers', orgId])
-              navigate(`/opportunities/${result.opportunity.id}`)
+              // The lead page stays the workspace: the proposal is worked below.
+              setLead(result.lead)
+              setOpportunity(result.opportunity)
+              setPanel(null)
             }}
             onCancel={() => setPanel(null)}
           />
@@ -302,6 +306,29 @@ export default function LeadDetail() {
           </form>
         )}
       </div>
+
+      {opportunity && lead.status !== 'disqualified' && (
+        <div className="panel">
+          <div className="section-head">
+            <div>
+              <h2 style={{ fontSize: 17 }}>Proposal</h2>
+              <p className="muted small" style={{ margin: '4px 0 0' }}>
+                For “{opportunity.name}”. The quotation, contract and project follow on{' '}
+                <Link to={`/opportunities/${opportunity.id}`}>the opportunity</Link>.
+              </p>
+            </div>
+          </div>
+          <ProposalsSection
+            orgId={orgId}
+            opportunity={opportunity}
+            canManage={hasAccess(me, ACCESS.manageOpportunities)}
+            onChanged={() => {
+              invalidate(['opportunity', orgId])
+              invalidate(['opportunities', orgId])
+            }}
+          />
+        </div>
+      )}
 
       <LeadCustomFields orgId={orgId} lead={lead} canEdit={canWorkLeads && (!owner || canWork)} onSaved={setLead} />
       {lead.attributes?.website_lead_id && <WebsiteEnquiry details={lead.attributes} />}

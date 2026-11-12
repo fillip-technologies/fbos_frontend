@@ -7,14 +7,15 @@ export const itemToRow = (i) => ({
   description: i.description || '',
   quantity: String(i.quantity),
   unit_price: String(Number(i.unit_price.amount)),
-  discount_pct: String(i.discount_pct),
+  discount_pct: String(i.discount_pct ?? 0),
 })
 
-// Request items. A blank unit price means the offering's list price.
-export function rowsToItems(rows, offerings) {
+// Request items. A blank unit price means the offering's list price. A proposal's have no discount.
+export function rowsToItems(rows, offerings, { forProposal = false } = {}) {
   return rows.map((r) => {
     const offering = offerings.find((o) => o.id === r.offering_id)
-    const item = { offering_id: r.offering_id, quantity: Number(r.quantity), discount_pct: Number(r.discount_pct || 0) }
+    const item = { offering_id: r.offering_id, quantity: Number(r.quantity) }
+    if (!forProposal) item.discount_pct = Number(r.discount_pct || 0)
     if (r.description.trim()) item.description = r.description.trim()
     if (r.unit_price !== '') item.unit_price = { amount: Number(r.unit_price), currency: offering?.list_price.currency || 'INR' }
     return item
@@ -22,8 +23,10 @@ export function rowsToItems(rows, offerings) {
 }
 
 // Line items of a draft quotation: offering, quantity, price and discount per line.
-// Taxes and totals are worked out by the backend when saved.
-export default function QuotationItemsEditor({ rows, setRows, offerings }) {
+// Taxes and totals are worked out by the backend when saved. A proposal's services
+// (`forProposal`) have no discount, and need not have any line at all.
+export default function QuotationItemsEditor({ rows, setRows, offerings, forProposal = false }) {
+  const showDiscount = !forProposal
   const update = (index, k, v) => setRows(rows.map((r, i) => (i === index ? { ...r, [k]: v } : r)))
   const active = offerings.filter((o) => o.status === 'active')
 
@@ -40,7 +43,7 @@ export default function QuotationItemsEditor({ rows, setRows, offerings }) {
             <th>Description</th>
             <th style={{ width: 90 }}>Qty</th>
             <th style={{ width: 140 }}>Unit price</th>
-            <th style={{ width: 90 }}>Disc. %</th>
+            {showDiscount && <th style={{ width: 90 }}>Disc. %</th>}
             <th />
           </tr>
         </thead>
@@ -93,7 +96,7 @@ export default function QuotationItemsEditor({ rows, setRows, offerings }) {
                     onChange={(e) => update(index, 'unit_price', e.target.value)}
                   />
                 </td>
-                <td>
+                {showDiscount && <td>
                   <input
                     aria-label="Discount percent"
                     type="number"
@@ -103,9 +106,9 @@ export default function QuotationItemsEditor({ rows, setRows, offerings }) {
                     value={r.discount_pct}
                     onChange={(e) => update(index, 'discount_pct', e.target.value)}
                   />
-                </td>
+                </td>}
                 <td>
-                  {rows.length > 1 && (
+                  {(rows.length > 1 || forProposal) && (
                     <button
                       type="button"
                       className="btn secondary small-btn"
@@ -124,7 +127,7 @@ export default function QuotationItemsEditor({ rows, setRows, offerings }) {
       <button type="button" className="btn secondary small-btn" style={{ marginTop: 8 }} onClick={() => setRows([...rows, newItem()])}>
         + Add line
       </button>
-      <p className="muted small">Discounts above 20% of the subtotal need approval before the quotation can be sent.</p>
+      {showDiscount && <p className="muted small">Discounts above 20% of the subtotal need approval before the quotation can be sent.</p>}
     </div>
   )
 }

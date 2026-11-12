@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { contractsApi, quotationsApi } from '@/features/sales/api.js'
+import { contractsApi, proposalsApi, quotationsApi } from '@/features/sales/api.js'
 import { documentsApi, DOCUMENT_SUBJECTS, formatFileSize } from '@/features/documents/api.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { useQuery } from '@/shared/api/useQuery.js'
@@ -241,7 +241,9 @@ function Form({ draft, files, canSeeFiles, sendFn, onSent, onCancel }) {
  * `draftFn({ signal })` loads what the form starts from (GET .../email-draft), `sendFn(body)`
  * sends it (POST .../emails), `subject` is the record's documents subject `{ type, id }`.
  */
-export default function CustomerEmailForm({ orgId, title, subject, draftFn, sendFn, notEmailable, canSeeFiles, onSent, onCancel }) {
+export default function CustomerEmailForm({
+  orgId, title, subject, draftFn, sendFn, notEmailable, canSeeFiles, onSent, onCancel, note, excludeIds = [],
+}) {
   const draftQuery = useQuery(['customer-email-draft', orgId, subject.type, subject.id], draftFn, { staleTime: 0 })
   // Same key as the record's DocumentPanel, so both share one request.
   const filesQuery = useQuery(
@@ -250,12 +252,14 @@ export default function CustomerEmailForm({ orgId, title, subject, draftFn, send
     { enabled: canSeeFiles },
   )
   const draft = draftQuery.data
-  const files = (filesQuery.data?.data ?? []).filter((d) => d.current_version)
+  // The record's own PDF goes with the email anyway: it isn't offered again.
+  const files = (filesQuery.data?.data ?? []).filter((d) => d.current_version && !excludeIds.includes(d.id))
   const loading = draftQuery.loading || (canSeeFiles && filesQuery.loading)
 
   return (
     <div className="inline-panel">
       <h3>{title}</h3>
+      {note && <p className="muted small" style={{ marginTop: 0 }}>{note}</p>}
       <ErrorBanner error={draftQuery.error || filesQuery.error} onRetry={() => { draftQuery.reload(); filesQuery.reload() }} />
       {loading ? (
         <PanelSkeleton />
@@ -280,10 +284,25 @@ export default function CustomerEmailForm({ orgId, title, subject, draftFn, send
   )
 }
 
+// The form's props for a proposal: its PDF is made (and kept) when it is first sent.
+export function proposalEmailProps(orgId, proposal) {
+  return {
+    title: `Email proposal · ${proposal.proposal_no} v${proposal.version_no}`,
+    note: 'The proposal goes as a PDF attachment, with any files you pick below.',
+    subject: { type: DOCUMENT_SUBJECTS.proposal, id: proposal.id },
+    excludeIds: proposal.pdf_document_id ? [proposal.pdf_document_id] : [],
+    draftFn: ({ signal }) => proposalsApi.emailDraft(orgId, proposal.id, { signal }),
+    sendFn: (body) => proposalsApi.email(orgId, proposal, body),
+    notEmailable: `This proposal can't be emailed while it is ${proposal.status.replaceAll('_', ' ')}.`,
+  }
+}
+
 // The form's props for a quotation.
 export function quotationEmailProps(orgId, quote) {
   return {
     title: `Email quotation · ${quote.quote_no} rev ${quote.revision_no}`,
+    note: 'The quotation goes as a PDF attachment, with any files you pick below.',
+    excludeIds: quote.pdf_document_id ? [quote.pdf_document_id] : [],
     subject: { type: DOCUMENT_SUBJECTS.quotation, id: quote.id },
     draftFn: ({ signal }) => quotationsApi.emailDraft(orgId, quote.id, { signal }),
     sendFn: (body) => quotationsApi.email(orgId, quote, body),

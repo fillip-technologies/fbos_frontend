@@ -24,7 +24,7 @@ describe('journeyStages', () => {
   it('marks what is done and what comes next', () => {
     const stages = journeyStages(base, [], { canSeeProjects: true })
     assert.deepStrictEqual(states(stages), {
-      lead: 'done', opportunity: 'done', quotation: 'done', contract: 'done', project: 'todo', invoice: 'todo', paid: 'todo',
+      lead: 'done', opportunity: 'done', proposal: 'skipped', quotation: 'done', contract: 'done', project: 'todo', invoice: 'todo', paid: 'todo',
     })
     assert.strictEqual(stages.find((s) => s.key === 'contract').to, '/contracts/k1')
   })
@@ -46,7 +46,29 @@ describe('journeyStages', () => {
     const stages = journeyStages(open, [], { canSeeProjects: false })
     assert.strictEqual(states(stages).lead, 'done')
     assert.strictEqual(states(stages).opportunity, 'current')
-    assert.match(nextStep(open, stages, [], ALL).text, /Prepare a quotation/)
+    assert.strictEqual(states(stages).proposal, 'todo')
+    assert.match(nextStep(open, stages, [], ALL).text, /Write the proposal/)
+  })
+
+  it('the proposal comes before the quotation, and its acceptance leads to it', () => {
+    const open = { ...base, lead: { ...base.lead, status: 'qualified' }, opportunity: { ...base.opportunity, status: 'proposal' }, quotations: [], contracts: [] }
+    const sent = { ...open, proposals: [{ id: 'p1', number: 'PRP-1', kind: 'v2', status: 'under_discussion' }] }
+    let stages = journeyStages(sent, [], { canSeeProjects: false })
+    assert.strictEqual(states(stages).proposal, 'current')
+    assert.match(nextStep(sent, stages, [], ALL).text, /under discussion/)
+
+    const accepted = { ...open, proposals: [{ id: 'p1', number: 'PRP-1', kind: 'v2', status: 'accepted' }] }
+    stages = journeyStages(accepted, [], { canSeeProjects: false })
+    assert.strictEqual(states(stages).proposal, 'done')
+    assert.strictEqual(stages.find((s) => s.key === 'proposal').title, 'PRP-1 v2')
+    assert.match(nextStep(accepted, stages, [], ALL).text, /Make the quotation from it/)
+  })
+
+  it('repeat business without an enquiry skips the proposal', () => {
+    const repeat = { ...base, lead: null, opportunity: { ...base.opportunity, status: 'qualification' }, quotations: [], contracts: [] }
+    const stages = journeyStages(repeat, [], { canSeeProjects: false })
+    assert.strictEqual(states(stages).proposal, 'skipped')
+    assert.match(nextStep(repeat, stages, [], ALL).text, /Prepare a quotation/)
   })
 
   it('an enquiry still being called is the step to work on', () => {

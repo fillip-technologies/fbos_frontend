@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { projectsApi, setupApi } from '@/features/delivery/api.js'
+import { DOCUMENT_SUBJECTS, documentsApi } from '@/features/documents/api.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import { PROJECT_PRIORITY_LABELS } from '@/features/delivery/utils.js'
 import { orgUnitsApi } from '@/features/org-units/api.js'
@@ -10,7 +11,7 @@ import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
-import { invalidate, useLookup } from '@/shared/api/useQuery.js'
+import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { checkFields, toAttributes } from '@/shared/utils/customFields.js'
 import { todayIso } from '@/shared/utils/dates.js'
@@ -27,13 +28,25 @@ export default function ProjectCreate() {
   const { data: types = [] } = useLookup(['project-types', orgId], ({ signal }) => setupApi.projectTypes(orgId, { signal }), { enabled })
   const { data: templates = [] } = useLookup(['project-templates', orgId], ({ signal }) => setupApi.templates(orgId, { signal }), { enabled })
 
-  // Opened from a contract: the project delivers it, for its customer.
+  // Opened from a contract or a won sale: the project delivers it, for its customer. The
+  // sale's accepted proposal and quotation get attached to it.
   const contractId = params.get('contract') || ''
+  const dealId = params.get('deal') || ''
+  const fromSale = [
+    params.get('proposal') && { type: DOCUMENT_SUBJECTS.proposal, id: params.get('proposal') },
+    params.get('quotation') && { type: DOCUMENT_SUBJECTS.quotation, id: params.get('quotation') },
+  ].filter(Boolean)
+  // Opened from a project: this is one of its workstreams.
+  const parentId = params.get('parent') || ''
+  const { data: parent } = useQuery(['project', orgId, parentId], ({ signal }) => projectsApi.get(orgId, parentId, { signal }), {
+    enabled: Boolean(orgId && parentId),
+  })
+  const [streams, setStreams] = useState([])
   const [form, setForm] = useState({
     work_unit_type_code: params.get('customer') ? 'project' : 'internal',
     template_code: '',
     start_workflow: false,
-    name: '',
+    name: params.get('name') || '',
     objective: '',
     client_id: params.get('customer') || '',
     manager_user_id: me?.id || '',
@@ -118,6 +131,18 @@ export default function ProjectCreate() {
       if (form.objective.trim()) body.objective = form.objective.trim()
       if (form.client_id) body.client_id = form.client_id
       if (contractId) body.contract_id = contractId
+      if (dealId) body.deal_id = dealId
+      if (parentId) body.parent_work_unit_id = parentId
+      const workstreams = streams.filter((w) => w.name.trim())
+      if (workstreams.length) {
+        body.workstreams = workstreams.map((w) => ({
+          name: w.name.trim(),
+          owning_unit_id: w.owning_unit_id,
+          manager_user_id: w.manager_user_id,
+          ...(w.vertical_id ? { vertical_id: w.vertical_id } : {}),
+          ...(w.template_code ? { template_code: w.template_code } : {}),
+        }))
+      }
       if (form.start_workflow && templateWorkflow && canStartWorkflow) body.start_workflow = true
       if (form.vertical_id) body.vertical_id = form.vertical_id
       if (form.partner_organization_id) body.partner_organization_id = form.partner_organization_id
@@ -127,7 +152,12 @@ export default function ProjectCreate() {
 
       const created = await projectsApi.create(orgId, body)
       invalidate(['projects', orgId])
-      navigate(`/projects/${created.id}`, { replace: true })
+      // The accepted proposal's and quotation's PDFs (and their other files) go on the project.
+      // The project exists by now, so a failure here only leaves them to attach by hand.
+      const target = { type: DOCUMENT_SUBJECTS.project, id: created.id }
+      const attached = await Promise.allSettled(fromSale.map((source) => documentsApi.copyLinks(orgId, source, target)))
+      const missed = attached.some((r) => r.status === 'rejected')
+      navigate(`/projects/${created.id}${missed ? '?tab=documents&attach=failed' : ''}`, { replace: true })
     } catch (err) {
       setError(err)
     } finally {
@@ -139,12 +169,18 @@ export default function ProjectCreate() {
     <div>
       <div className="page-head">
         <div>
-          <h1>New project</h1>
+          <h1>{parent ? `New workstream of “${parent.name}”` : fromSale.length ? 'Start the project' : 'New project'}</h1>
           {activeOrg && <p className="muted small" style={{ margin: '4px 0 0' }}>In “{activeOrg.name}”</p>}
         </div>
         <button className="btn secondary" onClick={() => navigate(-1)}>Cancel</button>
       </div>
-      {contractId && <div className="alert info">This project delivers a contract; its customer is filled in.</div>}
+      {(contractId || fromSale.length > 0) && (
+        <div className="alert info">
+          This project delivers the sale: its customer is filled in{fromSale.length ? ', and the accepted proposal and quotation are attached to it' : ''}.
+          Add a workstream for each department or team taking part.
+        </div>
+      )}
+      {parent && <div className="alert info">A workstream is run by its own team and manager; its customer and contract are the project’s.</div>}
       {error && Object.keys(fieldErrors).length === 0 && <ErrorBanner error={error} />}
 
       <form className="panel" onSubmit={handleSubmit}>
@@ -282,6 +318,69 @@ export default function ProjectCreate() {
           <input type="checkbox" checked={form.billable} onChange={(e) => set('billable', e.target.checked)} />
           Billable to the customer
         </label>
+
+        {!parentId && (
+          <div className="field" style={{ marginTop: 16 }}>
+            <div className="detail-label">Workstreams</div>
+            <div className="hint" style={{ marginBottom: 8 }}>
+              One per department or team taking part (web development, marketing, hosting…). Each is run by its own team and
+              manager; the project shows their combined progress. Leave this empty for a project one team delivers.
+            </div>
+            {streams.map((w, index) => {
+              const put = (k, v) => setStreams((all) => all.map((x, i) => (i === index ? { ...x, [k]: v } : x)))
+              return (
+                <div key={index} className="grid-3" style={{ alignItems: 'end' }}>
+                  <div className="field">
+                    <label htmlFor={`ws-name-${index}`}>Name *</label>
+                    <input id={`ws-name-${index}`} required maxLength={255} value={w.name} onChange={(e) => put('name', e.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor={`ws-unit-${index}`}>Team *</label>
+                    <select id={`ws-unit-${index}`} required value={w.owning_unit_id} onChange={(e) => put('owning_unit_id', e.target.value)}>
+                      <option value="">— Choose —</option>
+                      {units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor={`ws-manager-${index}`}>Manager *</label>
+                    <select id={`ws-manager-${index}`} required value={w.manager_user_id} onChange={(e) => put('manager_user_id', e.target.value)}>
+                      <option value="">— Choose —</option>
+                      {managers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor={`ws-vertical-${index}`}>Vertical</label>
+                    <select id={`ws-vertical-${index}`} value={w.vertical_id} onChange={(e) => put('vertical_id', e.target.value)}>
+                      <option value="">— None —</option>
+                      {(names.verticals || []).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor={`ws-template-${index}`}>Template</label>
+                    <select id={`ws-template-${index}`} value={w.template_code} onChange={(e) => put('template_code', e.target.value)}>
+                      <option value="">— Start empty —</option>
+                      {templates.filter((t) => t.status === 'active' && t.published_version_no).map((t) => (
+                        <option key={t.code} value={t.code}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <button type="button" className="btn secondary small-btn" onClick={() => setStreams((all) => all.filter((_, i) => i !== index))}>
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+            <button
+              type="button"
+              className="btn secondary small-btn"
+              onClick={() => setStreams((all) => [...all, { name: '', owning_unit_id: '', manager_user_id: '', vertical_id: '', template_code: '' }])}
+            >
+              + Add workstream
+            </button>
+          </div>
+        )}
 
         <div style={{ marginTop: 16 }}>
           <CustomFieldsSection

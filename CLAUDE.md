@@ -309,3 +309,18 @@ Plan: `../LEAD_WORKFLOW_PLAN.md` (one level above both repos). Phase 1 of 4.
 - Home "Needs you" shows unclaimed leads and the person's follow-ups due.
 - The journey shows a qualified lead that has an opportunity as done.
 - One-off for old leads whose owner id matches nobody: `python unclaim_unknown_owners.py` in revenue. It only reports by default; `--apply` changes the leads.
+
+## Proposals, quotations from them, projects across departments (sales workflow phases 2–4)
+
+- **Proposals** (`proposalsApi`, `ProposalsSection`, used on both the opportunity page's Proposal tab and a qualified lead's page, which is the salesperson's workspace):
+  - one open per opportunity (`PROPOSAL_ALREADY_OPEN`); a draft starts with the requirements from the lead's calls;
+  - draft → sent → under discussion → accepted / rejected. Only a draft is edited (`PROPOSAL_FROZEN`). Revising makes the next version as a draft; the old one shows "Replaced by vN";
+  - services come from the catalog (`QuotationItemsEditor forProposal`, no discount); the total is before tax;
+  - `GET /proposals/{id}/pdf` and `GET /quotations/{id}/pdf` return the PDF (`api.getBlob`, `PdfButton`): a "Draft" preview, or once sent, the copy the customer got, stored in documents (`revenue.proposal`, `revenue.quotation`);
+  - emailing attaches the PDF first (`CustomerEmailForm` `note` / `excludeIds`); the history keeps the message, sender, PDF version and message id.
+- **A sale from a lead is quoted from its accepted proposal** (`PROPOSAL_REQUIRED` otherwise; deals that already have quotations carry on). `POST /proposals/{id}/quotation` makes the draft quotation with the proposal's lines.
+- **Quotations have one Send**: a draft with a discount over 20% goes for approval instead (`needsDiscountApproval`, "Send for approval"); emailing such a draft is refused (`QUOTATION_APPROVAL_REQUIRED`). `changes_requested` reads "Under discussion", `superseded` "Replaced".
+- **The opportunity's stage isn't edited by hand**: it follows the proposal and quotations. The deal stepper and the journey path have a Proposal step (`journey.proposals`).
+- **Start the project** (opportunity next step, after the quotation is accepted): `/projects/new?customer&name&opportunity&deal&contract&quotation&proposal`. The form adds workstream rows (team, manager, vertical, template). Afterwards the proposal's and quotation's documents are linked to the project with `POST /document-link-copies`.
+- **Workstreams**: `GET /work-units?top_level=true` for the projects list, `?parent_id=` for a project's workstreams (Workstreams tab, `/projects/new?parent=`). Responses carry `parent` and `workstream_count`. `progress_pct` is now done tasks over tasks, a project's including its workstreams'.
+- Salespeople who start projects need `delivery.work_unit.write` in their role (an access-editor change, not code).
