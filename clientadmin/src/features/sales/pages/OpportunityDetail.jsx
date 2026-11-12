@@ -10,7 +10,7 @@ import { formatMoney } from '@/features/customers/utils.js'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
-import JourneyPath from '@/features/journey/components/JourneyPath.jsx'
+import DealStepper, { dealSteps } from '@/features/sales/components/DealStepper.jsx'
 import { useRecordForm } from '@/shared/utils/useRecordForm.js'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
@@ -187,6 +187,10 @@ export default function OpportunityDetail() {
   // Remounts the timeline so the logged email shows.
   const [timelineKey, setTimelineKey] = useState(0)
   const [lost, setLost] = useState({ reason: 'price', competitor: '', note: '' })
+  // The page's sections: 'quotations' | 'contract' | 'files' | 'activity'.
+  const [tab, setTab] = useState('quotations')
+  // The summary is read-only until "Edit details".
+  const [editing, setEditing] = useState(false)
   const fieldErrors = getFieldErrors(error)
 
 
@@ -213,7 +217,12 @@ export default function OpportunityDetail() {
     setError(null)
     setEmailed(null)
     if (action.key === 'open') return navigate(`/quotations/${quote.id}`)
-    if (action.key === 'contract') return setPanel('contract')
+    if (action.key === 'contract') {
+      setTab('contract')
+      return setPanel('contract')
+    }
+    // Forms for a quotation open in the Quotations tab.
+    setTab('quotations')
     if (action.key === 'email' || action.key === 'emailAgain') {
       setActing({ quote, action: 'email' })
       return setPanel('email')
@@ -248,6 +257,7 @@ export default function OpportunityDetail() {
         setOpp(updated)
         rebase(updated)
       }
+      setEditing(false)
     } catch (err) {
       setError(err)
     } finally {
@@ -288,8 +298,100 @@ export default function OpportunityDetail() {
   // The main option's files (they carry over on revise); else the newest quotation's.
   const currentQuote =
     quotations.find((q) => q.is_main && OPEN_QUOTATION_STATUSES.includes(q.status)) || accepted || quotations[0]
-  const canCreateContract = accepted && contracts.length === 0 && hasAccess(me, ACCESS.manageContracts)
+  const canManageContracts = hasAccess(me, ACCESS.manageContracts)
+  const canCreateContract = accepted && contracts.length === 0 && canManageContracts
   const canAddQuotation = canManage && open
+  const canSeeFiles = Boolean(currentQuote) && hasAccess(me, ACCESS.documents)
+  const canSeeActivity = hasAccess(me, ACCESS.activities)
+  const mainQuote = quotations.find((q) => q.is_main && q.status !== 'superseded')
+  const openQuote =
+    quotations.find((q) => q.is_main && OPEN_QUOTATION_STATUSES.includes(q.status)) ||
+    quotations.find((q) => OPEN_QUOTATION_STATUSES.includes(q.status))
+  const steps = dealSteps({ opp, quotations, contracts, customer, canSeeContracts })
+  const actionsFor = (q) => quotationActions(q, { canManage, canApprove, canCreateContract, opportunityOpen: open })
+  const quoteName = (q) => q.name || `${q.quote_no} rev ${q.revision_no}`
+
+  function startNewQuotation() {
+    setTab('quotations')
+    setPanel('quotation')
+  }
+
+  // The one thing to do now, with its button. Every action comes from quotationActions(), so
+  // nobody is offered a step they may not take.
+  function nextStep() {
+    if (opp.stage === 'lost') {
+      return { tone: 'lost', text: `This proposal was marked lost${opp.lost_reason ? `: ${opp.lost_reason}` : ''}.` }
+    }
+    const contract = contracts.find((c) => c.status === 'active') || contracts[0]
+    if (contract?.status === 'active') {
+      return {
+        tone: 'done',
+        text: `Contract ${contract.contract_no} is active and ${opp.client.name} is a customer. Delivery and billing carry on from the contract.`,
+        primary: { label: 'Open contract', run: () => navigate(`/contracts/${contract.id}`) },
+      }
+    }
+    if (contract) {
+      const emailable = canManageContracts && CONTRACT_EMAILABLE.includes(contract.status)
+      return {
+        text: contract.signed_document_id
+          ? `The signed copy of ${contract.contract_no} is attached. Activate the contract to make ${opp.client.name} a customer and start delivery.`
+          : `Contract ${contract.contract_no} is waiting for the customer's signature. Send it, then attach the signed copy.`,
+        primary: { label: 'Open contract', run: () => navigate(`/contracts/${contract.id}`) },
+        secondary: emailable
+          ? [{ label: 'Email contract', run: () => { setTab('contract'); setContractEmailed(null); setEmailingContract(contract) } }]
+          : [],
+      }
+    }
+    if (accepted) {
+      return {
+        tone: 'done',
+        text: `${quoteName(accepted)} was accepted. Create the contract to lock in the deal.`,
+        primary: canCreateContract ? { label: 'Create contract', run: () => { setTab('contract'); setPanel('contract') } } : null,
+      }
+    }
+    if (!openQuote) {
+      return {
+        text: quotations.length
+          ? 'No quotation is open. Prepare a new option for the customer.'
+          : 'Start by preparing a quotation: pick what you are offering and the price.',
+        primary: canAddQuotation ? { label: 'Create quotation', run: startNewQuotation } : null,
+      }
+    }
+    const texts = {
+      draft: 'is a draft. Check the items and price, then submit it.',
+      pending_approval: canApprove ? 'is waiting for your approval.' : 'is waiting for a manager to approve the discount.',
+      approved: 'is approved. Send it to the customer.',
+      sent: 'is with the customer. Record their answer when you hear back.',
+      changes_requested: 'came back with changes requested. Revise it and send it again.',
+    }
+    const preferred = {
+      draft: ['submit', 'email'],
+      pending_approval: ['approve'],
+      approved: ['email', 'send'],
+      sent: ['accept', 'changes', 'reject'],
+      changes_requested: ['revise'],
+    }[openQuote.status] || []
+    const available = actionsFor(openQuote)
+    const ordered = preferred.map((key) => available.find((a) => a.key === key)).filter(Boolean)
+    const toButton = (a) => ({ label: a.label, danger: a.danger, run: () => pickQuotationAction(openQuote, a) })
+    return {
+      text: `${quoteName(openQuote)} ${texts[openQuote.status] || 'needs your attention.'}`,
+      primary: ordered[0] ? toButton(ordered[0]) : null,
+      secondary: [
+        ...ordered.slice(1).map(toButton),
+        { label: 'Open quotation', run: () => navigate(`/quotations/${openQuote.id}`) },
+      ],
+    }
+  }
+  const next = nextStep()
+
+  const tabs = [
+    { key: 'quotations', label: `Quotations${quotations.length ? ` (${quotations.length})` : ''}` },
+    canSeeContracts && { key: 'contract', label: `Contract${contracts.length ? ` (${contracts.length})` : ''}` },
+    canSeeFiles && { key: 'files', label: 'Files' },
+    canSeeActivity && { key: 'activity', label: 'Activity' },
+  ].filter(Boolean)
+  const activeTab = tabs.some((t) => t.key === tab) ? tab : 'quotations'
 
   return (
     <div>
@@ -306,54 +408,86 @@ export default function OpportunityDetail() {
                 <StatusBadge status="prospect" label="Prospect" />
               </>
             )}
-            {opp.lead_id && (
-              <>
-                {' · '}
-                <Link to={`/leads/${opp.lead_id}`}>from lead</Link>
-              </>
-            )}
           </p>
         </div>
-        <button className="btn secondary" onClick={() => navigate('/opportunities')}>← Back</button>
+        <div className="row-actions" style={{ margin: 0 }}>
+          {canManage && open && panel !== 'lost' && (
+            <button type="button" className="btn danger-outline" onClick={() => setPanel('lost')}>Mark lost…</button>
+          )}
+          <button className="btn secondary" onClick={() => navigate('/opportunities')}>← Back</button>
+        </div>
       </div>
 
       {error && Object.keys(fieldErrors).length === 0 && <ErrorBanner error={error} />}
       {!error && <ErrorBanner error={loadError} onRetry={reload} />}
-      <JourneyPath subject="opportunity" id={opp.id} version={opp.version} />
+
+      <section className="journey deal-flow" aria-label="Deal progress">
+        <DealStepper steps={steps} />
+        <div className={`deal-next${next.tone ? ` is-${next.tone}` : ''}`}>
+          <div className="deal-next-body">
+            <span className="journey-next-label">
+              {next.tone === 'done' ? 'Done' : next.tone === 'lost' ? 'Status' : 'Next step'}
+            </span>
+            <p className="deal-next-text">{next.text}</p>
+          </div>
+          {(next.primary || next.secondary?.length > 0) && (
+            <div className="deal-next-actions">
+              {next.secondary?.map((b) => (
+                <button key={b.label} type="button" className="btn secondary" onClick={b.run} disabled={saving}>
+                  {b.label}
+                </button>
+              ))}
+              {next.primary && (
+                <button type="button" className={`btn${next.primary.danger ? ' danger' : ''}`} onClick={next.primary.run} disabled={saving}>
+                  {next.primary.label}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {panel === 'lost' && (
+        <form className="panel" onSubmit={markLost}>
+          <h3 style={{ marginTop: 0 }}>Mark this proposal lost</h3>
+          <div className="grid-3">
+            <div className="field">
+              <label htmlFor="lost-reason">Reason</label>
+              <select id="lost-reason" value={lost.reason} onChange={(e) => setLost((l) => ({ ...l, reason: e.target.value }))}>
+                {Object.entries(LOST_REASONS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="lost-competitor">Competitor</label>
+              <input
+                id="lost-competitor"
+                value={lost.competitor}
+                onChange={(e) => setLost((l) => ({ ...l, competitor: e.target.value }))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lost-note">Note</label>
+              <input id="lost-note" value={lost.note} onChange={(e) => setLost((l) => ({ ...l, note: e.target.value }))} />
+            </div>
+          </div>
+          <div className="row-actions">
+            <button className="btn danger" type="submit" disabled={saving}>Mark lost</button>
+            <button type="button" className="btn secondary" onClick={() => setPanel(null)} disabled={saving}>Cancel</button>
+          </div>
+        </form>
+      )}
 
       <div className="panel">
-        {canManage && open ? (
+        <div className="section-head">
+          <h2 style={{ fontSize: 17 }}>Summary</h2>
+          {canManage && open && !editing && (
+            <button type="button" className="btn secondary small-btn" onClick={() => setEditing(true)}>Edit details</button>
+          )}
+        </div>
+        {editing ? (
           <form onSubmit={handleSave}>
-            <div className="grid-3">
-              <div className="field">
-                <label htmlFor="opp-stage">Stage</label>
-                <select id="opp-stage" value={form.stage} onChange={(e) => set('stage', e.target.value)}>
-                  {OPEN_STAGES.map((s) => (
-                    <option key={s} value={s}>{humanize(s)}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="opp-prob">Probability %</label>
-                <input
-                  id="opp-prob"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={form.probability}
-                  onChange={(e) => set('probability', e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="opp-close">Close by</label>
-                <input
-                  id="opp-close"
-                  type="date"
-                  value={form.expected_close_date}
-                  onChange={(e) => set('expected_close_date', e.target.value)}
-                />
-              </div>
-            </div>
             <div className="grid-3">
               <div className="field">
                 <label htmlFor="opp-amount">Expected value ({opp.expected_value.currency})</label>
@@ -365,180 +499,209 @@ export default function OpportunityDetail() {
                   value={form.amount}
                   onChange={(e) => set('amount', e.target.value)}
                 />
+                {mainQuote && <span className="muted small">The main quotation sets this when it changes.</span>}
               </div>
-              <Detail label="Owner">{ownerName(opp.owner.id)}</Detail>
+              <div className="field">
+                <label htmlFor="opp-prob">Chance of winning %</label>
+                <input
+                  id="opp-prob"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={form.probability}
+                  onChange={(e) => set('probability', e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="opp-close">Expected to close by</label>
+                <input
+                  id="opp-close"
+                  type="date"
+                  value={form.expected_close_date}
+                  onChange={(e) => set('expected_close_date', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid-3">
+              <div className="field">
+                <label htmlFor="opp-stage">Stage</label>
+                <select id="opp-stage" value={form.stage} onChange={(e) => set('stage', e.target.value)}>
+                  {OPEN_STAGES.map((s) => (
+                    <option key={s} value={s}>{humanize(s)}</option>
+                  ))}
+                </select>
+                <span className="muted small">Usually moves on its own as quotations are sent and accepted.</span>
+              </div>
             </div>
             <div className="row-actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
-              {!panel && (
-                <button type="button" className="btn danger-outline" onClick={() => setPanel('lost')}>Mark lost…</button>
-              )}
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={saving}
+                onClick={() => {
+                  rebase(opp)
+                  setEditing(false)
+                }}
+              >
+                Cancel
+              </button>
             </div>
           </form>
         ) : (
           <div className="details-grid">
-            <Detail label="Expected value">{formatMoney(opp.expected_value)}</Detail>
-            <Detail label="Probability">{opp.probability}%</Detail>
-            <Detail label="Close by">{formatDate(opp.expected_close_date)}</Detail>
+            <Detail label="Expected value">
+              {formatMoney(opp.expected_value)}
+              {mainQuote && (
+                <div className="muted small">
+                  from <Link to={`/quotations/${mainQuote.id}`}>{mainQuote.quote_no}</Link>
+                </div>
+              )}
+            </Detail>
+            <Detail label="Chance of winning">{opp.probability}%</Detail>
+            <Detail label="Expected to close by">{formatDate(opp.expected_close_date)}</Detail>
             <Detail label="Owner">{ownerName(opp.owner.id)}</Detail>
             {opp.lost_reason && <Detail label="Lost because">{opp.lost_reason}</Detail>}
           </div>
         )}
-
-        {panel === 'lost' && (
-          <form className="inline-panel" onSubmit={markLost}>
-            <h3>Mark lost</h3>
-            <div className="grid-3">
-              <div className="field">
-                <label htmlFor="lost-reason">Reason</label>
-                <select id="lost-reason" value={lost.reason} onChange={(e) => setLost((l) => ({ ...l, reason: e.target.value }))}>
-                  {Object.entries(LOST_REASONS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="lost-competitor">Competitor</label>
-                <input
-                  id="lost-competitor"
-                  value={lost.competitor}
-                  onChange={(e) => setLost((l) => ({ ...l, competitor: e.target.value }))}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="lost-note">Note</label>
-                <input id="lost-note" value={lost.note} onChange={(e) => setLost((l) => ({ ...l, note: e.target.value }))} />
-              </div>
-            </div>
-            <div className="row-actions">
-              <button className="btn danger" type="submit" disabled={saving}>Mark lost</button>
-              <button type="button" className="btn secondary" onClick={() => setPanel(null)} disabled={saving}>Cancel</button>
-            </div>
-          </form>
-        )}
       </div>
 
-      <div className="panel">
-        <div className="section-head">
-          <h2 style={{ fontSize: 17 }}>Quotations</h2>
-          {canAddQuotation && panel !== 'quotation' && (
-            <button className="btn small-btn" onClick={() => setPanel('quotation')}>+ New quotation</button>
+      <div className="tab-bar" role="tablist">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === t.key}
+            className={activeTab === t.key ? 'active' : undefined}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'quotations' && (
+        <div className="panel">
+          <div className="section-head">
+            <div>
+              <h2 style={{ fontSize: 17 }}>Quotations</h2>
+              <p className="muted small" style={{ margin: '4px 0 0' }}>
+                You can offer several options. The ★ main one sets the expected value; accepting one closes the others.
+              </p>
+            </div>
+            {canAddQuotation && panel !== 'quotation' && (
+              <button className="btn small-btn" onClick={startNewQuotation}>+ New quotation</button>
+            )}
+          </div>
+          {emailed && (
+            <div className="alert success" role="status">
+              Sent from {emailed.from_name} &lt;{emailed.from_address}&gt; to {emailed.to.join(', ')}
+              {emailed.cc.length > 0 && <> · Cc {emailed.cc.join(', ')}</>}
+              {emailed.bcc.length > 0 && <> · Bcc {emailed.bcc.join(', ')}</>}
+              {' · '}
+              {emailed.attachments.length
+                ? `${emailed.attachments.length} file${emailed.attachments.length > 1 ? 's' : ''}: ${emailed.attachments.map((f) => f.file_name).join(', ')}`
+                : 'no files'}
+            </div>
+          )}
+          {panel === 'email' && acting && (
+            <CustomerEmailForm
+              key={acting.quote.id}
+              orgId={orgId}
+              {...quotationEmailProps(orgId, acting.quote)}
+              canSeeFiles={hasAccess(me, ACCESS.documents)}
+              onSent={(sent) => {
+                quotationChanged(sent.quotation)
+                setEmailed(sent)
+              }}
+              onCancel={() => setPanel(null)}
+            />
+          )}
+          {panel === 'quotation-action' && acting && (
+            <QuotationActionForm
+              key={`${acting.quote.id}-${acting.action}`}
+              orgId={orgId}
+              quote={acting.quote}
+              action={acting.action}
+              onDone={quotationChanged}
+              onCancel={() => setPanel(null)}
+            />
+          )}
+          {panel === 'quotation' && (
+            <NewQuotation
+              orgId={orgId}
+              opportunityId={opp.id}
+              onCreated={(q) => {
+                invalidate(['quotations', orgId])
+                navigate(`/quotations/${q.id}`)
+              }}
+              onCancel={() => setPanel(null)}
+            />
+          )}
+          {quotations.length === 0 ? (
+            panel !== 'quotation' && (
+              <div className="empty-note">
+                <p style={{ margin: '0 0 10px' }}>No quotations yet. A quotation lists what you offer and the price.</p>
+                {canAddQuotation && (
+                  <button className="btn" onClick={startNewQuotation}>Create the first quotation</button>
+                )}
+              </div>
+            )
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Option</th>
+                  <th aria-label="Main" />
+                  <th>Status</th>
+                  <th>Total</th>
+                  <th>Valid until</th>
+                  <th>Last sent</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {quotations.map((q) => (
+                  <tr key={q.id} onClick={() => navigate(`/quotations/${q.id}`)}>
+                    <td>
+                      {q.name ? (
+                        <>
+                          <div>{q.name}</div>
+                          <div className="muted small mono">{q.quote_no} · rev {q.revision_no}</div>
+                        </>
+                      ) : (
+                        <span className="mono">{q.quote_no} · rev {q.revision_no}</span>
+                      )}
+                    </td>
+                    <td>
+                      {q.is_main && (
+                        <span className="main-star" title="Main quotation: sets the expected value" aria-label="Main quotation">★</span>
+                      )}
+                    </td>
+                    <td>
+                      <StatusBadge status={q.status} label={QUOTATION_STATUS_LABELS[q.status]} />
+                      {q.is_expired && <> <StatusBadge status="expired" label="Expired" /></>}
+                    </td>
+                    <td>{formatMoney(q.totals.grand_total)}</td>
+                    <td>{formatDate(q.valid_until)}</td>
+                    <td>{q.last_sent_at ? formatDate(q.last_sent_at.slice(0, 10)) : '—'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <QuotationActionMenu
+                        actions={actionsFor(q)}
+                        disabled={saving}
+                        onPick={(action) => pickQuotationAction(q, action)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
-        {emailed && (
-          <div className="alert success" role="status">
-            Sent from {emailed.from_name} &lt;{emailed.from_address}&gt; to {emailed.to.join(', ')}
-            {emailed.cc.length > 0 && <> · Cc {emailed.cc.join(', ')}</>}
-            {emailed.bcc.length > 0 && <> · Bcc {emailed.bcc.join(', ')}</>}
-            {' · '}
-            {emailed.attachments.length
-              ? `${emailed.attachments.length} file${emailed.attachments.length > 1 ? 's' : ''}: ${emailed.attachments.map((f) => f.file_name).join(', ')}`
-              : 'no files'}
-          </div>
-        )}
-        {panel === 'email' && acting && (
-          <CustomerEmailForm
-            key={acting.quote.id}
-            orgId={orgId}
-            {...quotationEmailProps(orgId, acting.quote)}
-            canSeeFiles={hasAccess(me, ACCESS.documents)}
-            onSent={(sent) => {
-              quotationChanged(sent.quotation)
-              setEmailed(sent)
-            }}
-            onCancel={() => setPanel(null)}
-          />
-        )}
-        {panel === 'quotation-action' && acting && (
-          <QuotationActionForm
-            key={`${acting.quote.id}-${acting.action}`}
-            orgId={orgId}
-            quote={acting.quote}
-            action={acting.action}
-            onDone={quotationChanged}
-            onCancel={() => setPanel(null)}
-          />
-        )}
-        {panel === 'quotation' && (
-          <NewQuotation
-            orgId={orgId}
-            opportunityId={opp.id}
-            onCreated={(q) => {
-              invalidate(['quotations', orgId])
-              navigate(`/quotations/${q.id}`)
-            }}
-            onCancel={() => setPanel(null)}
-          />
-        )}
-        {quotations.length === 0 ? (
-          <p className="muted small" style={{ margin: 0 }}>No quotations yet.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Option</th>
-                <th aria-label="Main" />
-                <th>Status</th>
-                <th>Total</th>
-                <th>Valid until</th>
-                <th>Last sent</th>
-                <th aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {quotations.map((q) => (
-                <tr key={q.id} onClick={() => navigate(`/quotations/${q.id}`)}>
-                  <td>
-                    {q.name ? (
-                      <>
-                        <div>{q.name}</div>
-                        <div className="muted small mono">{q.quote_no} · rev {q.revision_no}</div>
-                      </>
-                    ) : (
-                      <span className="mono">{q.quote_no} · rev {q.revision_no}</span>
-                    )}
-                  </td>
-                  <td>
-                    {q.is_main && (
-                      <span className="main-star" title="Main quotation: sets the expected value" aria-label="Main quotation">★</span>
-                    )}
-                  </td>
-                  <td>
-                    <StatusBadge status={q.status} label={QUOTATION_STATUS_LABELS[q.status]} />
-                    {q.is_expired && <> <StatusBadge status="expired" label="Expired" /></>}
-                  </td>
-                  <td>{formatMoney(q.totals.grand_total)}</td>
-                  <td>{formatDate(q.valid_until)}</td>
-                  <td>{q.last_sent_at ? formatDate(q.last_sent_at.slice(0, 10)) : '—'}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <QuotationActionMenu
-                      actions={quotationActions(q, { canManage, canApprove, canCreateContract, opportunityOpen: open })}
-                      disabled={saving}
-                      onPick={(action) => pickQuotationAction(q, action)}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {currentQuote && hasAccess(me, ACCESS.documents) && (
-        <DocumentPanel
-          key={currentQuote.id}
-          orgId={orgId}
-          subjectType={DOCUMENT_SUBJECTS.quotation}
-          subjectId={currentQuote.id}
-          title={`Quotation documents · ${currentQuote.quote_no} rev ${currentQuote.revision_no}`}
-          canAttach={
-            canManage && hasAccess(me, ACCESS.uploadDocuments) && !QUOTATION_CLOSED_TO_FILES.includes(currentQuote.status)
-          }
-          defaultCategory="quotation"
-        />
       )}
 
-      {canSeeContracts && (accepted || contracts.length > 0) && (
+      {activeTab === 'contract' && (
         <div className="panel">
           <div className="section-head">
             <h2 style={{ fontSize: 17 }}>Contract</h2>
@@ -546,7 +709,7 @@ export default function OpportunityDetail() {
               <button className="btn small-btn" onClick={() => setPanel('contract')}>Create contract</button>
             )}
           </div>
-          {panel === 'contract' && (
+          {panel === 'contract' && accepted && (
             <ContractForm
               orgId={orgId}
               quotation={accepted}
@@ -558,7 +721,13 @@ export default function OpportunityDetail() {
             />
           )}
           {contracts.length === 0 ? (
-            panel !== 'contract' && <p className="muted small" style={{ margin: 0 }}>The quotation was accepted. Create the contract next.</p>
+            panel !== 'contract' && (
+              <p className="muted small" style={{ margin: 0 }}>
+                {accepted
+                  ? 'The quotation was accepted. Create the contract next.'
+                  : 'The contract comes after the customer accepts a quotation.'}
+              </p>
+            )
           ) : (
             contracts.map((c) => (
               <div key={c.id} className="section-head" style={{ margin: 0 }}>
@@ -572,7 +741,7 @@ export default function OpportunityDetail() {
                     </span>
                   )}
                 </p>
-                {hasAccess(me, ACCESS.manageContracts) && CONTRACT_EMAILABLE.includes(c.status) && emailingContract?.id !== c.id && (
+                {canManageContracts && CONTRACT_EMAILABLE.includes(c.status) && emailingContract?.id !== c.id && (
                   <button
                     className="btn secondary small-btn"
                     onClick={() => {
@@ -610,7 +779,21 @@ export default function OpportunityDetail() {
         </div>
       )}
 
-      {hasAccess(me, ACCESS.activities) && (
+      {activeTab === 'files' && canSeeFiles && (
+        <DocumentPanel
+          key={currentQuote.id}
+          orgId={orgId}
+          subjectType={DOCUMENT_SUBJECTS.quotation}
+          subjectId={currentQuote.id}
+          title={`Quotation documents · ${currentQuote.quote_no} rev ${currentQuote.revision_no}`}
+          canAttach={
+            canManage && hasAccess(me, ACCESS.uploadDocuments) && !QUOTATION_CLOSED_TO_FILES.includes(currentQuote.status)
+          }
+          defaultCategory="quotation"
+        />
+      )}
+
+      {activeTab === 'activity' && canSeeActivity && (
         <ActivityTimeline key={timelineKey} orgId={orgId} subjectType={SUBJECTS.opportunity} subjectId={opp.id} />
       )}
     </div>

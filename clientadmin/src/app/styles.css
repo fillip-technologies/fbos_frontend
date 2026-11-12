@@ -1761,3 +1761,18 @@ a.ins-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); tex
 .ceo-alerts li { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .ceo-alerts li:last-child { border-bottom: none; }
 .ceo-alerts li::before { content: '▲'; color: #d03b3b; font-size: 10px; margin-right: 8px; }
+
+/* Opportunity page: the deal's five steps and the one thing to do next */
+.deal-flow { padding: 14px; }
+.deal-here { font-weight: 500; opacity: 0.8; }
+.deal-next {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px;
+  margin-top: 14px; padding: 14px 16px; border-radius: var(--r); background: var(--brand-tint); color: var(--blue-fg);
+  border-left: 3px solid var(--brand);
+}
+.deal-next-body { flex: 1; min-width: 240px; }
+.deal-next-text { margin: 4px 0 0; font-size: 15px; font-weight: 550; color: var(--ink); line-height: 1.4; }
+.deal-next-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.deal-next.is-done { background: var(--green-bg); color: var(--green-fg); border-left-color: var(--green-fg); }
+.deal-next.is-lost { background: var(--gray-bg); color: var(--gray-fg); border-left-color: var(--gray-fg); }
+.empty-note { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: var(--r); }
