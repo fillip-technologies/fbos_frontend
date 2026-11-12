@@ -93,6 +93,7 @@ const LABELS = {
   returns: 'Returns',
   capital_gain: 'Capital gains',
   dividend: 'Dividends',
+  investment_in_companies: 'From companies we invest in',
   rent: 'Rent',
   hardware: 'Hardware',
   software: 'Software',
@@ -114,6 +115,20 @@ const LABELS = {
   cancelled: 'Cancelled',
 }
 export const label = (key) => LABELS[key] ?? String(key).replace(/_/g, ' ')
+
+// Revenue's business segments (one per invoice line, the first that matches).
+const BUSINESS_SEGMENTS = {
+  associate: 'Associate companies’ business',
+  amc_hardware: 'AMC · hardware',
+  amc_services: 'AMC · services',
+  hardware_sales: 'Hardware sales',
+  government_india: 'Government · India',
+  government_international: 'Government · International',
+  private_india: 'Private · India',
+  private_international: 'Private · International',
+  other: 'Other',
+}
+export const businessSegmentLabel = (key) => BUSINESS_SEGMENTS[key] ?? label(key)
 
 // "Government · India": a customer segment, sector by market.
 export const segmentLabel = (s) => `${label(s.sector)} · ${label(s.market)}`

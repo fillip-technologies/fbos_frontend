@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { ceoApi } from '@/features/ceo/api.js'
-import { change, count, HEALTH_TEXT, label, money, num, periodFor, RANGES, REASON_TEXT, segmentLabel, trendTotal } from '@/features/ceo/utils.js'
+import { businessSegmentLabel, change, count, HEALTH_TEXT, label, money, num, periodFor, RANGES, REASON_TEXT, segmentLabel, trendTotal } from '@/features/ceo/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useTaxEntries } from '@/features/tax/useTaxConfig.js'
 import { useLookup, useQuery } from '@/shared/api/useQuery.js'
@@ -112,6 +112,11 @@ function Screen({ screen, names }) {
           <CustomersCard key="customers" section={screen.revenue} names={names} />
           <AmcCard key="amc" section={screen.revenue} fmt={fmt} />
         </Row>
+        <Row spans={[4, 4, 4]}>
+          <ProductsCard key="products" section={screen.revenue} fmt={fmt} />
+          <BusinessSegmentCard key="business-segment" section={screen.revenue} fmt={fmt} />
+          <ProjectsByStateCard key="projects-by-state" card={screen.revenue.projects_by_state} names={names} />
+        </Row>
         <Row spans={[12]}>
           <AssociatesCard key="associates" section={screen.associates} fmt={fmt} />
         </Row>
@@ -140,8 +145,9 @@ function Screen({ screen, names }) {
           <ProcurementCard key="procurement" section={screen.procurement} fmt={fmt} />
           <FieldCard key="field" field={screen.field} procurement={screen.procurement} people={screen.people} />
         </Row>
-        <Row spans={[6, 6]}>
+        <Row spans={[4, 4, 4]}>
           <PeopleCard key="people" section={screen.people} fmt={fmt} />
+          <FreelancersCard key="freelancers" card={screen.people.freelancer_details} />
           <ProjectsCard key="projects" section={screen.delivery} health={screen.health} />
         </Row>
       </Section>
@@ -266,11 +272,22 @@ function reasonText(reason) {
   return 'These figures can’t be loaded right now. Try Refresh in a moment.'
 }
 
-function BucketCard({ title, subtitle, state, rows, name, fmt, to }) {
+// A breakdown; when the gateway gives each row's previous period, the table shows it and each bar
+// says how it moved.
+function BucketCard({ title, subtitle, state, rows, name, fmt, to, higherIsBetter = true }) {
+  const compared = rows.some((r) => r.previous !== null && r.previous !== undefined)
   return (
     <Card title={title} subtitle={subtitle} state={state} to={to}
-      table={{ columns: ['', 'Amount'], rows: rows.map((r) => [name(r.key), fmt(r.amount)]) }}>
-      <BarList fill format={fmt} rows={rows.slice(0, 8).map((r) => ({ key: r.key, label: name(r.key), value: num(r.amount) }))} />
+      table={{
+        columns: compared ? ['', 'This period', 'Previous'] : ['', 'Amount'],
+        rows: rows.map((r) => [name(r.key), fmt(r.amount), ...(compared ? [fmt(r.previous)] : [])]),
+      }}>
+      <BarList fill format={fmt} rows={rows.slice(0, 8).map((r) => ({
+        key: r.key,
+        label: name(r.key),
+        value: num(r.amount),
+        sub: compared ? change(r.amount, r.previous, { higherIsBetter })?.text : undefined,
+      }))} />
     </Card>
   )
 }
@@ -328,6 +345,7 @@ function AmcCard({ section, fmt }) {
           ['Customers on AMC', count(amc.clients)],
           ['Renewals due in 30 days', count(amc.renewals_due), amc.renewals_due > 0 ? 'warn' : ''],
           ['AMC revenue this period', fmt(amc.revenue)],
+          change(amc.revenue, amc.revenue_previous) && ['Against previous period', change(amc.revenue, amc.revenue_previous).text, change(amc.revenue, amc.revenue_previous).tone],
         ]} />
       )}
     </Card>
@@ -374,7 +392,10 @@ function InvestmentsCard({ section, fmt }) {
       table={{
         columns: ['', 'Amount'],
         rows: [
-          ...(section.income_by_type ?? []).map((b) => [`Income · ${label(b.key)}`, fmt(b.amount)]),
+          ...(section.income_by_type ?? []).map((b) => [
+            `Income · ${label(b.key)}`,
+            [fmt(b.amount), change(b.amount, b.previous)?.text].filter(Boolean).join(' · '),
+          ]),
           ...(holdings?.by_type ?? []).map((b) => [`Invested · ${label(b.key)}`, fmt(b.amount)]),
         ],
       }}>
@@ -386,7 +407,10 @@ function InvestmentsCard({ section, fmt }) {
         holdings && ['Current value', fmt(holdings.current_value), holdings.current_value < holdings.principal ? 'bad' : 'good'],
         holdings && holdings.maturing_soon > 0 && ['Maturing within 30 days', count(holdings.maturing_soon), 'warn'],
       ]} />
-      <BarList format={fmt} rows={(holdings?.by_type ?? []).map((b) => ({ key: b.key, label: label(b.key), value: num(b.amount) }))} />
+      <BarList format={fmt} rows={(section.income_by_type ?? []).map((b) => ({
+        key: `income-${b.key}`, label: label(b.key), value: num(b.amount), tipLabel: 'Income', sub: change(b.amount, b.previous)?.text,
+      }))} emptyText="No other income in this period." />
+      <BarList format={fmt} rows={(holdings?.by_type ?? []).map((b) => ({ key: b.key, label: label(b.key), value: num(b.amount), tipLabel: 'Invested' }))} />
     </Card>
   )
 }
@@ -415,6 +439,7 @@ function ProcurementCard({ section, fmt }) {
         ],
         ['Approved orders', count(section.committed_count)],
         ['Goods received', count(section.goods_receipts)],
+        ...procurementBudgetFacts(section.budget, fmt),
       ]} />
       {section.by_category && section.by_category.length > 0 && (
         <BarList format={fmt} rows={section.by_category.slice(0, 5).map((c) => ({ key: c.key, label: c.key, value: num(c.amount) }))} />
@@ -423,14 +448,44 @@ function ProcurementCard({ section, fmt }) {
   )
 }
 
+// Committed purchase orders against the procurement budget (the year's `procurement` budget lines
+// spread over the period). Absent without the financials permission.
+function procurementBudgetFacts(budget, fmt) {
+  if (!budget) return []
+  if (!budget.available) {
+    const why = budget.reason === 'not_set_up' ? 'No procurement line in this year’s budgets' : REASON_TEXT[budget.reason] ?? REASON_TEXT.unavailable
+    return [['Procurement budget', why]]
+  }
+  const tone = budget.over_budget > 0 ? 'bad' : budget.used_pct !== null && budget.used_pct > 85 ? 'warn' : 'good'
+  return [
+    ['Procurement budget for the period', fmt(budget.budget)],
+    budget.used_pct !== null && ['Budget used', `${budget.used_pct}%`, tone],
+    budget.over_budget > 0 && ['Over budget by', fmt(budget.over_budget), 'bad'],
+  ]
+}
+
+// Today's visits and where the technicians are. Before the inventory service gives these, the
+// company-wide attendance stands in, as it did.
 function FieldCard({ field, procurement, people }) {
+  const visits = field.visits_today
+  const today = field.technicians_today
+  const everyone = people.available && !today?.available
   return (
     <Card title="Hardware & field team" state={field} to="/inventory/issues">
       <Facts items={[
         ['Technicians', count(field.technicians)],
         ['Available now', count(field.technicians_available)],
-        people.available && ['On the field today', count(people.working_today?.field)],
-        people.available && ['At the office today', count(people.working_today?.office)],
+        visits && ['Visits today · done', count(visits.completed)],
+        visits && ['In progress / still to come', `${count(visits.in_progress)} / ${count(visits.pending)}`],
+        visits && ['Late (not started after their time)', count(visits.escalated), visits.escalated > 0 ? 'bad' : ''],
+        today?.available && ['Technicians in the field today', count(today.in_field)],
+        today?.available && ['Technicians at the office today', count(today.at_office)],
+        today?.available && ['Technicians on leave today', count(today.on_leave), today.on_leave > 0 ? 'warn' : ''],
+        today?.available && today.not_marked > 0 && ['Technicians not marked in today', count(today.not_marked)],
+        today?.available && today.unlinked > 0 && ['Technicians without an FBOS employee record', count(today.unlinked), 'warn'],
+        today && !today.available && today.reason !== 'no_access' && ['Technicians’ attendance', REASON_TEXT[today.reason] ?? REASON_TEXT.unavailable],
+        everyone && ['On the field today (everyone)', count(people.working_today?.field)],
+        everyone && ['At the office today (everyone)', count(people.working_today?.office)],
         people.available && ['On leave today (everyone)', count(people.on_leave_today)],
         procurement.available && ['Devices installed this period', count(procurement.installations)],
         procurement.available && ['New installations', count(procurement.new_installs)],
@@ -550,6 +605,83 @@ function AssociatesCard({ section, fmt }) {
           {money_ && <BarList format={fmt} rows={rows.map((r) => ({ key: r.organization_id, label: r.name, value: num(r.margin), sub: `${count(r.projects)} projects` }))} />}
         </>
       )}
+    </Card>
+  )
+}
+
+// ---------- Design-gap cards: products, business segments, projects by state, freelancers ----------
+function ProductsCard({ section, fmt }) {
+  const products = section.top_products ?? []
+  const units = section.hardware_units
+  const withMoney = products.some((p) => p.revenue !== null && p.revenue !== undefined)
+  const unitsChange = units ? change(units.amount, units.previous) : null
+  return (
+    <Card title="Hardware & top products" subtitle={withMoney ? 'Best sellers by revenue in the period' : 'Best sellers in the period, by units'}
+      state={section} to="/offerings"
+      table={{
+        columns: withMoney ? ['Product', 'Units', 'Revenue'] : ['Product', 'Units'],
+        rows: products.map((p) => [p.name, count(p.units), ...(withMoney ? [fmt(p.revenue)] : [])]),
+      }}>
+      {units && (
+        <Facts items={[
+          ['Hardware units sold', count(units.amount)],
+          unitsChange && ['Against previous period', unitsChange.text, unitsChange.tone],
+        ]} />
+      )}
+      <BarList format={withMoney ? fmt : count} emptyText="No products sold in this period."
+        rows={products.slice(0, 6).map((p) => ({
+          key: p.name,
+          label: p.name,
+          value: withMoney ? num(p.revenue) : num(p.units),
+          sub: withMoney ? `${count(p.units)} units` : undefined,
+        }))} />
+    </Card>
+  )
+}
+
+function BusinessSegmentCard({ section, fmt }) {
+  const rows = section.by_business_segment ?? []
+  const total = rows.reduce((sum, r) => sum + num(r.amount), 0)
+  const share = (amount) => (total > 0 ? `${Math.round((num(amount) / total) * 100)}% of revenue` : undefined)
+  return (
+    <Card title="Revenue by business" subtitle="Each invoice line in one business: associates, AMC, hardware, then customer type"
+      state={section} to="/invoices"
+      table={{ columns: ['Business', 'Revenue', 'Share'], rows: rows.map((r) => [businessSegmentLabel(r.key), fmt(r.amount), share(r.amount) ?? '']) }}>
+      <BarList fill format={fmt} emptyText="No revenue in this period."
+        rows={rows.map((r) => ({ key: r.key, label: businessSegmentLabel(r.key), value: num(r.amount), sub: share(r.amount) }))} />
+    </Card>
+  )
+}
+
+function ProjectsByStateCard({ card, names }) {
+  const rows = card?.rows ?? []
+  const state = card ?? { available: false, reason: 'unavailable' }
+  const name = (key) => (key === 'none' ? 'No customer or no state' : names.place(key))
+  return (
+    <Card title="Running projects by state" subtitle="By the customer’s billing state" state={state} to="/projects"
+      table={{ columns: ['State', 'Projects'], rows: rows.map((r) => [name(r.key), count(r.count)]) }}>
+      <BarList fill format={count} emptyText="No running projects."
+        rows={rows.slice(0, 8).map((r) => ({ key: r.key, label: name(r.key), value: r.count, tipLabel: 'Projects' }))} />
+    </Card>
+  )
+}
+
+function FreelancersCard({ card }) {
+  const state = card ?? { available: false, reason: 'unavailable' }
+  const categories = card?.top_categories ?? []
+  return (
+    <Card title="Freelancers" subtitle="Who has work now: an open task or a running project" state={state} to="/people/employees"
+      table={{ columns: ['Category', 'Freelancers'], rows: categories.map((c) => [c.key === 'none' ? 'Not recorded' : c.key, count(c.count)]) }}>
+      {card?.available && (
+        <Facts items={[
+          ['Freelancers', count(card.total)],
+          ['With work now', count(card.active)],
+          ['Running projects they are on', count(card.projects)],
+          card.without_login > 0 && ['Without a login (work not tracked)', count(card.without_login), 'warn'],
+        ]} />
+      )}
+      <BarList format={count} emptyText="No freelancers recorded."
+        rows={categories.map((c) => ({ key: c.key, label: c.key === 'none' ? 'Not recorded' : c.key, value: c.count, tipLabel: 'Freelancers' }))} />
     </Card>
   )
 }
