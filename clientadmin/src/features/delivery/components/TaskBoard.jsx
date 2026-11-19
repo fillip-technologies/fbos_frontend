@@ -238,7 +238,7 @@ function BoardDialog({ orgId, dialog, taskType, names, busy, error, onClose, fin
   return (
     <Dialog title={`${task.code} · ${task.title}`} onClose={onClose} wide={kind === 'submit'}>
       {kind === 'submit' && (
-        <SubmitForm task={task} taskType={taskType} fields={fields} {...props} onSubmit={(body) => finish(() => tasksApi.submit(orgId, task, body))} />
+        <SubmitForm orgId={orgId} task={task} taskType={taskType} fields={fields} {...props} onSubmit={(body) => finish(() => tasksApi.submit(orgId, task, body))} />
       )}
       {kind === 'block' && (
         <ReasonForm

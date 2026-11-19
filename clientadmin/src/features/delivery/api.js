@@ -243,6 +243,9 @@ export const lookupsApi = {
   // Needs delivery.task.write or delivery.handover.write (not identity.user.read).
   assignablePeople: (orgId, unitId, { signal } = {}) =>
     api.get(`${DELIVERY}/assignable-people?unit_id=${encodeURIComponent(unitId)}`, { headers: inOrg(orgId), signal }),
+  // Who may review a personal task: everyone active in the company but you ({ data: [{ id, name }] }).
+  // Needs only reading your own tasks, which everyone holds.
+  taskReviewers: (orgId, { signal } = {}) => api.get(`${DELIVERY}/task-reviewers`, { headers: inOrg(orgId), signal }),
   verticals: (orgId, { signal } = {}) => listAll(`${IDENTITY}/verticals`, orgId, { status: 'active' }, { signal }),
   customers: (orgId, { signal } = {}) => customersApi.listAll(orgId, { signal }),
   // Leads to attach a task to (a sales touch is about a lead): one page, newest first.

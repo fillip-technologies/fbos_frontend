@@ -199,7 +199,7 @@ function FocusedTask({ orgId, task, taskType, names, pool, position, total, onSk
           <button className="btn secondary" onClick={onSkip}>Skip</button>
         </div>
       ) : logging ? (
-        <SubmitForm task={task} taskType={taskType} fields={fields} busy={busy} error={error} onCancel={() => setLogging(false)} onSubmit={submit} />
+        <SubmitForm orgId={orgId} task={task} taskType={taskType} fields={fields} busy={busy} error={error} onCancel={() => setLogging(false)} onSubmit={submit} />
       ) : (
         <div className="row-actions">
           {task.status === 'assigned' && !taskType?.outcomes?.length && (

@@ -6,6 +6,7 @@ import { checkFields, toAttributes, toFormValues } from '@/shared/utils/customFi
 import { formatDateTime } from '@/features/delivery/utils.js'
 import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
+import useTaskReviewers, { isPersonalTask } from '@/features/delivery/useTaskReviewers.js'
 
 // The forms a task's steps need, shared by the task page, the board and the queue.
 // Each takes `busy`, `error`, `onCancel` and calls `onSubmit(body)` with the request body.
@@ -42,8 +43,13 @@ export function ReasonForm({ label, action, busy, error, onCancel, onSubmit, wit
 
 // Submitting: how it went (the type's outcomes), the fields it needs before submitting, a
 // note, and when to follow up. An outcome that schedules a follow-up proposes its date.
-export function SubmitForm({ task, taskType, fields, busy, error, onCancel, onSubmit }) {
+// Your own task (no team) may name its reviewer here; one is needed when its kind goes for review.
+export function SubmitForm({ orgId, task, taskType, fields, busy, error, onCancel, onSubmit }) {
   const outcomes = taskType?.outcomes ?? []
+  const choosesReviewer = isPersonalTask(task) && !task.reviewer
+  const reviewers = useTaskReviewers(orgId, choosesReviewer)
+  const [reviewer, setReviewer] = useState('')
+  const goesForReview = taskType?.requires_review || Boolean(task.reviewer) || Boolean(reviewer)
   const submitFields = fields.filter((f) => f.required_on_submit || (!f.custom && !f.required))
   const [outcome, setOutcome] = useState('')
   const [values, setValues] = useState(() => toFormValues(submitFields, task.attributes))
@@ -60,6 +66,7 @@ export function SubmitForm({ task, taskType, fields, busy, error, onCancel, onSu
     e.preventDefault()
     const found = checkFields(submitFields, values, 'submit')
     if (outcomes.length && !outcome) found.outcome = 'Choose how it went.'
+    if (choosesReviewer && taskType?.requires_review && !reviewer) found.reviewer_user_id = 'Choose who will review it.'
     setProblems(found)
     if (Object.keys(found).length) return
     const attributes = toAttributes(submitFields, values)
@@ -67,6 +74,7 @@ export function SubmitForm({ task, taskType, fields, busy, error, onCancel, onSu
     if (Object.keys(attributes).length) body.attributes = attributes
     if (skipFollowUp) body.skip_follow_up = true
     else if (followUp) body.follow_up_at = new Date(`${followUp}T09:00:00`).toISOString()
+    if (choosesReviewer && reviewer) body.reviewer_user_id = reviewer
     onSubmit(body)
   }
 
@@ -99,6 +107,25 @@ export function SubmitForm({ task, taskType, fields, busy, error, onCancel, onSu
         </div>
       )}
       <CustomFieldInputs fields={submitFields} values={values} onChange={setValues} errors={fieldErrors} stage="submit" idPrefix="submit" />
+      {choosesReviewer && (
+        <div className="field">
+          <label htmlFor="submit_reviewer">Reviewer{taskType?.requires_review ? ' *' : ''}</label>
+          <select id="submit_reviewer" value={reviewer} onChange={(e) => setReviewer(e.target.value)}>
+            <option value="">{taskType?.requires_review ? '— Choose —' : '— No review, it’s done —'}</option>
+            {reviewers.people.map((u) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+          <div className="hint">
+            {taskType?.requires_review ? 'This kind of task goes for review: they check it and pass it or send it back.' : 'Optional: someone checks it before it counts as done.'}
+          </div>
+          {fieldErrors.reviewer_user_id && <div className="field-error">{fieldErrors.reviewer_user_id}</div>}
+          {reviewers.error && <div className="hint">The company’s people couldn’t be loaded. Try again shortly.</div>}
+        </div>
+      )}
+      {!choosesReviewer && isPersonalTask(task) && task.reviewer && (
+        <p className="hint">Goes to {task.reviewer.name || 'your reviewer'} for review.</p>
+      )}
       <div className="field">
         <label htmlFor="submit_note">Note</label>
         <input id="submit_note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was done, anything to know" />
@@ -126,7 +153,7 @@ export function SubmitForm({ task, taskType, fields, busy, error, onCancel, onSu
       </div>
       <div className="row-actions">
         <button className="btn" type="submit" disabled={busy} aria-busy={busy}>
-          {taskType?.requires_review ? 'Submit for review' : 'Complete'}
+          {goesForReview ? 'Submit for review' : 'Complete'}
         </button>
         <button className="btn secondary" type="button" onClick={onCancel}>Close</button>
       </div>
