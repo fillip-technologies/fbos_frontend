@@ -50,7 +50,7 @@ export default function Tasks() {
           <OrgSwitcher />
           {hasAccess(me, ACCESS.deliverySetup) && <Link className="btn secondary" to="/task-types">Task types</Link>}
           {hasAccess(me, ACCESS.requestWork) && <Link className="btn secondary" to="/requests/new">Ask another team</Link>}
-          {hasAccess(me, ACCESS.manageTasks) && <Link className="btn" to="/tasks/new">+ New task</Link>}
+          {hasAccess(me, ACCESS.createTasks) && <Link className="btn" to="/tasks/new">+ New task</Link>}
         </div>
       </div>
 
@@ -122,14 +122,14 @@ function TeamQueue({ orgId, names }) {
 }
 
 function TaskList({ orgId, names, taskTypes, mine = false }) {
-  const [filters, setFilters] = useState({ ...NO_TASK_FILTERS, status: '', overdue: false })
+  const [filters, setFilters] = useState({ ...NO_TASK_FILTERS, status: '', overdue: false, personal: false })
   const [showFinished, setShowFinished] = useState(false)
   const [cursor, setCursor] = useState(undefined)
   const [stack, setStack] = useState([])
 
   // My tasks: what's still to do unless asked otherwise. All tasks: as filtered.
   const status = filters.status || (mine && !showFinished ? OPEN_TASK_STATUSES : '')
-  const query = { ...filters, status, overdue: filters.overdue || '', ...(mine ? { assignee: 'me' } : {}) }
+  const query = { ...filters, status, overdue: filters.overdue || '', personal: filters.personal || '', ...(mine ? { assignee: 'me' } : {}) }
   const { data, error, loading, refreshing, reload } = useQuery(
     ['tasks', orgId, { cursor, query }],
     ({ signal }) => tasksApi.list(orgId, { limit: 25, cursor, ...query }, { signal }),
@@ -164,6 +164,10 @@ function TaskList({ orgId, names, taskTypes, mine = false }) {
             Overdue only
           </label>
         )}
+        <label className="inline-check" title="Tasks with no team, kept by whoever added them">
+          <input type="checkbox" checked={filters.personal} onChange={(e) => setFilter('personal', e.target.checked)} />
+          Personal only
+        </label>
       </TaskFilterBar>
 
       <ErrorBanner error={error} onRetry={reload} />

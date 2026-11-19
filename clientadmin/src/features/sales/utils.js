@@ -1,6 +1,14 @@
 export const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'converted', 'disqualified']
 // Still being worked; converted (a quotation accepted) and disqualified are closed.
 export const OPEN_LEAD_STATUSES = ['new', 'contacted', 'qualified']
+
+// Delivery's task statuses and their labels (as delivery/utils.js words them), for the tasks
+// about a lead: sales links to delivery by route only.
+export const OPEN_TASK_STATUSES = ['draft', 'open', 'assigned', 'in_progress', 'blocked', 'submitted', 'in_review', 'rework']
+export const TASK_STATUS_LABELS = {
+  draft: 'Draft', open: 'Open', assigned: 'Assigned', in_progress: 'In progress', blocked: 'Blocked',
+  submitted: 'Submitted', in_review: 'In review', rework: 'Needs rework', done: 'Done', cancelled: 'Cancelled',
+}
 // The person who handles a lead, as every lead screen calls them.
 export const OUTREACH_LABEL = 'Sales outreach by'
 // A lead's history (GET /leads/{id}/events), in words.

@@ -1,5 +1,5 @@
 import { api } from '@/shared/api/http.js'
-import { IDENTITY, REVENUE } from '@/shared/api/paths.js'
+import { DELIVERY, IDENTITY, REVENUE } from '@/shared/api/paths.js'
 import { inOrg, listAll, pageQuery } from '@/shared/api/query.js'
 
 const ifMatch = (orgId, version) => inOrg(orgId, { 'If-Match': `"${version}"` })
@@ -21,7 +21,11 @@ export const leadsApi = {
   // { to_user_id | null (back to unclaimed), reason }
   transfer: (orgId, id, version, body) => api.post(`${REVENUE}/leads/${id}/transfer`, body, { headers: ifMatch(orgId, version) }),
   // { summary, requirements?, expectations?, next_action?, follow_up_on?, occurred_at? } → { lead, activity }
+  // `task`: { mode: 'record' | 'complete' | 'none', task_id, follow_up }. Answers { lead, activity, task, follow_up_task }.
   logCall: (orgId, id, body) => api.post(`${REVENUE}/leads/${id}/calls`, body, { headers: inOrg(orgId) }),
+  // The tasks about this lead (delivery), newest first; `opts` narrows them (assignee: 'me', status: [...]).
+  tasks: (orgId, id, opts = {}, { signal } = {}) =>
+    api.get(`${DELIVERY}/tasks?${pageQuery({ subject_type: 'revenue.lead', subject_id: id, limit: 50, ...opts })}`, { headers: inOrg(orgId), signal }),
   // { existing_client_id | new_client, opportunity: { name, expected_value?, expected_close_date } }
   //   → { lead, client, opportunity, client_created }
   qualify: (orgId, id, version, body) => api.post(`${REVENUE}/leads/${id}/qualify`, body, { headers: ifMatch(orgId, version) }),

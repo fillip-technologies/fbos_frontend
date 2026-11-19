@@ -324,3 +324,17 @@ Plan: `../LEAD_WORKFLOW_PLAN.md` (one level above both repos). Phase 1 of 4.
 - **Start the project** (opportunity next step, after the quotation is accepted): `/projects/new?customer&name&opportunity&deal&contract&quotation&proposal`. The form adds workstream rows (team, manager, vertical, template). Afterwards the proposal's and quotation's documents are linked to the project with `POST /document-link-copies`.
 - **Workstreams**: `GET /work-units?top_level=true` for the projects list, `?parent_id=` for a project's workstreams (Workstreams tab, `/projects/new?parent=`). Responses carry `parent` and `workstream_count`. `progress_pct` is now done tasks over tasks, a project's including its workstreams'.
 - Salespeople who start projects need `delivery.work_unit.write` in their role (an access-editor change, not code).
+
+## Calls linked to tasks, personal tasks (2026-11-19)
+
+Plan: `../TASK_ACTIVITY_PLAN.md`.
+
+- **Log a call** (`LogCall`) has a Task choice, sent as `task: { mode, task_id, follow_up }` on `POST /leads/{id}/calls`:
+  - `record` (default when the person may add tasks): delivery records the call as a done Call task of theirs, about the lead, with no team;
+  - `complete`: finishes one of their open tasks about the lead (`leadsApi.tasks(…, { assignee: 'me', status })`);
+  - `none`: no task.
+  - With a follow-up date, "Add a follow-up task" (ticked) adds an open task due that day, titled with the next action.
+  - Revenue asks delivery (`/internal/tasks`, as the user) before saving the call; a refusal saves nothing (`TASK_NOT_ABOUT_RECORD`, `TASK_NEEDS_REVIEW`, `NOT_ASSIGNEE`, `DELIVERY_SERVICE_UNAVAILABLE`). The call's activity names its task as `source`.
+- The lead page has a **Tasks** section (`LeadTasks`, `ACCESS.tasks`): the tasks about the lead, open first, with "+ Add task".
+- **Personal tasks:** a task with no team is its creator's own (assigned to them, no reviewer). `delivery.task.personal` (in the member preset) lets anyone add, edit and cancel their own; `ACCESS.createTasks` opens the New task form for it or `delivery.task.write`. The form's Team offers "Just for me (no team)" (the only choice without task write); task lists have **Personal only** (`?personal=true`).
+

@@ -129,6 +129,10 @@ export const ACCESS = {
   decideChangeRequests: { permissions: ['delivery.change_request.approve'] },
   tasks: { permissions: ['delivery.task.read'] },
   manageTasks: { permissions: ['delivery.task.write'] },
+  // Keep your own tasks with no team (a personal to-do list); members have it.
+  personalTasks: { permissions: ['delivery.task.personal'] },
+  // The New task form: task managers, or anyone adding a personal task.
+  createTasks: { anyPermissions: ['delivery.task.write', 'delivery.task.personal'] },
   // Ask another team for work it takes requests for, and follow your requests.
   requestWork: { permissions: ['delivery.task.request'] },
   reviewTasks: { permissions: ['delivery.task.review'] },

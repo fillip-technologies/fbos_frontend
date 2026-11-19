@@ -12,6 +12,7 @@ import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import useTaskTypes, { useTaskFields } from '@/features/delivery/useTaskTypes.js'
 import { SUBJECT_TYPES, TASK_PRIORITY_LABELS, dueAtFromDate, parseDuration } from '@/features/delivery/utils.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import { invalidate, useLookup, useQuery } from '@/shared/api/useQuery.js'
@@ -25,12 +26,14 @@ export default function TaskCreate() {
   const [params] = useSearchParams()
   const { user: me } = useAuth()
   const { orgId, activeOrg } = useActiveOrg()
+  // Task managers give work to teams and people; anyone else adds personal tasks (no team, just them).
+  const canManage = hasAccess(me, ACCESS.manageTasks)
   const names = useDeliveryNames(orgId)
   const enabled = Boolean(orgId)
   const { active: taskTypes, byCode } = useTaskTypes(orgId)
   const { data: projects = [] } = useLookup(['projects', orgId, 'options'], ({ signal }) => projectsApi.options(orgId, { signal }), { enabled })
 
-  const initialSubject = params.get('lead') ? 'lead' : 'project'
+  const initialSubject = params.get('lead') ? 'lead' : (params.get('project') || canManage) ? 'project' : 'none'
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -38,6 +41,7 @@ export default function TaskCreate() {
     subject_kind: initialSubject, // 'project' | 'lead' | 'none'
     project_id: params.get('project') || '',
     lead_id: params.get('lead') || '',
+    personal: !canManage || params.get('personal') === '1',
     owning_unit_id: '',
     assignee_user_id: '',
     reviewer_user_id: '',
@@ -77,8 +81,9 @@ export default function TaskCreate() {
     { enabled: enabled && Boolean(form.task_type_code) && (!isProjectTask || Boolean(chosenProject)) }
   )
   const routedUnitId = routed?.unit?.id || ''
-  // A chosen team, else the one the rules give this work, else the project's delivering team.
-  const owningUnitId = form.owning_unit_id || routedUnitId || chosenProject?.owning_unit?.id || ''
+  // A chosen team, else the one the rules give this work, else the project's delivering team;
+  // none for a personal task.
+  const owningUnitId = form.personal ? '' : (form.owning_unit_id || routedUnitId || chosenProject?.owning_unit?.id || '')
   const taskUnitId = isProjectTask ? null : (owningUnitId || null)
   const fields = useTaskFields(orgId, taskType, taskUnitId, taskVerticalId, form)
   const createFields = fields.filter((f) => !f.required_on_submit)
@@ -129,7 +134,6 @@ export default function TaskCreate() {
       const body = {
         title: form.title.trim(),
         task_type_code: form.task_type_code,
-        owning_unit_id: owningUnitId,
         priority: form.priority,
         checklist: form.checklist.split('\n').map((line) => line.trim()).filter(Boolean).map((text) => ({ text })),
         labels: form.labels.split(',').map((l) => l.trim()).filter(Boolean),
@@ -139,8 +143,12 @@ export default function TaskCreate() {
       const attributes = toAttributes(createFields, values)
       if (Object.keys(attributes).length) body.attributes = attributes
       if (form.description.trim()) body.description = form.description.trim()
-      if (form.assignee_user_id) body.assignee_user_id = form.assignee_user_id
-      if (form.reviewer_user_id) body.reviewer_user_id = form.reviewer_user_id
+      // A personal task has no team: delivery makes it the creator's own, with no reviewer.
+      if (!form.personal) {
+        body.owning_unit_id = owningUnitId
+        if (form.assignee_user_id) body.assignee_user_id = form.assignee_user_id
+        if (form.reviewer_user_id) body.reviewer_user_id = form.reviewer_user_id
+      }
       if (form.due_date) body.due_at = dueAtFromDate(form.due_date)
       if (usesTime && estimateMinutes) body.estimate_minutes = estimateMinutes
       const created = await tasksApi.create(orgId, body)
@@ -257,16 +265,39 @@ export default function TaskCreate() {
               ))}
             </select>
           </div>
-          <div className="field">
-            <label htmlFor="owning_unit_id">Team *</label>
-            <select id="owning_unit_id" required value={owningUnitId} onChange={(e) => setForm((f) => ({ ...f, owning_unit_id: e.target.value, assignee_user_id: '' }))}>
-              <option value="">— Choose —</option>
-              {(names.units || []).filter((u) => u.status !== 'inactive').map((u) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </select>
-            {!form.owning_unit_id && routedUnitId && <div className="hint">From the routing rule for this kind of work.</div>}
-          </div>
+          {form.personal ? (
+            <div className="field">
+              <label htmlFor="owning_unit_id">Team</label>
+              {canManage ? (
+                <select id="owning_unit_id" value="" onChange={(e) => setForm((f) => ({ ...f, personal: e.target.value === '', owning_unit_id: e.target.value, assignee_user_id: '' }))}>
+                  <option value="">Just for me (no team)</option>
+                  {(names.units || []).filter((u) => u.status !== 'inactive').map((u) => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <input id="owning_unit_id" disabled value="Just for me (no team)" />
+              )}
+              <div className="hint">A personal task: yours, and no team sees it in their queue.</div>
+            </div>
+          ) : (
+            <div className="field">
+              <label htmlFor="owning_unit_id">Team *</label>
+              <select
+                id="owning_unit_id"
+                required
+                value={owningUnitId}
+                onChange={(e) => setForm((f) => ({ ...f, personal: e.target.value === 'personal', owning_unit_id: e.target.value === 'personal' ? '' : e.target.value, assignee_user_id: '', reviewer_user_id: e.target.value === 'personal' ? '' : f.reviewer_user_id }))}
+              >
+                <option value="">— Choose —</option>
+                <option value="personal">Just for me (no team)</option>
+                {(names.units || []).filter((u) => u.status !== 'inactive').map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+              {!form.owning_unit_id && routedUnitId && <div className="hint">From the routing rule for this kind of work.</div>}
+            </div>
+          )}
           <div className="field">
             <label htmlFor="due_date">Due</label>
             <input id="due_date" type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} />
@@ -281,6 +312,7 @@ export default function TaskCreate() {
           </p>
         )}
 
+        {!form.personal && (
         <div className="grid-3">
           <div className="field">
             <label htmlFor="assignee_user_id">Assignee</label>
@@ -315,6 +347,23 @@ export default function TaskCreate() {
             </div>
           )}
         </div>
+        )}
+        {form.personal && (
+          <div className="grid-3">
+            {usesTime ? (
+              <div className="field">
+                <label htmlFor="estimate">Estimate</label>
+                <input id="estimate" placeholder="e.g. 2h 30m" value={form.estimate} onChange={(e) => set('estimate', e.target.value)} />
+                {estimateInvalid && <div className="field-error">Write it like 90, 1h 30m or 1.5h.</div>}
+              </div>
+            ) : (
+              <div className="field">
+                <label htmlFor="labels">Labels</label>
+                <input id="labels" placeholder="Comma separated" value={form.labels} onChange={(e) => set('labels', e.target.value)} />
+              </div>
+            )}
+          </div>
+        )}
 
         {usesTime && (
           <div className="field">

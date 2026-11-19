@@ -237,7 +237,7 @@ export default function App() {
           <Route path="/project-templates/:code" element={<RequireAccess rule={ACCESS.projectTemplates}><ProjectTemplateBuilder /></RequireAccess>} />
           <Route path="/project-workflows/:code" element={<RequireAccess rule={ACCESS.designWorkflows}><WorkflowBuilder subject="project" /></RequireAccess>} />
           <Route path="/tasks" element={<RequireAccess rule={ACCESS.tasks}><Tasks /></RequireAccess>} />
-          <Route path="/tasks/new" element={<RequireAccess rule={ACCESS.manageTasks}><TaskCreate /></RequireAccess>} />
+          <Route path="/tasks/new" element={<RequireAccess rule={ACCESS.createTasks}><TaskCreate /></RequireAccess>} />
           <Route path="/tasks/:id" element={<RequireAccess rule={ACCESS.tasks}><TaskDetail /></RequireAccess>} />
           <Route path="/task-types" element={<RequireAccess rule={ACCESS.tasks}><TaskTypes /></RequireAccess>} />
           <Route path="/task-workflows/:code" element={<RequireAccess rule={ACCESS.designWorkflows}><WorkflowBuilder /></RequireAccess>} />
