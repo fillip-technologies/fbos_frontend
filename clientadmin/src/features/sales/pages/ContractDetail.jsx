@@ -12,6 +12,7 @@ import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
+import RecordTasks from '@/features/sales/components/RecordTasks.jsx'
 import CustomerEmailForm, { contractEmailProps } from '@/features/sales/components/CustomerEmailForm.jsx'
 import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
 import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
@@ -272,6 +273,7 @@ export default function ContractDetail() {
         )}
       </div>
 
+      {hasAccess(me, ACCESS.tasks) && <RecordTasks orgId={orgId} subjectType={SUBJECTS.contract} subjectId={contract.id} />}
       {hasAccess(me, ACCESS.activities) && (
         <ActivityTimeline key={timelineKey} orgId={orgId} subjectType={SUBJECTS.contract} subjectId={contract.id} />
       )}

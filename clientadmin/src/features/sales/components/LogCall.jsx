@@ -1,15 +1,21 @@
 import { useState } from 'react'
 import { leadsApi } from '@/features/sales/api.js'
+import ActivityTaskChoice, { taskChoiceBody, taskChoiceDefaults } from '@/features/sales/components/ActivityTaskChoice.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
-import { nowLocalInput } from '@/features/sales/utils.js'
+import { SUBJECTS, nowLocalInput } from '@/features/sales/utils.js'
 
-const EMPTY = () => ({ occurred_at: nowLocalInput(), summary: '', requirements: '', expectations: '', next_action: '', follow_up_on: '' })
+const EMPTY = (canRecord) => ({
+  occurred_at: nowLocalInput(), summary: '', requirements: '', expectations: '', next_action: '', follow_up_on: '',
+  ...taskChoiceDefaults(canRecord),
+})
 
 // A call with the lead. The summary is required; each call is kept as its own entry on the
-// lead's timeline, and the first one moves a new lead to contacted.
-export default function LogCall({ orgId, lead, onLogged, onCancel }) {
-  const [form, setForm] = useState(EMPTY)
+// lead's timeline, and the first one moves a new lead to contacted. Its task (ActivityTaskChoice):
+// recorded as a done task of mine, finishing one of my open tasks about the lead, or none; a
+// follow-up date can add a follow-up task.
+export default function LogCall({ orgId, lead, canRecord = false, canSeeTasks = false, onLogged, onCancel }) {
+  const [form, setForm] = useState(() => EMPTY(canRecord))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const fieldErrors = getFieldErrors(error)
@@ -23,6 +29,7 @@ export default function LogCall({ orgId, lead, onLogged, onCancel }) {
       const body = { occurred_at: new Date(form.occurred_at).toISOString(), summary: form.summary.trim() }
       for (const k of ['requirements', 'expectations', 'next_action']) if (form[k].trim()) body[k] = form[k].trim()
       if (form.follow_up_on) body.follow_up_on = form.follow_up_on
+      body.task = taskChoiceBody(form, canRecord, Boolean(form.follow_up_on))
       onLogged(await leadsApi.logCall(orgId, lead.id, body))
     } catch (err) {
       setError(err)
@@ -66,6 +73,17 @@ export default function LogCall({ orgId, lead, onLogged, onCancel }) {
         <label htmlFor="call-when">When</label>
         <input id="call-when" type="datetime-local" required value={form.occurred_at} onChange={(e) => set('occurred_at', e.target.value)} />
       </div>
+      <ActivityTaskChoice
+        orgId={orgId}
+        subjectType={SUBJECTS.lead}
+        subjectId={lead.id}
+        canRecord={canRecord}
+        canSeeTasks={canSeeTasks}
+        form={form}
+        set={set}
+        setForm={setForm}
+        followUp={form.follow_up_on ? `for ${form.follow_up_on}${form.next_action.trim() ? `: “${form.next_action.trim()}”` : ''}` : null}
+      />
       <div className="row-actions">
         <button className="btn" type="submit" disabled={saving} aria-busy={saving}>Log call</button>
         <button type="button" className="btn secondary" onClick={onCancel} disabled={saving}>Cancel</button>

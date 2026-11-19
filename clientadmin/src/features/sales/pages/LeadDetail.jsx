@@ -14,6 +14,7 @@ import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
 import LeadCustomFields from '@/features/sales/components/LeadCustomFields.jsx'
 import LeadHistory from '@/features/sales/components/LeadHistory.jsx'
+import RecordTasks from '@/features/sales/components/RecordTasks.jsx'
 import LogCall from '@/features/sales/components/LogCall.jsx'
 import ProposalsSection from '@/features/sales/components/ProposalsSection.jsx'
 import QualifyLead from '@/features/sales/components/QualifyLead.jsx'
@@ -225,10 +226,16 @@ export default function LeadDetail() {
           <LogCall
             orgId={orgId}
             lead={lead}
+            canRecord={hasAccess(me, ACCESS.createTasks)}
+            canSeeTasks={hasAccess(me, ACCESS.tasks)}
             onLogged={(result) => {
               setLead(result.lead)
               setPanel(null)
               setTimelineKey((k) => k + 1)
+              if (result.task || result.follow_up_task) {
+                invalidate(['record-tasks', orgId])
+                invalidate(['tasks', orgId])
+              }
             }}
             onCancel={() => setPanel(null)}
           />
@@ -333,6 +340,15 @@ export default function LeadDetail() {
       <LeadCustomFields orgId={orgId} lead={lead} canEdit={canWorkLeads && (!owner || canWork)} onSaved={setLead} />
       {lead.attributes?.website_lead_id && <WebsiteEnquiry details={lead.attributes} />}
 
+      {hasAccess(me, ACCESS.tasks) && (
+        <RecordTasks
+          orgId={orgId}
+          subjectType={SUBJECTS.lead}
+          subjectId={lead.id}
+          personName={personName}
+          addTo={hasAccess(me, ACCESS.createTasks) ? `/tasks/new?lead=${lead.id}&type=call` : null}
+        />
+      )}
       {hasAccess(me, ACCESS.activities) && (
         <ActivityTimeline key={timelineKey} orgId={orgId} subjectType={SUBJECTS.lead} subjectId={lead.id} />
       )}

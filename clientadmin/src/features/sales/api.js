@@ -1,6 +1,7 @@
 import { api } from '@/shared/api/http.js'
-import { IDENTITY, REVENUE } from '@/shared/api/paths.js'
+import { DELIVERY, IDENTITY, REVENUE } from '@/shared/api/paths.js'
 import { inOrg, listAll, pageQuery } from '@/shared/api/query.js'
+import { TASK_SUBJECTS } from '@/features/sales/utils.js'
 
 const ifMatch = (orgId, version) => inOrg(orgId, { 'If-Match': `"${version}"` })
 
@@ -21,7 +22,9 @@ export const leadsApi = {
   // { to_user_id | null (back to unclaimed), reason }
   transfer: (orgId, id, version, body) => api.post(`${REVENUE}/leads/${id}/transfer`, body, { headers: ifMatch(orgId, version) }),
   // { summary, requirements?, expectations?, next_action?, follow_up_on?, occurred_at? } → { lead, activity }
+  // `task`: { mode: 'record' | 'complete' | 'none', task_id, follow_up }. Answers { lead, activity, task, follow_up_task }.
   logCall: (orgId, id, body) => api.post(`${REVENUE}/leads/${id}/calls`, body, { headers: inOrg(orgId) }),
+
   // { existing_client_id | new_client, opportunity: { name, expected_value?, expected_close_date } }
   //   → { lead, client, opportunity, client_created }
   qualify: (orgId, id, version, body) => api.post(`${REVENUE}/leads/${id}/qualify`, body, { headers: ifMatch(orgId, version) }),
@@ -155,7 +158,16 @@ export const activitiesApi = {
     api.get(`${REVENUE}/activities?${pageQuery({ limit: 100, subject_type: subjectType, subject_id: subjectId })}`, {
       headers: inOrg(orgId),
     }),
+  // `task`: { mode: 'record' | 'complete' | 'none', task_id, follow_up }; `follow_up`: { title, due_at }.
+  // Answers the activity with `task` and `follow_up_task`.
   create: (orgId, body) => api.post(`${REVENUE}/activities`, body, { headers: inOrg(orgId) }),
+  // The tasks (delivery) about a lead, opportunity or contract (its timeline name, commercial.*),
+  // newest first; `opts` narrows them (assignee: 'me', status: [...]).
+  tasks: (orgId, subjectType, subjectId, opts = {}, { signal } = {}) =>
+    api.get(`${DELIVERY}/tasks?${pageQuery({ subject_type: TASK_SUBJECTS[subjectType], subject_id: subjectId, limit: 50, ...opts })}`, {
+      headers: inOrg(orgId),
+      signal,
+    }),
 }
 
 // The client's verticals (business lines); leads and offerings belong to one.

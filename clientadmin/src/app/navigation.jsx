@@ -597,7 +597,7 @@ export const CREATE_ACTIONS = [
   { to: '/customers/new', label: 'Customer', hint: 'A company or person you sell to', access: ACCESS.manageCustomers },
   { to: '/opportunities/new', label: 'Opportunity', hint: 'A sale to quote for', access: ACCESS.manageOpportunities },
   { to: '/projects/new', label: 'Project', hint: 'Work to deliver, with milestones', access: ACCESS.manageProjects },
-  { to: '/tasks/new', label: 'Task', hint: 'One piece of work for someone', access: ACCESS.manageTasks },
+  { to: '/tasks/new', label: 'Task', hint: 'One piece of work for someone, or a to-do of your own', access: ACCESS.createTasks },
   { to: '/requests/new', label: 'Request to a team', hint: 'Ask another team to do something', access: ACCESS.requestWork },
   { to: '/invoices/new', label: 'Invoice', hint: 'Bill a customer for an extra charge', access: ACCESS.manageInvoices },
   { to: '/payments/new', label: 'Payment received', hint: 'Record money a customer paid', access: ACCESS.recordPayments },
