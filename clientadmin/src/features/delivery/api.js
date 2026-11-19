@@ -115,6 +115,29 @@ export const tasksApi = {
     api.del(`${DELIVERY}/tasks/${id}/dependencies/${dependsOnTaskId}`, { headers: inOrg(orgId) }),
 }
 
+// ---------- Boards: a project's or a customer's kanban board ----------
+export const boardsApi = {
+  // { work_unit_id } or { client_id }: the default board is made the first time it's asked for.
+  list: (orgId, scope, { signal } = {}) => listAll(`${DELIVERY}/boards`, orgId, scope, { signal }),
+  // { id, name, version, can_configure, uncovered_statuses, columns: [{ id, name, description, statuses,
+  //   wip_limit, is_default_for_status, count, estimate_minutes_total, over_limit, tasks, has_more }] }
+  // Takes the task list's filters, and per_column.
+  get: (orgId, id, opts, { signal } = {}) => api.get(`${DELIVERY}/boards/${id}?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
+  // { column_id, after_task_id? | before_task_id? }; a column with another status takes the task's step.
+  place: (orgId, boardId, task, body) =>
+    api.put(`${DELIVERY}/boards/${boardId}/items/${task.id}`, body, { headers: ifMatch(orgId, task.version) }),
+  // { title, task_type_code?, owning_unit_id?, assignee_user_id?, priority?, estimate_minutes? }
+  addItem: (orgId, boardId, columnId, body) =>
+    api.post(`${DELIVERY}/boards/${boardId}/columns/${columnId}/items`, body, { headers: inOrg(orgId) }),
+  // { name, description?, color?, statuses, wip_limit?, is_default_for_status? }
+  addColumn: (orgId, boardId, body) => api.post(`${DELIVERY}/boards/${boardId}/columns`, body, { headers: inOrg(orgId) }),
+  updateColumn: (orgId, boardId, columnId, body) =>
+    api.patch(`${DELIVERY}/boards/${boardId}/columns/${columnId}`, body, { headers: inOrg(orgId) }),
+  removeColumn: (orgId, boardId, columnId) => api.del(`${DELIVERY}/boards/${boardId}/columns/${columnId}`, { headers: inOrg(orgId) }),
+  orderColumns: (orgId, boardId, columnIds) =>
+    api.put(`${DELIVERY}/boards/${boardId}/columns/order`, { column_ids: columnIds }, { headers: inOrg(orgId) }),
+}
+
 // ---------- Time: logged against a task; the timesheet lists a period ----------
 export const timeApi = {
   forTask: (orgId, taskId, { signal } = {}) => listAll(`${DELIVERY}/tasks/${taskId}/time-entries`, orgId, {}, { signal }),

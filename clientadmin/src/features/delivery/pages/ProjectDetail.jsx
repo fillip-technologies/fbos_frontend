@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { projectsApi } from '@/features/delivery/api.js'
+import BoardView from '@/features/delivery/components/BoardView.jsx'
 import ProjectChangeRequests from '@/features/delivery/components/ProjectChangeRequests.jsx'
 import ProjectMilestones from '@/features/delivery/components/ProjectMilestones.jsx'
 import ProjectOverview from '@/features/delivery/components/ProjectOverview.jsx'
@@ -29,6 +30,7 @@ const TABS = [
   ['workstreams', 'Workstreams'],
   ['insights', 'Insights'],
   ['tasks', 'Tasks'],
+  ['board', 'Board'],
   ['milestones', 'Milestones'],
   ['team', 'Team'],
   ['risks', 'Risks'],
@@ -124,6 +126,25 @@ export default function ProjectDetail() {
       {tab === 'workstreams' && <ProjectWorkstreams {...tabProps} />}
       {tab === 'insights' && <ProjectInsights project={project} />}
       {tab === 'tasks' && <ProjectTasks {...tabProps} />}
+      {tab === 'board' &&
+        (hasAccess(me, ACCESS.tasks) ? (
+          <>
+            {project.client?.id && (
+              <p className="small" style={{ margin: '0 0 6px' }}>
+                <Link to={`/customer-boards/${project.client.id}`}>See all of this customer's projects on one board →</Link>
+              </p>
+            )}
+            <BoardView
+              key={`${orgId}-${project.id}`}
+              orgId={orgId}
+              scope={{ work_unit_id: project.id }}
+              names={names}
+              intro="Plan and track this project's work. Drag a card to reorder it, or to another column to move the task on."
+            />
+          </>
+        ) : (
+          <p className="muted">You don't have access to tasks.</p>
+        ))}
       {tab === 'milestones' && (
         <>
           <ProjectMilestones {...tabProps} />

@@ -138,6 +138,10 @@ export default function CustomerDetail() {
           {hasAccess(me, ACCESS.manageOpportunities) && customer.status !== 'inactive' && (
             <Link className="btn" to={`/opportunities/new?customer=${customer.id}`}>New opportunity</Link>
           )}
+          {/* Delivery, linked by route only: this customer's projects' tasks on one board. */}
+          {hasAccess(me, ACCESS.tasks) && (
+            <Link className="btn secondary" to={`/customer-boards/${customer.id}`}>Board</Link>
+          )}
           <button className="btn secondary" onClick={() => navigate('/customers')}>← Back</button>
         </div>
       </div>

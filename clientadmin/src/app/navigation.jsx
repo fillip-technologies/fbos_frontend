@@ -576,6 +576,7 @@ const BELONGS_UNDER = {
   '/people/employees': '/users',
   '/task-workflows': '/task-types',
   '/project-workflows': '/project-templates',
+  '/customer-boards': '/customers',
 }
 
 // The nav item a path belongs to: the longest `to` that is the path or a parent of it.
