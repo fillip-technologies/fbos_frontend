@@ -126,25 +126,21 @@ export default function ProjectDetail() {
       {tab === 'workstreams' && <ProjectWorkstreams {...tabProps} />}
       {tab === 'insights' && <ProjectInsights project={project} />}
       {tab === 'tasks' && <ProjectTasks {...tabProps} />}
-      {tab === 'board' &&
-        (hasAccess(me, ACCESS.tasks) ? (
-          <>
+      {tab === 'board' && (
+        <>
+          <p className="muted small" style={{ margin: '0 0 10px' }}>
+            Divide the project's work into modules and track them across columns. Drag a module to reorder it or move it on; open
+            one to link the tasks it covers.
             {project.client?.id && (
-              <p className="small" style={{ margin: '0 0 6px' }}>
+              <>
+                {' '}
                 <Link to={`/customer-boards/${project.client.id}`}>See all of this customer's projects on one board →</Link>
-              </p>
+              </>
             )}
-            <BoardView
-              key={`${orgId}-${project.id}`}
-              orgId={orgId}
-              scope={{ work_unit_id: project.id }}
-              names={names}
-              intro="Plan and track this project's work. Drag a card to reorder it, or to another column to move the task on."
-            />
-          </>
-        ) : (
-          <p className="muted">You don't have access to tasks.</p>
-        ))}
+          </p>
+          <BoardView key={`${orgId}-${project.id}`} orgId={orgId} workUnitId={project.id} names={names} />
+        </>
+      )}
       {tab === 'milestones' && (
         <>
           <ProjectMilestones {...tabProps} />

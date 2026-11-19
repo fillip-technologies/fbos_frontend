@@ -1794,4 +1794,7 @@ a.ins-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); tex
 .board-add-form input { width: 100%; }
 .board-add-column { flex: 0 0 180px; align-self: flex-start; border: 1.5px dashed var(--line-strong); background: transparent; color: var(--muted); border-radius: var(--r-lg); padding: 12px; font: inherit; font-size: 13px; cursor: pointer; }
 .board-add-column:hover, .board-add-column:focus-visible { color: var(--ink); border-color: var(--ink); }
-.board-status-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px 12px; margin: 6px 0; }
+/* A module's linked tasks: a thin bar of how many are done, and "3 / 5 tasks done" */
+.module-progress { position: relative; padding-top: 9px; }
+.module-progress::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; border-radius: 2px; background: var(--sunken); }
+.module-progress-bar { position: absolute; top: 0; left: 0; height: 4px; border-radius: 2px; background: var(--brand); max-width: 100%; }

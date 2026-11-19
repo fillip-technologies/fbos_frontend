@@ -7,7 +7,6 @@ import TaskFilterBar, { NO_TASK_FILTERS } from '@/features/delivery/components/T
 import { ReasonForm, ReviewForm, SubmitForm } from '@/features/delivery/components/TaskForms.jsx'
 import { useEffectiveTaskFields } from '@/features/delivery/useTaskTypes.js'
 import { TASK_PRIORITY_LABELS } from '@/features/delivery/utils.js'
-import { DIALOG_STEPS, movesFor } from '@/features/delivery/board.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { invalidate, prefetch, useQuery } from '@/shared/api/useQuery.js'
@@ -21,8 +20,24 @@ const GROUPINGS = [
   ['task_type', 'Task type'],
 ]
 
-// The steps a card can take (features/delivery/board.js); kept exported here for older imports.
-export { movesFor }
+// The steps a card can take on the status board, as the backend's state machine allows them
+// for this user: { to: column, label, kind }. 'dialog' kinds ask for more first.
+export function movesFor(task, { me, canManage, canReview }) {
+  const isAssignee = task.assignee?.id === me?.id
+  const worksOn = isAssignee || canManage
+  const mayReview = task.reviewer?.id === me?.id || canReview
+  const finishColumn = task.task_type.requires_review ? 'in_review' : 'done'
+  const moves = []
+  if (!task.assignee && ['draft', 'open'].includes(task.status)) moves.push({ to: 'in_progress', label: 'Take it and start', kind: 'claim_start' })
+  if (isAssignee && ['assigned', 'rework'].includes(task.status)) moves.push({ to: 'in_progress', label: 'Start work', kind: 'start' })
+  if (isAssignee && ['in_progress', 'rework'].includes(task.status)) moves.push({ to: finishColumn, label: 'Submit…', kind: 'submit' })
+  if (worksOn && ['open', 'assigned', 'in_progress', 'rework'].includes(task.status)) moves.push({ to: 'blocked', label: 'Mark blocked…', kind: 'block' })
+  if (worksOn && task.status === 'blocked') moves.push({ to: 'in_progress', label: 'Unblock', kind: 'unblock' })
+  if (mayReview && ['submitted', 'in_review'].includes(task.status)) {
+    moves.push({ to: 'done', label: 'Approve…', kind: 'approve' }, { to: 'todo', label: 'Send back…', kind: 'send_back' })
+  }
+  return moves
+}
 
 // The tasks as columns. Grouped by status, cards move between columns by dragging or with
 // their "Move" menu; each move is the task's real next step (start, submit, review, block),
@@ -58,7 +73,7 @@ export default function TaskBoard({ orgId, names, taskTypes }) {
 
   async function perform(task, move) {
     setMoveError(null)
-    if (DIALOG_STEPS.includes(move.kind)) {
+    if (['submit', 'block', 'approve', 'send_back'].includes(move.kind)) {
       setDialog({ task, kind: move.kind })
       return
     }
@@ -216,7 +231,7 @@ export default function TaskBoard({ orgId, names, taskTypes }) {
   )
 }
 
-export function BoardDialog({ orgId, dialog, taskType, names, busy, error, onClose, finish }) {
+function BoardDialog({ orgId, dialog, taskType, names, busy, error, onClose, finish }) {
   const { task, kind } = dialog
   const fields = useEffectiveTaskFields(orgId, task, taskType)
   const props = { busy, error, onCancel: onClose }

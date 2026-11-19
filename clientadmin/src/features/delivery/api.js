@@ -115,27 +115,37 @@ export const tasksApi = {
     api.del(`${DELIVERY}/tasks/${id}/dependencies/${dependsOnTaskId}`, { headers: inOrg(orgId) }),
 }
 
-// ---------- Boards: a project's or a customer's kanban board ----------
+// ---------- Boards: a project's work divided into modules, in columns the team names ----------
 export const boardsApi = {
-  // { work_unit_id } or { client_id }: the default board is made the first time it's asked for.
-  list: (orgId, scope, { signal } = {}) => listAll(`${DELIVERY}/boards`, orgId, scope, { signal }),
-  // { id, name, version, can_configure, uncovered_statuses, columns: [{ id, name, description, statuses,
-  //   wip_limit, is_default_for_status, count, estimate_minutes_total, over_limit, tasks, has_more }] }
-  // Takes the task list's filters, and per_column.
-  get: (orgId, id, opts, { signal } = {}) => api.get(`${DELIVERY}/boards/${id}?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
-  // { column_id, after_task_id? | before_task_id? }; a column with another status takes the task's step.
-  place: (orgId, boardId, task, body) =>
-    api.put(`${DELIVERY}/boards/${boardId}/items/${task.id}`, body, { headers: ifMatch(orgId, task.version) }),
-  // { title, task_type_code?, owning_unit_id?, assignee_user_id?, priority?, estimate_minutes? }
-  addItem: (orgId, boardId, columnId, body) =>
-    api.post(`${DELIVERY}/boards/${boardId}/columns/${columnId}/items`, body, { headers: inOrg(orgId) }),
-  // { name, description?, color?, statuses, wip_limit?, is_default_for_status? }
+  // A project's boards; its board is made the first time it's asked for.
+  list: (orgId, workUnitId, { signal } = {}) => listAll(`${DELIVERY}/boards`, orgId, { work_unit_id: workUnitId }, { signal }),
+  // { id, name, version, can_edit, columns: [{ id, name, description, wip_limit, count,
+  //   estimate_minutes_total, over_limit, modules }] }
+  get: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/boards/${id}`, { headers: inOrg(orgId), signal }),
+  // { client_id, projects: [{ work_unit_id, board_id, can_edit, columns }], columns: [{ name, count, estimate_minutes_total, modules }] }
+  customer: (orgId, clientId, { signal } = {}) => api.get(`${DELIVERY}/customer-boards/${clientId}`, { headers: inOrg(orgId), signal }),
+  // { name, description?, wip_limit? }
   addColumn: (orgId, boardId, body) => api.post(`${DELIVERY}/boards/${boardId}/columns`, body, { headers: inOrg(orgId) }),
   updateColumn: (orgId, boardId, columnId, body) =>
     api.patch(`${DELIVERY}/boards/${boardId}/columns/${columnId}`, body, { headers: inOrg(orgId) }),
   removeColumn: (orgId, boardId, columnId) => api.del(`${DELIVERY}/boards/${boardId}/columns/${columnId}`, { headers: inOrg(orgId) }),
   orderColumns: (orgId, boardId, columnIds) =>
     api.put(`${DELIVERY}/boards/${boardId}/columns/order`, { column_ids: columnIds }, { headers: inOrg(orgId) }),
+  // { column_id, title, description?, owner_user_id?, estimate_minutes?, due_on?, priority?, labels? }
+  addModule: (orgId, boardId, body) => api.post(`${DELIVERY}/boards/${boardId}/modules`, body, { headers: inOrg(orgId) }),
+  // The module with its linked tasks: { ..., tasks: [{ id, code, title, status, assignee, due_at }] }
+  module: (orgId, boardId, moduleId, { signal } = {}) =>
+    api.get(`${DELIVERY}/boards/${boardId}/modules/${moduleId}`, { headers: inOrg(orgId), signal }),
+  updateModule: (orgId, boardId, module, body) =>
+    api.patch(`${DELIVERY}/boards/${boardId}/modules/${module.id}`, body, { headers: ifMatch(orgId, module.version) }),
+  removeModule: (orgId, boardId, moduleId) => api.del(`${DELIVERY}/boards/${boardId}/modules/${moduleId}`, { headers: inOrg(orgId) }),
+  // { column_id, after_module_id? | before_module_id? } (neither: the bottom). Never changes a task.
+  placeModule: (orgId, boardId, moduleId, body) =>
+    api.put(`${DELIVERY}/boards/${boardId}/modules/${moduleId}/position`, body, { headers: inOrg(orgId) }),
+  linkTask: (orgId, boardId, moduleId, taskId) =>
+    api.put(`${DELIVERY}/boards/${boardId}/modules/${moduleId}/tasks/${taskId}`, {}, { headers: inOrg(orgId) }),
+  unlinkTask: (orgId, boardId, moduleId, taskId) =>
+    api.del(`${DELIVERY}/boards/${boardId}/modules/${moduleId}/tasks/${taskId}`, { headers: inOrg(orgId) }),
 }
 
 // ---------- Time: logged against a task; the timesheet lists a period ----------
