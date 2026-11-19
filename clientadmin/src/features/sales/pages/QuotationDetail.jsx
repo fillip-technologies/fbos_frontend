@@ -20,6 +20,7 @@ import {
   quotationActions,
 } from '@/features/sales/components/QuotationActions.jsx'
 import CustomerEmailForm, { quotationEmailProps } from '@/features/sales/components/CustomerEmailForm.jsx'
+import PdfButton from '@/features/sales/components/PdfButton.jsx'
 import QuotationHistory from '@/features/sales/components/QuotationHistory.jsx'
 import TaxTotals, { LineTaxes, TaxNotes } from '@/features/tax/components/TaxTotals.jsx'
 import { SUPPLY_TYPES } from '@/features/tax/utils.js'
@@ -28,15 +29,15 @@ import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 
 // What happens next, by status.
 const NEXT_STEP = {
-  draft: 'Check the lines, then submit. Discounts over 20% go for approval first.',
+  draft: 'Check the lines and preview the PDF, then send it. A discount over 20% goes for approval first.',
   pending_approval: 'Waiting for someone with approval rights to approve the discount.',
   approved: 'Approved. Send it to the customer.',
   sent: 'Sent. Record the customer’s answer: accepted, changes requested or rejected.',
-  changes_requested: 'The customer asked for changes. Revise it to answer them.',
+  changes_requested: 'Under discussion: the customer asked for changes. Revise it to answer them.',
   accepted: 'Accepted: the opportunity is won. Create the contract from the opportunity.',
   rejected: 'Rejected. Revise it to make a new offer.',
   withdrawn: 'Withdrawn: we took it back.',
-  superseded: 'Replaced by a newer revision.',
+  superseded: 'Replaced by the next revision.',
   not_chosen: 'Another quotation on the opportunity was accepted.',
 }
 // Moving these on sends what is saved, so unsaved lines must be saved first.
@@ -155,6 +156,12 @@ export default function QuotationDetail() {
                 <Link to={`/opportunities/${quote.opportunity_id}`}>Opportunity</Link>
               </>
             )}
+            {quote.proposal_id && quote.opportunity_id && (
+              <>
+                {' · '}
+                <Link to={`/opportunities/${quote.opportunity_id}`}>made from the accepted proposal</Link>
+              </>
+            )}
             {` · valid until ${formatDate(quote.valid_until)}`}
             {quote.is_expired && <> <StatusBadge status="expired" label="Expired" /></>}
             {quote.last_sent_at && ` · last sent ${formatDate(quote.last_sent_at.slice(0, 10))}`}
@@ -162,11 +169,18 @@ export default function QuotationDetail() {
             {quote.supply_type && ` (${(SUPPLY_TYPES[quote.supply_type] || quote.supply_type).toLowerCase()})`}
           </p>
         </div>
-        {quote.opportunity_id ? (
-          <Link className="btn secondary" to={`/opportunities/${quote.opportunity_id}`}>← Opportunity</Link>
-        ) : (
-          <button className="btn secondary" onClick={() => navigate(-1)}>← Back</button>
-        )}
+        <div className="row-actions" style={{ margin: 0 }}>
+          <PdfButton
+            className="btn secondary"
+            label={['draft', 'pending_approval', 'approved'].includes(quote.status) ? 'Preview PDF' : 'View PDF'}
+            load={() => quotationsApi.pdf(orgId, quote.id)}
+          />
+          {quote.opportunity_id ? (
+            <Link className="btn secondary" to={`/opportunities/${quote.opportunity_id}`}>← Opportunity</Link>
+          ) : (
+            <button className="btn secondary" onClick={() => navigate(-1)}>← Back</button>
+          )}
+        </div>
       </div>
 
       <ErrorBanner error={error || loadError} onRetry={error ? undefined : reload} />

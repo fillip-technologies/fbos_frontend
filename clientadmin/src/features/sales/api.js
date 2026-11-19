@@ -6,16 +6,28 @@ const ifMatch = (orgId, version) => inOrg(orgId, { 'If-Match': `"${version}"` })
 
 // ---------- Leads ----------
 export const leadsApi = {
-  // Filters: status, source, vertical_id, owner_user_id.
+  // Filters: status, source, vertical_id, owner_user_id, unclaimed (true), follow_up_due (YYYY-MM-DD).
   list: (orgId, opts, { signal } = {}) => api.get(`${REVENUE}/leads?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
   get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/leads/${id}`, { headers: inOrg(orgId), signal }),
   create: (orgId, body) => api.post(`${REVENUE}/leads`, body, { headers: inOrg(orgId) }),
+  // Score and details only: status and who handles the lead have their own actions below.
   update: (orgId, id, version, body) => api.patch(`${REVENUE}/leads/${id}`, body, { headers: ifMatch(orgId, version) }),
+  // The lead's history, oldest first: added, claimed, passed on, status changes.
+  events: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/leads/${id}/events`, { headers: inOrg(orgId), signal }),
+  // Who may take leads: [{ id, name }]. Also names the person handling a lead.
+  assignablePeople: (orgId, { signal } = {}) => api.get(`${REVENUE}/leads/assignable-people`, { headers: inOrg(orgId), signal }),
+  // First to claim wins (409 LEAD_ALREADY_CLAIMED otherwise).
+  claim: (orgId, id) => api.post(`${REVENUE}/leads/${id}/claim`, undefined, { headers: inOrg(orgId) }),
+  // { to_user_id | null (back to unclaimed), reason }
+  transfer: (orgId, id, version, body) => api.post(`${REVENUE}/leads/${id}/transfer`, body, { headers: ifMatch(orgId, version) }),
+  // { summary, requirements?, expectations?, next_action?, follow_up_on?, occurred_at? } → { lead, activity }
+  logCall: (orgId, id, body) => api.post(`${REVENUE}/leads/${id}/calls`, body, { headers: inOrg(orgId) }),
+  // { existing_client_id | new_client, opportunity: { name, expected_value?, expected_close_date } }
+  //   → { lead, client, opportunity, client_created }
+  qualify: (orgId, id, version, body) => api.post(`${REVENUE}/leads/${id}/qualify`, body, { headers: ifMatch(orgId, version) }),
   disqualify: (orgId, id, version, body) =>
     api.post(`${REVENUE}/leads/${id}/disqualify`, body, { headers: ifMatch(orgId, version) }),
-  // { existing_client_id | new_client, opportunity } → { lead, client, opportunity, client_created }
-  convert: (orgId, id, version, body) =>
-    api.post(`${REVENUE}/leads/${id}/convert`, body, { headers: ifMatch(orgId, version) }),
+  reopen: (orgId, id, version) => api.post(`${REVENUE}/leads/${id}/reopen`, undefined, { headers: ifMatch(orgId, version) }),
 }
 
 // ---------- Opportunities ----------
@@ -36,7 +48,42 @@ export const opportunitiesApi = {
     api.post(`${REVENUE}/opportunities/${id}/quotations`, body, { headers: inOrg(orgId) }),
 }
 
-// ---------- Quotations: draft → submit → (approve) → send → accept / changes requested / reject; withdraw ----------
+// ---------- Proposals: draft → sent → under discussion → accepted / rejected; revised into new versions ----------
+const proposalAction = (action) => (orgId, proposal, body) =>
+  api.post(`${REVENUE}/proposals/${proposal.id}/${action}`, body, { headers: ifMatch(orgId, proposal.version) })
+
+export const proposalsApi = {
+  // Every version on the opportunity: newest proposal first, its latest version first.
+  list: (orgId, opportunityId, { signal } = {}) =>
+    api.get(`${REVENUE}/opportunities/${opportunityId}/proposals`, { headers: inOrg(orgId), signal }),
+  // { title?, requirements?, scope?, timeline?, terms?, items? }: requirements default to the lead's calls'.
+  create: (orgId, opportunityId, body) =>
+    api.post(`${REVENUE}/opportunities/${opportunityId}/proposals`, body, { headers: inOrg(orgId) }),
+  get: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/proposals/${id}`, { headers: inOrg(orgId), signal }),
+  // A draft's text and services ({ items } replaces them all).
+  update: (orgId, proposal, body) =>
+    api.patch(`${REVENUE}/proposals/${proposal.id}`, body, { headers: ifMatch(orgId, proposal.version) }),
+  // The PDF as a Blob: a "Draft" preview, or once sent, the copy the customer got.
+  pdf: (orgId, id) => api.getBlob(`${REVENUE}/proposals/${id}/pdf`, { headers: inOrg(orgId) }),
+  // Marked sent when it reached the customer another way (its PDF is stored).
+  send: (orgId, proposal) => proposalAction('send')(orgId, proposal),
+  emailDraft: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/proposals/${id}/email-draft`, { headers: inOrg(orgId), signal }),
+  // The PDF goes first, then the files chosen; a draft is marked sent too.
+  email: (orgId, proposal, body) =>
+    api.post(`${REVENUE}/proposals/${proposal.id}/emails`, body, { headers: ifMatch(orgId, proposal.version) }),
+  // { feedback }: the customer's comments; it is under discussion.
+  feedback: proposalAction('change-requests'),
+  // { note? } → the next version, as a draft.
+  revise: (orgId, proposal, body) => api.post(`${REVENUE}/proposals/${proposal.id}/revisions`, body, { headers: inOrg(orgId) }),
+  accept: proposalAction('accept'),
+  // { reason }
+  reject: proposalAction('reject'),
+  events: (orgId, id, { signal } = {}) => api.get(`${REVENUE}/proposals/${id}/events`, { headers: inOrg(orgId), signal }),
+  // The accepted proposal's quotation, as a draft with its services.
+  quote: (orgId, proposal) => api.post(`${REVENUE}/proposals/${proposal.id}/quotation`, undefined, { headers: inOrg(orgId) }),
+}
+
+// ---------- Quotations: draft → send (→ approval when the discount is over 20%) → accept / changes requested / reject; withdraw ----------
 const quotationAction = (action) => (orgId, quote, body) =>
   api.post(`${REVENUE}/quotations/${quote.id}/${action}`, body, { headers: ifMatch(orgId, quote.version) })
 
@@ -47,9 +94,13 @@ export const quotationsApi = {
     api.patch(`${REVENUE}/quotations/${quote.id}`, body, { headers: ifMatch(orgId, quote.version) }),
   replaceItems: (orgId, quote, items) =>
     api.put(`${REVENUE}/quotations/${quote.id}/items`, { items }, { headers: ifMatch(orgId, quote.version) }),
+  // Kept for older drafts: Send now holds a large discount for approval itself.
   submit: quotationAction('submit'),
   approve: quotationAction('approve'),
+  // Sends it (its PDF stored), or holds it for approval when the discount is over 20%.
   send: quotationAction('send'),
+  // The PDF as a Blob: a "Draft" preview until sent, then the copy the customer got.
+  pdf: (orgId, id) => api.getBlob(`${REVENUE}/quotations/${id}/pdf`, { headers: inOrg(orgId) }),
   accept: quotationAction('accept'),
   reject: quotationAction('reject'),
   // { note }: what the customer asked to change.

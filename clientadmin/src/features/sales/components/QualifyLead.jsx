@@ -28,9 +28,10 @@ function inDays(days) {
   return toIsoDate(d)
 }
 
-// Turns a lead into an opportunity for a customer: an existing one, or a new prospect
-// (who becomes an active customer once they accept a quotation).
-export default function ConvertLead({ orgId, lead, owners, defaultCurrency, onConverted, onCancel }) {
+// Qualifies a contacted lead: who the customer is (an existing one, or a new prospect, who
+// becomes an active customer once they accept a quotation) and the opportunity to work. The
+// lead itself is converted when a quotation is accepted.
+export default function QualifyLead({ orgId, lead, owners, defaultCurrency, onQualified, onCancel }) {
   const { user: me } = useAuth()
   const canPickExisting = hasAccess(me, ACCESS.customers)
   const canCreate = hasAccess(me, ACCESS.manageCustomers)
@@ -86,11 +87,14 @@ export default function ConvertLead({ orgId, lead, owners, defaultCurrency, onCo
     setSaving(true)
     try {
       const body = {
-        opportunity: {
-          name: opportunity.name.trim(),
-          expected_value: { amount: Number(opportunity.amount), currency: opportunity.currency.trim().toUpperCase() },
-          expected_close_date: opportunity.expected_close_date,
-        },
+        opportunity: { name: opportunity.name.trim(), expected_close_date: opportunity.expected_close_date },
+      }
+      // The value is optional: a rough figure if known, else the proposal and quotation fill it in.
+      if (String(opportunity.amount).trim() !== '') {
+        body.opportunity.expected_value = {
+          amount: Number(opportunity.amount),
+          currency: opportunity.currency.trim().toUpperCase(),
+        }
       }
       if (mode === 'existing') {
         body.existing_client_id = existingId
@@ -104,7 +108,7 @@ export default function ConvertLead({ orgId, lead, owners, defaultCurrency, onCo
         }
         for (const k of ['gstin', 'pan', 'source']) if (customer[k].trim()) body.new_client[k] = customer[k].trim()
       }
-      onConverted(await leadsApi.convert(orgId, lead.id, lead.version, body))
+      onQualified(await leadsApi.qualify(orgId, lead.id, lead.version, body))
     } catch (err) {
       setError(err)
       setSaving(false)
@@ -113,10 +117,10 @@ export default function ConvertLead({ orgId, lead, owners, defaultCurrency, onCo
 
   return (
     <form className="inline-panel" onSubmit={handleSubmit}>
-      <h3>Convert lead</h3>
+      <h3>Qualify lead</h3>
       <p className="muted small" style={{ marginTop: 0 }}>
-        Creates an opportunity. A new customer starts as a prospect and becomes active when they accept a quotation.
-        The lead’s contact is added to the customer’s contacts.
+        Who the customer is, and the opportunity to work. A new customer starts as a prospect and becomes active when
+        they accept a quotation; the lead is converted then. The lead’s contact is added to the customer’s contacts.
       </p>
       {error && Object.keys(fieldErrors).length === 0 && <ErrorBanner error={error} />}
 
@@ -190,12 +194,11 @@ export default function ConvertLead({ orgId, lead, owners, defaultCurrency, onCo
       </div>
       <div className="grid-2">
         <div className="field">
-          <label htmlFor="opp-value">Expected value *</label>
+          <label htmlFor="opp-value">Expected value (if known)</label>
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               id="opp-value"
               type="number"
-              required
               min="0"
               step="0.01"
               value={opportunity.amount}
@@ -224,7 +227,7 @@ export default function ConvertLead({ orgId, lead, owners, defaultCurrency, onCo
       </div>
 
       <div className="row-actions">
-        <button className="btn" type="submit" disabled={saving}>{saving ? 'Converting…' : 'Convert'}</button>
+        <button className="btn" type="submit" disabled={saving}>{saving ? 'Qualifying…' : 'Qualify'}</button>
         <button type="button" className="btn secondary" onClick={onCancel} disabled={saving}>Cancel</button>
       </div>
     </form>

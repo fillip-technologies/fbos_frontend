@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { contractsApi, offeringsApi, opportunitiesApi } from '@/features/sales/api.js'
+import { contractsApi, offeringsApi, opportunitiesApi, proposalsApi } from '@/features/sales/api.js'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
@@ -34,9 +34,10 @@ import {
   QUOTATION_CLOSED_TO_FILES,
   QUOTATION_STATUS_LABELS,
   SUBJECTS,
-  humanize,
+  proposalLabel,
 } from '@/features/sales/utils.js'
 import DocumentPanel from '@/features/documents/components/DocumentPanel.jsx'
+import ProposalsSection from '@/features/sales/components/ProposalsSection.jsx'
 import { DOCUMENT_SUBJECTS } from '@/features/documents/api.js'
 
 function Detail({ label, children }) {
@@ -48,8 +49,8 @@ function Detail({ label, children }) {
   )
 }
 
+// The stage isn't edited: it follows the proposal and the quotations.
 const toForm = (o) => ({
-  stage: o.stage,
   probability: String(o.probability),
   amount: String(Number(o.expected_value.amount)),
   expected_close_date: o.expected_close_date || '',
@@ -147,6 +148,9 @@ export default function OpportunityDetail() {
   const quotationsQuery = useQuery(['quotations', orgId, { opportunity: id }], ({ signal }) =>
     opportunitiesApi.quotations(orgId, id, { signal }), { enabled: Boolean(orgId) }
   )
+  const proposalsQuery = useQuery(['proposals', orgId, id], ({ signal }) => proposalsApi.list(orgId, id, { signal }), {
+    enabled: Boolean(orgId),
+  })
   // Whether the customer is still a prospect (it becomes active when it accepts a quotation).
   const clientId = oppQuery.data?.client.id
   const { data: customer } = useQuery(
@@ -162,11 +166,12 @@ export default function OpportunityDetail() {
   const opp = oppQuery.data
   const quotations = quotationsQuery.data?.data ?? []
   const contracts = contractsQuery.data?.data ?? []
-  const loading = oppQuery.loading || quotationsQuery.loading || (canSeeContracts && contractsQuery.loading)
+  const loading = oppQuery.loading || quotationsQuery.loading || proposalsQuery.loading || (canSeeContracts && contractsQuery.loading)
   const loadError = oppQuery.error || quotationsQuery.error || (canSeeContracts ? contractsQuery.error : null)
   const reload = () => {
     oppQuery.reload()
     quotationsQuery.reload()
+    proposalsQuery.reload()
     if (canSeeContracts) contractsQuery.reload()
   }
   const setOpp = (next) => {
@@ -187,8 +192,8 @@ export default function OpportunityDetail() {
   // Remounts the timeline so the logged email shows.
   const [timelineKey, setTimelineKey] = useState(0)
   const [lost, setLost] = useState({ reason: 'price', competitor: '', note: '' })
-  // The page's sections: 'quotations' | 'contract' | 'files' | 'activity'.
-  const [tab, setTab] = useState('quotations')
+  // The page's sections: 'proposal' | 'quotations' | 'contract' | 'files' | 'activity'; null: the one for the step.
+  const [tab, setTab] = useState(null)
   // The summary is read-only until "Edit details".
   const [editing, setEditing] = useState(false)
   const fieldErrors = getFieldErrors(error)
@@ -248,7 +253,6 @@ export default function OpportunityDetail() {
     try {
       const original = toForm(base) // what the form was taken from, not a newer refresh
       const body = {}
-      if (form.stage !== original.stage) body.stage = form.stage
       if (form.probability !== original.probability) body.probability = Number(form.probability)
       if (form.amount !== original.amount) body.expected_value = { amount: Number(form.amount), currency: opp.expected_value.currency }
       if (form.expected_close_date !== original.expected_close_date) body.expected_close_date = form.expected_close_date
@@ -300,14 +304,19 @@ export default function OpportunityDetail() {
     quotations.find((q) => q.is_main && OPEN_QUOTATION_STATUSES.includes(q.status)) || accepted || quotations[0]
   const canManageContracts = hasAccess(me, ACCESS.manageContracts)
   const canCreateContract = accepted && contracts.length === 0 && canManageContracts
-  const canAddQuotation = canManage && open
+  const proposals = proposalsQuery.data?.data ?? []
+  const proposal = proposals[0]
+  const acceptedProposal = proposals.find((p) => p.status === 'accepted')
+  // A sale from a lead is quoted from its accepted proposal (deals quoted before proposals carry on).
+  const needsProposal = Boolean(opp.lead_id) && quotations.length === 0 && !acceptedProposal
+  const canAddQuotation = canManage && open && !needsProposal
   const canSeeFiles = Boolean(currentQuote) && hasAccess(me, ACCESS.documents)
   const canSeeActivity = hasAccess(me, ACCESS.activities)
   const mainQuote = quotations.find((q) => q.is_main && q.status !== 'superseded')
   const openQuote =
     quotations.find((q) => q.is_main && OPEN_QUOTATION_STATUSES.includes(q.status)) ||
     quotations.find((q) => OPEN_QUOTATION_STATUSES.includes(q.status))
-  const steps = dealSteps({ opp, quotations, contracts, customer, canSeeContracts })
+  const steps = dealSteps({ opp, proposals, quotations, contracts, customer, canSeeContracts })
   const actionsFor = (q) => quotationActions(q, { canManage, canApprove, canCreateContract, opportunityOpen: open })
   const quoteName = (q) => q.name || `${q.quote_no} rev ${q.revision_no}`
 
@@ -315,6 +324,32 @@ export default function OpportunityDetail() {
     setTab('quotations')
     setPanel('quotation')
   }
+
+  async function quoteFromProposal() {
+    setError(null)
+    setSaving(true)
+    try {
+      const quote = await proposalsApi.quote(orgId, acceptedProposal)
+      invalidate(['proposals', orgId])
+      navigate(`/quotations/${quote.id}`)
+    } catch (err) {
+      setError(err)
+      setSaving(false)
+    }
+  }
+
+  // The project delivering the sale: its customer, contract and sale filled in, the accepted
+  // proposal's and quotation's files attached to it once made.
+  function startProject() {
+    const contract = contracts.find((c) => c.status === 'active') || contracts[0]
+    const params = new URLSearchParams({ customer: opp.client.id, name: opp.name, opportunity: opp.id })
+    if (contract) params.set('contract', contract.id)
+    if (opp.deal_id) params.set('deal', opp.deal_id)
+    if (accepted) params.set('quotation', accepted.id)
+    if (acceptedProposal) params.set('proposal', acceptedProposal.id)
+    navigate(`/projects/new?${params}`)
+  }
+  const canStartProject = hasAccess(me, ACCESS.manageProjects)
 
   // The one thing to do now, with its button. Every action comes from quotationActions(), so
   // nobody is offered a step they may not take.
@@ -328,6 +363,7 @@ export default function OpportunityDetail() {
         tone: 'done',
         text: `Contract ${contract.contract_no} is active and ${opp.client.name} is a customer. Delivery and billing carry on from the contract.`,
         primary: { label: 'Open contract', run: () => navigate(`/contracts/${contract.id}`) },
+        secondary: canStartProject ? [{ label: 'Start the project', run: startProject }] : [],
       }
     }
     if (contract) {
@@ -337,16 +373,46 @@ export default function OpportunityDetail() {
           ? `The signed copy of ${contract.contract_no} is attached. Activate the contract to make ${opp.client.name} a customer and start delivery.`
           : `Contract ${contract.contract_no} is waiting for the customer's signature. Send it, then attach the signed copy.`,
         primary: { label: 'Open contract', run: () => navigate(`/contracts/${contract.id}`) },
-        secondary: emailable
-          ? [{ label: 'Email contract', run: () => { setTab('contract'); setContractEmailed(null); setEmailingContract(contract) } }]
-          : [],
+        secondary: [
+          ...(emailable
+            ? [{ label: 'Email contract', run: () => { setTab('contract'); setContractEmailed(null); setEmailingContract(contract) } }]
+            : []),
+          ...(canStartProject ? [{ label: 'Start the project', run: startProject }] : []),
+        ],
       }
     }
     if (accepted) {
       return {
         tone: 'done',
-        text: `${quoteName(accepted)} was accepted. Create the contract to lock in the deal.`,
+        text: `${quoteName(accepted)} was accepted and ${opp.client.name} is a customer. Create the contract for billing, and start the project.`,
         primary: canCreateContract ? { label: 'Create contract', run: () => { setTab('contract'); setPanel('contract') } } : null,
+        secondary: canStartProject ? [{ label: 'Start the project', run: startProject }] : [],
+      }
+    }
+    // Before any quotation, a sale from a lead goes through its proposal.
+    const toProposal = () => setTab('proposal')
+    if (needsProposal) {
+      if (!proposal) {
+        return {
+          text: 'Write the proposal: what you will do for the customer. The requirements from your calls are already in it.',
+          primary: canManage && open ? { label: 'Start proposal', run: toProposal } : null,
+        }
+      }
+      const name = `Proposal ${proposalLabel(proposal)}`
+      const proposalTexts = {
+        draft: `${name} is a draft. Finish it, check the PDF, and email it to the customer.`,
+        sent: `${name} is with the customer. Record their feedback or answer when you hear back.`,
+        under_discussion: `${name} is under discussion. Revise it, or record the customer's answer.`,
+        rejected: `${name} was rejected. Revise it into a new version, or mark the deal lost.`,
+      }
+      return { text: proposalTexts[proposal.status] || `${name} needs your attention.`, primary: { label: 'Open proposal', run: toProposal } }
+    }
+    if (acceptedProposal && quotations.length === 0) {
+      return {
+        tone: 'done',
+        text: `The customer accepted proposal ${proposalLabel(acceptedProposal)}. Make the quotation from it: its services are copied and taxed.`,
+        primary: canManage && open ? { label: 'Create quotation', run: quoteFromProposal } : null,
+        secondary: [{ label: 'Open proposal', run: toProposal }],
       }
     }
     if (!openQuote) {
@@ -358,14 +424,14 @@ export default function OpportunityDetail() {
       }
     }
     const texts = {
-      draft: 'is a draft. Check the items and price, then submit it.',
+      draft: 'is a draft. Check the items and price, preview the PDF, then send it.',
       pending_approval: canApprove ? 'is waiting for your approval.' : 'is waiting for a manager to approve the discount.',
       approved: 'is approved. Send it to the customer.',
       sent: 'is with the customer. Record their answer when you hear back.',
-      changes_requested: 'came back with changes requested. Revise it and send it again.',
+      changes_requested: 'is under discussion: the customer asked for changes. Revise it and send it again.',
     }
     const preferred = {
-      draft: ['submit', 'email'],
+      draft: ['email', 'send'],
       pending_approval: ['approve'],
       approved: ['email', 'send'],
       sent: ['accept', 'changes', 'reject'],
@@ -385,13 +451,16 @@ export default function OpportunityDetail() {
   }
   const next = nextStep()
 
+  const showProposal = Boolean(opp.lead_id) || proposals.length > 0
   const tabs = [
+    showProposal && { key: 'proposal', label: proposal ? `Proposal · v${proposal.version_no}` : 'Proposal' },
     { key: 'quotations', label: `Quotations${quotations.length ? ` (${quotations.length})` : ''}` },
     canSeeContracts && { key: 'contract', label: `Contract${contracts.length ? ` (${contracts.length})` : ''}` },
     canSeeFiles && { key: 'files', label: 'Files' },
     canSeeActivity && { key: 'activity', label: 'Activity' },
   ].filter(Boolean)
-  const activeTab = tabs.some((t) => t.key === tab) ? tab : 'quotations'
+  const stepTab = needsProposal || (acceptedProposal && quotations.length === 0) ? 'proposal' : 'quotations'
+  const activeTab = tabs.some((t) => t.key === tab) ? tab : tabs.some((t) => t.key === stepTab) ? stepTab : 'quotations'
 
   return (
     <div>
@@ -522,17 +591,6 @@ export default function OpportunityDetail() {
                 />
               </div>
             </div>
-            <div className="grid-3">
-              <div className="field">
-                <label htmlFor="opp-stage">Stage</label>
-                <select id="opp-stage" value={form.stage} onChange={(e) => set('stage', e.target.value)}>
-                  {OPEN_STAGES.map((s) => (
-                    <option key={s} value={s}>{humanize(s)}</option>
-                  ))}
-                </select>
-                <span className="muted small">Usually moves on its own as quotations are sent and accepted.</span>
-              </div>
-            </div>
             <div className="row-actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
               <button
@@ -580,6 +638,30 @@ export default function OpportunityDetail() {
           </button>
         ))}
       </div>
+
+      {activeTab === 'proposal' && (
+        <div className="panel">
+          <div className="section-head">
+            <div>
+              <h2 style={{ fontSize: 17 }}>Proposal</h2>
+              <p className="muted small" style={{ margin: '4px 0 0' }}>
+                What you will do for the customer, as a PDF they can read. Once they accept it, the quotation is made from it.
+              </p>
+            </div>
+          </div>
+          <ProposalsSection
+            orgId={orgId}
+            opportunity={opp}
+            canManage={canManage}
+            onChanged={() => {
+              proposalsQuery.reload()
+              oppQuery.reload()
+              invalidate(['opportunities', orgId])
+              setTimelineKey((k) => k + 1)
+            }}
+          />
+        </div>
+      )}
 
       {activeTab === 'quotations' && (
         <div className="panel">
@@ -643,6 +725,9 @@ export default function OpportunityDetail() {
             panel !== 'quotation' && (
               <div className="empty-note">
                 <p style={{ margin: '0 0 10px' }}>No quotations yet. A quotation lists what you offer and the price.</p>
+                {needsProposal && (
+                  <p className="muted small">This deal came from a lead: the quotation is made from the proposal once the customer accepts it.</p>
+                )}
                 {canAddQuotation && (
                   <button className="btn" onClick={startNewQuotation}>Create the first quotation</button>
                 )}

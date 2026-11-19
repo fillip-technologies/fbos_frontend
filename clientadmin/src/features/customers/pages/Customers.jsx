@@ -12,7 +12,7 @@ import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { CUSTOMER_TYPES, capitalize } from '@/features/customers/utils.js'
 import useOwners from '@/features/customers/useOwners.js'
 
-// Prospects (converted leads still to accept a quotation) are kept apart from customers.
+// Prospects (qualified leads still to accept a quotation) are kept apart from customers.
 const TABS = [
   ['active', 'Customers'],
   ['prospect', 'Prospects'],
@@ -79,7 +79,7 @@ export default function Customers() {
         ))}
       </div>
       {status === 'prospect' && (
-        <p className="muted small">Converted from leads; each becomes a customer when it accepts a quotation.</p>
+        <p className="muted small">Qualified from leads; each becomes a customer when it accepts a quotation.</p>
       )}
 
       <ErrorBanner error={error} onRetry={reload} />

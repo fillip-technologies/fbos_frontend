@@ -43,7 +43,7 @@ export default function Opportunities() {
         <div>
           <h1>Opportunities</h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
-            Deals in progress for {activeOrg ? `“${activeOrg.name}”` : 'this company'}. They come from converted leads and
+            Deals in progress for {activeOrg ? `“${activeOrg.name}”` : 'this company'}. They come from qualified leads and
             are won when the customer accepts a quotation, or are started for a customer you already have.
           </p>
         </div>
