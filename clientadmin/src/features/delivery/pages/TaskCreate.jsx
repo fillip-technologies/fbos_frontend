@@ -6,6 +6,7 @@ import CustomFieldInputs from '@/shared/components/CustomFieldInputs.jsx'
 import { CustomizeFormLink } from '@/features/verticals/components/CustomFieldsSection.jsx'
 import { DISCIPLINE_ORDER, attributeErrors, disciplineLabel, formatTarget } from '@/features/delivery/taskFields.js'
 import { checkFields, isEmpty, toAttributes } from '@/shared/utils/customFields.js'
+import useTaskReviewers from '@/features/delivery/useTaskReviewers.js'
 import useAssignablePeople from '@/features/delivery/useAssignablePeople.js'
 import useAssignmentPolicies from '@/features/delivery/useAssignmentPolicies.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
@@ -90,6 +91,8 @@ export default function TaskCreate() {
   // Reviewers may be anyone; the assignee is someone the task's team may give its work to.
   const people = names.people || [me].filter(Boolean)
   const assignable = useAssignablePeople(orgId, owningUnitId)
+  // A personal task's reviewer: anyone else in the company.
+  const reviewers = useTaskReviewers(orgId, form.personal)
   const givenOut = useAssignmentPolicies(orgId).givenOut(owningUnitId)
   const estimateMinutes = parseDuration(form.estimate)
   const estimateInvalid = form.estimate.trim() !== '' && estimateMinutes === null
@@ -143,12 +146,12 @@ export default function TaskCreate() {
       const attributes = toAttributes(createFields, values)
       if (Object.keys(attributes).length) body.attributes = attributes
       if (form.description.trim()) body.description = form.description.trim()
-      // A personal task has no team: delivery makes it the creator's own, with no reviewer.
+      // A personal task has no team: delivery makes it the creator's own, reviewed by whoever is named.
       if (!form.personal) {
         body.owning_unit_id = owningUnitId
         if (form.assignee_user_id) body.assignee_user_id = form.assignee_user_id
-        if (form.reviewer_user_id) body.reviewer_user_id = form.reviewer_user_id
       }
+      if (form.reviewer_user_id) body.reviewer_user_id = form.reviewer_user_id
       if (form.due_date) body.due_at = dueAtFromDate(form.due_date)
       if (usesTime && estimateMinutes) body.estimate_minutes = estimateMinutes
       const created = await tasksApi.create(orgId, body)
@@ -350,6 +353,21 @@ export default function TaskCreate() {
         )}
         {form.personal && (
           <div className="grid-3">
+            <div className="field">
+              <label htmlFor="personal_reviewer">Reviewer</label>
+              <select id="personal_reviewer" value={form.reviewer_user_id} onChange={(e) => set('reviewer_user_id', e.target.value)}>
+                <option value="">{taskType?.requires_review ? '— Choose when handing it in —' : '— No review —'}</option>
+                {reviewers.people.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+              <div className="hint">
+                {taskType?.requires_review
+                  ? 'This kind of task goes for review: name who checks it now, or when you hand it in.'
+                  : 'Optional: someone checks it before it counts as done.'}
+              </div>
+              {reviewers.error && <div className="hint">The company’s people couldn’t be loaded. Try again shortly.</div>}
+            </div>
             {usesTime ? (
               <div className="field">
                 <label htmlFor="estimate">Estimate</label>
