@@ -329,12 +329,12 @@ Plan: `../LEAD_WORKFLOW_PLAN.md` (one level above both repos). Phase 1 of 4.
 
 Plan: `../TASK_ACTIVITY_PLAN.md`.
 
-- **Log a call** (`LogCall`) has a Task choice, sent as `task: { mode, task_id, follow_up }` on `POST /leads/{id}/calls`:
-  - `record` (default when the person may add tasks): delivery records the call as a done Call task of theirs, about the lead, with no team;
-  - `complete`: finishes one of their open tasks about the lead (`leadsApi.tasks(…, { assignee: 'me', status })`);
+- **Every activity** (call, meeting, email, WhatsApp, site visit, note) on a lead, opportunity or contract is linked to a task: the lead's **Log a call** (`LogCall`, `POST /leads/{id}/calls`) and the timeline's **+ Log activity** (`ActivityTimeline`, `POST /activities`, now with Next action / Follow up on) share `ActivityTaskChoice`, sent as `task: { mode, task_id, follow_up }`:
+  - `record` (default when the person may add tasks): delivery records it as a done task of theirs about the record, with no team: a Call, Email or Meeting task, else the general Task type (unless the company has a type coded `whatsapp`, `site_visit` or `note`);
+  - `complete`: finishes one of their open tasks about the record (`activitiesApi.tasks(orgId, subjectType, id, { assignee: 'me', status })`; `TASK_SUBJECTS` maps `commercial.*` to delivery's `revenue.*`);
   - `none`: no task.
   - With a follow-up date, "Add a follow-up task" (ticked) adds an open task due that day, titled with the next action.
   - Revenue asks delivery (`/internal/tasks`, as the user) before saving the call; a refusal saves nothing (`TASK_NOT_ABOUT_RECORD`, `TASK_NEEDS_REVIEW`, `NOT_ASSIGNEE`, `DELIVERY_SERVICE_UNAVAILABLE`). The call's activity names its task as `source`.
-- The lead page has a **Tasks** section (`LeadTasks`, `ACCESS.tasks`): the tasks about the lead, open first, with "+ Add task".
+- Lead, opportunity (Activity tab) and contract pages have a **Tasks** section (`RecordTasks`, `ACCESS.tasks`): the tasks about the record, open first; on a lead, "+ Add task".
 - **Personal tasks:** a task with no team is its creator's own (assigned to them, no reviewer). `delivery.task.personal` (in the member preset) lets anyone add, edit and cancel their own; `ACCESS.createTasks` opens the New task form for it or `delivery.task.write`. The form's Team offers "Just for me (no team)" (the only choice without task write); task lists have **Personal only** (`?personal=true`).
 

@@ -17,6 +17,7 @@ import StatusBadge from '@/shared/components/StatusBadge.jsx'
 import { toIsoDate } from '@/shared/utils/dates.js'
 import { formatDate } from '@/shared/utils/format.js'
 import ActivityTimeline from '@/features/sales/components/ActivityTimeline.jsx'
+import RecordTasks from '@/features/sales/components/RecordTasks.jsx'
 import ContractForm from '@/features/sales/components/ContractForm.jsx'
 import CustomerEmailForm, { contractEmailProps, quotationEmailProps } from '@/features/sales/components/CustomerEmailForm.jsx'
 import {
@@ -878,6 +879,9 @@ export default function OpportunityDetail() {
         />
       )}
 
+      {activeTab === 'activity' && hasAccess(me, ACCESS.tasks) && (
+        <RecordTasks orgId={orgId} subjectType={SUBJECTS.opportunity} subjectId={opp.id} />
+      )}
       {activeTab === 'activity' && canSeeActivity && (
         <ActivityTimeline key={timelineKey} orgId={orgId} subjectType={SUBJECTS.opportunity} subjectId={opp.id} />
       )}

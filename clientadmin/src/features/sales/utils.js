@@ -199,6 +199,12 @@ export const SUBJECTS = {
   opportunity: 'commercial.opportunity',
   contract: 'commercial.contract',
 }
+// Delivery's names for the same records, which tasks are about.
+export const TASK_SUBJECTS = {
+  'commercial.lead': 'revenue.lead',
+  'commercial.opportunity': 'revenue.opportunity',
+  'commercial.contract': 'revenue.contract',
+}
 
 export const humanize = (s) => (s ? (s[0].toUpperCase() + s.slice(1)).replaceAll('_', ' ') : s)
 
