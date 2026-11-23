@@ -8,6 +8,7 @@ import {
   Hardware, KeyAlerts, NextSteps, Procurement, SegmentDonut, TrendLine,
 } from '@/features/ceo/components/Cards.jsx'
 import { Delta } from '@/features/ceo/components/Parts.jsx'
+import Watchlist from '@/features/ceo/components/Watchlist.jsx'
 import { count, moneyIN, num, periodFor, RANGES, REASON_TEXT } from '@/features/ceo/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useTaxEntries } from '@/features/tax/useTaxConfig.js'
@@ -104,6 +105,8 @@ function Screen({ screen, names, range, rangeLabel }) {
         <KeyAlerts n={14} screen={screen} fmt={fmt} />
         <NextSteps n={15} screen={screen} fmt={fmt} />
       </div>
+
+      <Watchlist />
     </>
   )
 }

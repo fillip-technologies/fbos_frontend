@@ -1,0 +1,74 @@
+/* Phones and small tablets. Loaded after styles.css so it only has to say what changes on a small screen.
+   The sidebar is already an off-canvas drawer below 961px (see Layout.jsx); this file covers the pages. */
+
+/* Nothing may push the page sideways; `clip` (unlike `hidden`) keeps the sticky page bar working. */
+html, body { overflow-x: clip; -webkit-text-size-adjust: 100%; }
+img, video, canvas { max-width: 100%; height: auto; }
+
+@media (max-width: 760px) {
+  /* The frame */
+  .container { padding: 16px 14px 56px; }
+  .pagebar { padding: 0 14px; gap: 8px; }
+  .crumb-section { display: none; }
+  .crumbs { min-width: 0; }
+
+  /* Page heads, toolbars and button rows stack and wrap instead of overflowing. */
+  .page-head { flex-direction: column; align-items: stretch; gap: 12px; margin: 4px 0 16px; }
+  .page-head .row-actions { flex-wrap: wrap; }
+  .row-actions { flex-wrap: wrap; }
+  .section-head { flex-wrap: wrap; }
+  .toolbar > * { flex: 1 1 150px; min-width: 0; }
+  .toolbar input, .toolbar select { width: 100%; }
+  .overview-filters { gap: 8px; }
+  .overview-filters .segmented { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .segmented button { white-space: nowrap; }
+
+  /* Tables scroll inside their card; their header cells stay on one line. */
+  table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  th { white-space: nowrap; }
+
+  /* Cards, stats and chart headers */
+  .cards { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .stat-value { font-size: 26px; }
+  .chart-card { padding: 16px 14px 14px; }
+  .chart-head { flex-wrap: wrap; gap: 8px; }
+  .chart-tools { flex-wrap: wrap; }
+  .panel { max-width: 100%; }
+
+  /* Dialogs use nearly the whole screen, and their buttons share a row. */
+  .dialog, .dialog.wide { width: calc(100vw - 16px); max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); border-radius: 16px; }
+  .dialog-body { padding: 16px; }
+  .dialog-actions { flex-wrap: wrap; }
+  .dialog-actions .btn { flex: 1 1 120px; }
+
+  /* The notification panel opens over the page, not beside a sidebar. */
+  .bell-panel { left: 12px; right: 12px; width: auto; max-width: none; bottom: 12px; }
+
+  .details-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px 16px; }
+  .vertical-row, .form-row { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+  .details-grid { grid-template-columns: minmax(0, 1fr); }
+  .container { padding: 14px 12px 48px; }
+  .page-head h1 { font-size: 24px; }
+}
+
+/* Touch screens: comfortable targets, and no zoom-in when a field is focused (iOS zooms below 16px). */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px; }
+  .btn { min-height: 40px; }
+  .btn.small-btn { min-height: 34px; }
+  .sidebar-link { padding-top: 10px; padding-bottom: 10px; }
+  .tab-bar button { min-height: 42px; }
+}
+
+/* The sign-in pages: the form fills the width instead of overflowing it. */
+@media (max-width: 900px) {
+  .auth-split { grid-template-columns: minmax(0, 1fr); }
+  .auth-panel { padding: 28px 18px 40px; place-items: start center; }
+  .auth-panel .auth-card { width: 100%; max-width: 380px; min-width: 0; }
+  .auth-story { padding: 24px 18px; gap: 20px; }
+  .auth-headline { font-size: 34px; max-width: none; }
+  .auth-modules { margin-top: 16px; }
+}
