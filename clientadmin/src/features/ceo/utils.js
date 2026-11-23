@@ -124,3 +124,31 @@ export function trendTotal(months, key) {
   const recorded = (months ?? []).map((m) => m[key]).filter((v) => v !== null && v !== undefined)
   return recorded.length ? recorded.reduce((sum, v) => sum + num(v), 0) : null
 }
+
+// ---------- Dashboard figures, written the way the reference screen writes them ----------
+
+// ₹ 24.8 Cr / ₹ 12.4 L: lakh and crore for rupees, the compact form for any other currency.
+export function moneyIN(amount, currency = 'INR') {
+  if (currency !== 'INR') return money(amount, currency)
+  const n = num(amount)
+  const abs = Math.abs(n)
+  if (abs >= 1e7) return `₹ ${(n / 1e7).toFixed(1)} Cr`
+  if (abs >= 1e5) return `₹ ${(n / 1e5).toFixed(1)} L`
+  return `₹ ${Math.round(n).toLocaleString('en-IN')}`
+}
+
+// "↑ 18%" against the period before, as { arrow, text, tone }; null when there is nothing to compare.
+export function delta(value, previous, { higherIsBetter = true } = {}) {
+  if (previous === null || previous === undefined || value === null || value === undefined) return null
+  const before = num(previous)
+  if (before === 0) return null
+  const pctChange = Math.round(((num(value) - before) / Math.abs(before)) * 100)
+  if (pctChange === 0) return { arrow: '', text: '0%', tone: '' }
+  return { arrow: pctChange > 0 ? '↑' : '↓', text: `${Math.abs(pctChange)}%`, tone: pctChange > 0 === higherIsBetter ? 'good' : 'bad' }
+}
+
+// Each part's share of the whole, in whole percent.
+export function shares(rows, key = 'value') {
+  const total = rows.reduce((sum, r) => sum + num(r[key]), 0)
+  return rows.map((r) => ({ ...r, pct: total > 0 ? Math.round((num(r[key]) / total) * 100) : 0 }))
+}
