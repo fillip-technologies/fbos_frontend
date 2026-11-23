@@ -27,7 +27,8 @@ export default function Projects() {
 
   const { data, error, loading, refreshing, reload } = useQuery(
     ['projects', orgId, { cursor, filters }],
-    ({ signal }) => projectsApi.list(orgId, { limit: 25, cursor, ...filters }, { signal }),
+    // Projects only: a project's workstreams are on its page.
+    ({ signal }) => projectsApi.list(orgId, { limit: 25, cursor, top_level: true, ...filters }, { signal }),
     { enabled: Boolean(orgId), keepPrevious: true }
   )
   const projects = data?.data ?? []
@@ -122,6 +123,7 @@ export default function Projects() {
                     <div style={{ fontWeight: 600 }}>{p.name}</div>
                     <div className="muted small">
                       <span className="mono">{p.code}</span> · {p.type.name}
+                      {p.workstream_count > 0 && ` · ${p.workstream_count} workstream${p.workstream_count === 1 ? '' : 's'}`}
                     </div>
                   </td>
                   <td>{p.client ? names.customerName(p.client) : <span className="muted">Internal</span>}</td>

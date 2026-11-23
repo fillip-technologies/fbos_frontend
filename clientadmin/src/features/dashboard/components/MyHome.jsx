@@ -15,12 +15,11 @@ export default function MyHome() {
   return (
     <div>
       <HomeHero eyebrow={where || 'Your workspace'} name={user.name} sub="What needs you first, then how things are going. Press / anywhere to find a page.">
-        {hasAccess(user, ACCESS.inviteUsers) && (
-          <div className="row-actions" style={{ marginTop: 20 }}>
-            <Link className="btn" to="/users/new">Invite a user</Link>
-            <Link className="btn secondary" to="/profile">My profile</Link>
-          </div>
-        )}
+        <div className="row-actions home-actions">
+          {hasAccess(user, ACCESS.ceoDashboard) && <Link className="btn" to="/ceo">CEO Command Center</Link>}
+          {hasAccess(user, ACCESS.inviteUsers) && <Link className="btn secondary" to="/users/new">Invite a user</Link>}
+          <Link className="btn secondary" to="/profile">My profile</Link>
+        </div>
       </HomeHero>
 
       {!user.mfa_enabled && (
@@ -29,11 +28,11 @@ export default function MyHome() {
         </div>
       )}
 
-      <WelcomeCard canCreate={CREATE_ACTIONS.some((a) => hasAccess(user, a.access))} />
-
       <NeedsYou />
 
       <Overview />
+
+      <WelcomeCard canCreate={CREATE_ACTIONS.some((a) => hasAccess(user, a.access))} />
 
       {canOpenAnything ? (
         <Workspace user={user} />
@@ -46,13 +45,13 @@ export default function MyHome() {
         </div>
       )}
 
-      <section className="home-section">
-        <div className="home-section-head">
+      <details className="home-section home-fold">
+        <summary className="home-section-head">
           <h2>Your access</h2>
           <span>
             {user.permissions.length} permission{user.permissions.length === 1 ? '' : 's'} · managed by your administrator
           </span>
-        </div>
+        </summary>
         <div className="panel">
           <div className="section-head">
             <div>
@@ -73,7 +72,7 @@ export default function MyHome() {
             <Link className="btn secondary" to="/profile">My profile</Link>
           </div>
         </div>
-      </section>
+      </details>
     </div>
   )
 }

@@ -93,6 +93,7 @@ const LABELS = {
   returns: 'Returns',
   capital_gain: 'Capital gains',
   dividend: 'Dividends',
+  investment_in_companies: 'From companies we invest in',
   rent: 'Rent',
   hardware: 'Hardware',
   software: 'Software',
@@ -114,6 +115,20 @@ const LABELS = {
   cancelled: 'Cancelled',
 }
 export const label = (key) => LABELS[key] ?? String(key).replace(/_/g, ' ')
+
+// Revenue's business segments (one per invoice line, the first that matches).
+const BUSINESS_SEGMENTS = {
+  associate: 'Associate companies’ business',
+  amc_hardware: 'AMC · hardware',
+  amc_services: 'AMC · services',
+  hardware_sales: 'Hardware sales',
+  government_india: 'Government · India',
+  government_international: 'Government · International',
+  private_india: 'Private · India',
+  private_international: 'Private · International',
+  other: 'Other',
+}
+export const businessSegmentLabel = (key) => BUSINESS_SEGMENTS[key] ?? label(key)
 
 // "Government · India": a customer segment, sector by market.
 export const segmentLabel = (s) => `${label(s.sector)} · ${label(s.market)}`
@@ -152,3 +167,17 @@ export function shares(rows, key = 'value') {
   const total = rows.reduce((sum, r) => sum + num(r[key]), 0)
   return rows.map((r) => ({ ...r, pct: total > 0 ? Math.round((num(r[key]) / total) * 100) : 0 }))
 }
+
+// The reference screen's names for Revenue's business segments.
+const SEGMENT_NAMES = {
+  associate: 'Associate Company Business',
+  amc_hardware: 'AMC (Hardware)',
+  amc_services: 'AMC (Services)',
+  hardware_sales: 'Hardware Sales',
+  government_india: 'Govt. Work (India)',
+  government_international: 'Govt. Work (International)',
+  private_india: 'Private Clients (India)',
+  private_international: 'Private Clients (International)',
+  other: 'Other',
+}
+export const segmentName = (key) => SEGMENT_NAMES[key] ?? businessSegmentLabel(key)

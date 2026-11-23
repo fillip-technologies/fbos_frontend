@@ -11,11 +11,14 @@ import PageIntro, { usePageIntros } from '@/app/layout/PageIntro.jsx'
 import { preloadPage } from '@/app/pages.js'
 import { PageSkeleton } from '@/shared/components/Skeleton.jsx'
 import TopProgress from '@/shared/components/TopProgress.jsx'
+import '@/app/layout/sidebar-rail.css'
 import fillipMark from '@/assets/brand/fillip-mark.png'
 
 // { [sectionId]: true (open) | false (folded) }; sections without an entry use their default.
 const SECTIONS_KEY = 'fbos_nav_sections'
 const LEGACY_COLLAPSED_KEY = 'fbos_nav_collapsed'
+// Whether the whole sidebar is folded to its icon rail (wide screens only).
+const RAIL_KEY = 'fbos_sidebar_rail'
 
 const svg = (children, size = 16) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -27,6 +30,7 @@ const ICONS = {
   chevron: svg(<path d="M9 6l6 6-6 6" />, 12),
   signOut: svg(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>),
   menu: svg(<><path d="M4 7h16M4 12h16M4 17h10" /></>, 20),
+  rail: svg(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></>, 18),
   user: svg(<><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>),
   bell: svg(<><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></>),
 }
@@ -46,6 +50,14 @@ function Brand() {
 function initials(name) {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean)
   return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '·'
+}
+
+function readRail() {
+  try {
+    return localStorage.getItem(RAIL_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 function readOpenState() {
@@ -98,6 +110,7 @@ export default function Layout() {
   const [open, setOpen] = useState(false) // off-canvas sidebar on small screens
   const [palette, setPalette] = useState(false)
   const [openState, setOpenState] = useState(readOpenState)
+  const [rail, setRail] = useState(readRail)
   const intros = usePageIntros()
   const mainRef = useRef(null)
   const firstRender = useRef(true)
@@ -135,6 +148,29 @@ export default function Layout() {
     if (current) rememberPage(current.to)
   }, [current])
 
+  const toggleRail = useCallback(() => {
+    setRail((prev) => {
+      try {
+        localStorage.setItem(RAIL_KEY, prev ? '0' : '1')
+      } catch {
+        // Not remembered across visits; the toggle still works.
+      }
+      return !prev
+    })
+  }, [])
+
+  // Ctrl/Cmd + B folds and unfolds the sidebar, as in most editors.
+  useEffect(() => {
+    function onKey(event) {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'b') return
+      if (event.target.closest?.('input, textarea, select, [contenteditable="true"]')) return
+      event.preventDefault()
+      toggleRail()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleRail])
+
   function toggleSection(section, isOpen) {
     setOpenState((prev) => {
       const next = { ...prev, [section.id]: !isOpen }
@@ -164,7 +200,7 @@ export default function Layout() {
   const showHeaders = items.length > 6
 
   return (
-    <div className={`app-shell with-sidebar${open ? ' sidebar-open' : ''}`}>
+    <div className={`app-shell with-sidebar${open ? ' sidebar-open' : ''}${rail ? ' sidebar-rail' : ''}`}>
       <TopProgress />
       <aside className="sidebar" aria-label="Main navigation">
         <Brand />
@@ -175,7 +211,7 @@ export default function Layout() {
         </button>
         <nav className="sidebar-nav">
           {sections.map((section) => {
-            const isOpen = !showHeaders || section === currentSection || (openState[section.id] ?? !section.defaultCollapsed)
+            const isOpen = rail || !showHeaders || section === currentSection || (openState[section.id] ?? !section.defaultCollapsed)
             return (
               <div key={section.id} className={`nav-section${isOpen ? ' open' : ''}`}>
                 {showHeaders && (
@@ -200,7 +236,7 @@ export default function Layout() {
                         to={item.to}
                         end={item.end}
                         className="sidebar-link"
-                        title={item.description || undefined}
+                        title={rail ? item.label : item.description || undefined}
                         tabIndex={isOpen ? undefined : -1}
                         onMouseEnter={() => preloadPage(item.to)}
                         onFocus={() => preloadPage(item.to)}
@@ -242,6 +278,10 @@ export default function Layout() {
 
       <div className="content">
         <header className="pagebar">
+          <button type="button" className="pagebar-rail" onClick={toggleRail} aria-pressed={rail}
+            aria-label={rail ? 'Expand the sidebar' : 'Collapse the sidebar'} title={`${rail ? 'Expand' : 'Collapse'} the sidebar (${shortcutLabel === '⌘K' ? '⌘B' : 'Ctrl+B'})`}>
+            {ICONS.rail}
+          </button>
           <button type="button" className="pagebar-menu" onClick={() => setOpen(true)} aria-label="Open menu">
             {ICONS.menu}
           </button>

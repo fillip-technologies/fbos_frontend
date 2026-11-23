@@ -12,7 +12,7 @@ import Watchlist from '@/features/ceo/components/Watchlist.jsx'
 import { count, moneyIN, num, periodFor, RANGES, REASON_TEXT } from '@/features/ceo/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import { useTaxEntries } from '@/features/tax/useTaxConfig.js'
-import { useLookup, useQuery } from '@/shared/api/useQuery.js'
+import { useQuery } from '@/shared/api/useQuery.js'
 import { useCountUp } from '@/shared/components/Charts.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
@@ -64,7 +64,7 @@ export default function CommandCenter() {
   )
 }
 
-// Names for the ids revenue keeps (places of supply), from the active company's lookups.
+// Names for the places of supply Revenue keeps, from the active company's tax lookups.
 function useNames(orgId) {
   const { entries: places } = useTaxEntries(orgId, 'jurisdiction')
   return {
@@ -72,7 +72,7 @@ function useNames(orgId) {
   }
 }
 
-// The fifteen cards of the reference screen, in its order: four rows of three, three and four, then five.
+// The fifteen cards of the reference screen, in its order: rows of three, three, four and five.
 function Screen({ screen, names, range, rangeLabel }) {
   const fmt = (v) => moneyIN(v, screen.currency)
   return (
@@ -146,6 +146,7 @@ function Kpi({ icon, title, metric, format, to, higherIsBetter = true, compare }
   const unavailable = !metric.available || !metric.value
   const [path, color] = TILE_ICONS[icon]
   const note = unavailable ? REASON_TEXT[metric.reason] ?? REASON_TEXT.unavailable : metric.organizations_missing > 0 ? `${metric.organizations_missing} not included` : null
+  const hasPrevious = !unavailable && metric.value.previous !== null && metric.value.previous !== undefined
   const body = (
     <>
       <span className="kpi-icon" style={{ '--tile': color }} aria-hidden="true">
@@ -154,10 +155,10 @@ function Kpi({ icon, title, metric, format, to, higherIsBetter = true, compare }
       <div className="kpi-text">
         <div className="kpi-label">{title}</div>
         <div className={`kpi-value${unavailable ? ' muted' : ''}`}>{unavailable ? '—' : format(shown)}</div>
-        {!unavailable && (
+        {hasPrevious && (
           <div className="kpi-sub">
             <Delta value={metric.value.amount} previous={metric.value.previous} higherIsBetter={higherIsBetter} />
-            {metric.value.previous !== null && metric.value.previous !== undefined && <span className="cc-vs"> {compare}</span>}
+            <span className="cc-vs"> {compare}</span>
           </div>
         )}
         {note && <div className="kpi-sub">{note}</div>}

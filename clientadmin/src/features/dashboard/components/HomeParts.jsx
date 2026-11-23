@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { NAV_ITEMS, navSections } from '@/app/navigation.jsx'
 import { preloadPage } from '@/app/pages.js'
 import { hasAccess } from '@/features/auth/access.js'
+import '@/features/dashboard/dashboard.css'
 
 function partOfDay(hour) {
   if (hour < 5) return 'Working late'
@@ -29,22 +30,23 @@ export function HomeHero({ eyebrow, name, title, sub, children }) {
   const first = name?.trim().split(/\s+/)[0]
   return (
     <header className="home-hero">
-      <div>
-        <div className="home-eyebrow">{eyebrow}</div>
-        <h1 className="home-title">
+      <div className="home-hero-main">
+        <h1 className="home-title" title={sub}>
           {title ?? (
             <>
               {partOfDay(now.getHours())}
-              {first ? <>, <em>{first}.</em></> : '.'}
+              {first ? <>, <em>{first}</em></> : ''}
             </>
           )}
         </h1>
-        {sub && <p className="home-sub">{sub}</p>}
-        {children}
+        <span className="home-eyebrow">{eyebrow}</span>
       </div>
-      <div className="home-clock" aria-hidden="true">
-        {clockFormat.format(now)}
-        <small>{dayFormat.format(now)}</small>
+      <div className="home-hero-side">
+        {children}
+        <span className="home-clock" aria-hidden="true">
+          {clockFormat.format(now)}
+          <small>{dayFormat.format(now)}</small>
+        </span>
       </div>
     </header>
   )

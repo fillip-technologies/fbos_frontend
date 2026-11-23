@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { opportunitiesApi, quotationsApi } from '@/features/sales/api.js'
-import { OPEN_QUOTATION_STATUSES, WITHDRAWAL_REASONS, quotationTitle } from '@/features/sales/utils.js'
+import { OPEN_QUOTATION_STATUSES, WITHDRAWAL_REASONS, needsDiscountApproval, quotationTitle } from '@/features/sales/utils.js'
 import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { toIsoDate, todayIso } from '@/shared/utils/dates.js'
@@ -31,7 +31,8 @@ const ACTIONS = {
 }
 
 const BY_STATUS = {
-  draft: ['open', 'submit', 'email', 'makeMain', 'rename', 'duplicate', 'withdraw'],
+  // One Send: a discount over 20% goes for approval first (the backend decides it).
+  draft: ['open', 'email', 'send', 'makeMain', 'rename', 'duplicate', 'withdraw'],
   pending_approval: ['approve', 'makeMain', 'rename', 'withdraw'],
   approved: ['email', 'send', 'makeMain', 'rename', 'duplicate', 'withdraw'],
   sent: ['emailAgain', 'accept', 'changes', 'reject', 'revise', 'validity', 'makeMain', 'rename', 'duplicate', 'withdraw'],
@@ -50,15 +51,18 @@ const BY_STATUS = {
  * be added (duplicates).
  */
 export function quotationActions(quote, { canManage, canApprove, canCreateContract = false, opportunityOpen = false }) {
+  const forApproval = quote.status === 'draft' && needsDiscountApproval(quote)
   return (BY_STATUS[quote.status] || [])
     .filter((key) => {
+      // Held for its discount: it can't be emailed until approved.
+      if (key === 'email' && forApproval) return false
       if (key === 'approve') return canApprove
       if (key === 'contract') return canCreateContract
       if (key === 'makeMain') return canManage && !quote.is_main && Boolean(quote.opportunity_id)
       if (key === 'duplicate') return canManage && opportunityOpen && Boolean(quote.opportunity_id)
       return canManage
     })
-    .map((key) => ({ key, ...ACTIONS[key] }))
+    .map((key) => ({ key, ...ACTIONS[key], ...(key === 'send' && forApproval ? { label: 'Send for approval' } : {}) }))
 }
 
 // The 'run' actions. Revise answers with the new revision, the others with this quotation.

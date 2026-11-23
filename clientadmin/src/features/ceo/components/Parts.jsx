@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { count, delta, num } from '@/features/ceo/utils.js'
+import { delta, num } from '@/features/ceo/utils.js'
 
 // The ten colours of the reference screen's donuts and bars, in order.
 export const PALETTE = ['#2563eb', '#16a34a', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#64748b', '#f97316']
@@ -35,10 +35,10 @@ export function Panel({ n, title, state, rangeLabel, to, className = '', childre
 }
 
 // "↑ 18%" in green or red.
-export function Delta({ value, previous, higherIsBetter = true, className = '' }) {
+export function Delta({ value, previous, higherIsBetter = true }) {
   const d = delta(value, previous, { higherIsBetter })
   if (!d) return null
-  return <span className={`cc-delta ${d.tone} ${className}`}>{d.arrow ? `${d.arrow} ` : ''}{d.text}</span>
+  return <span className={`cc-delta ${d.tone}`}>{d.arrow ? `${d.arrow} ` : ''}{d.text}</span>
 }
 
 // A ring of parts with a label in the middle.
@@ -54,10 +54,10 @@ export function Donut({ parts, center, size = 160 }) {
         {total > 0 &&
           parts.map((p, i) => {
             const length = (num(p.value) / total) * circumference
-            const dash = `${Math.max(0, length - 1)} ${circumference - Math.max(0, length - 1)}`
+            const shown = Math.max(0, length - 1)
             const node = (
               <circle key={p.key} cx="60" cy="60" r={r} fill="none" stroke={p.color ?? PALETTE[i % PALETTE.length]} strokeWidth="20"
-                strokeDasharray={dash} strokeDashoffset={-offset} transform="rotate(-90 60 60)" />
+                strokeDasharray={`${shown} ${circumference - shown}`} strokeDashoffset={-offset} transform="rotate(-90 60 60)" />
             )
             offset += length
             return node
@@ -73,7 +73,7 @@ export function Donut({ parts, center, size = 160 }) {
   )
 }
 
-// The donut and its legend: dot, name, share and amount.
+// The donut's legend: dot, name, share and amount.
 export function DonutLegend({ rows, fmt }) {
   return (
     <ul className="cc-legend">
@@ -89,7 +89,7 @@ export function DonutLegend({ rows, fmt }) {
   )
 }
 
-// Name, a bar and a share: the small ranked lists of the reference screen.
+// Name, a bar and a figure: the small ranked lists of the reference screen.
 export function MiniBars({ rows, format = (v) => `${v}%`, empty = 'Nothing recorded in this period.' }) {
   if (!rows.length) return <p className="chart-empty">{empty}</p>
   const max = Math.max(1, ...rows.map((r) => num(r.value)))
@@ -109,15 +109,12 @@ export function MiniBars({ rows, format = (v) => `${v}%`, empty = 'Nothing recor
 }
 
 // A figure with a caption (and its change): the stat boxes inside a card.
-export function Stat({ label, value, tone, children, icon }) {
+export function Stat({ label, value, tone, children }) {
   return (
     <div className="cc-stat">
-      {icon}
       <span className="cc-stat-label">{label}</span>
       <strong className={tone ? `cc-stat-value ${tone}` : 'cc-stat-value'}>{value}</strong>
       {children}
     </div>
   )
 }
-
-export const countText = (v) => count(v)

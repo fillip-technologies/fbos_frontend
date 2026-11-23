@@ -75,6 +75,7 @@ const InventoryReports = lazy(pages.InventoryReports)
 const Projects = lazy(pages.Projects)
 const ProjectCreate = lazy(pages.ProjectCreate)
 const ProjectDetail = lazy(pages.ProjectDetail)
+const CustomerBoard = lazy(pages.CustomerBoard)
 const ProjectTemplates = lazy(pages.ProjectTemplates)
 const ProjectTemplateBuilder = lazy(pages.ProjectTemplateBuilder)
 const Tasks = lazy(pages.Tasks)
@@ -233,11 +234,12 @@ export default function App() {
           <Route path="/projects" element={<RequireAccess rule={ACCESS.projects}><Projects /></RequireAccess>} />
           <Route path="/projects/new" element={<RequireAccess rule={ACCESS.manageProjects}><ProjectCreate /></RequireAccess>} />
           <Route path="/projects/:id" element={<RequireAccess rule={ACCESS.projects}><ProjectDetail /></RequireAccess>} />
+          <Route path="/customer-boards/:clientId" element={<RequireAccess rule={ACCESS.projects}><CustomerBoard /></RequireAccess>} />
           <Route path="/project-templates" element={<RequireAccess rule={ACCESS.projectTemplates}><ProjectTemplates /></RequireAccess>} />
           <Route path="/project-templates/:code" element={<RequireAccess rule={ACCESS.projectTemplates}><ProjectTemplateBuilder /></RequireAccess>} />
           <Route path="/project-workflows/:code" element={<RequireAccess rule={ACCESS.designWorkflows}><WorkflowBuilder subject="project" /></RequireAccess>} />
           <Route path="/tasks" element={<RequireAccess rule={ACCESS.tasks}><Tasks /></RequireAccess>} />
-          <Route path="/tasks/new" element={<RequireAccess rule={ACCESS.manageTasks}><TaskCreate /></RequireAccess>} />
+          <Route path="/tasks/new" element={<RequireAccess rule={ACCESS.createTasks}><TaskCreate /></RequireAccess>} />
           <Route path="/tasks/:id" element={<RequireAccess rule={ACCESS.tasks}><TaskDetail /></RequireAccess>} />
           <Route path="/task-types" element={<RequireAccess rule={ACCESS.tasks}><TaskTypes /></RequireAccess>} />
           <Route path="/task-workflows/:code" element={<RequireAccess rule={ACCESS.designWorkflows}><WorkflowBuilder /></RequireAccess>} />

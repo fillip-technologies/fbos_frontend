@@ -29,7 +29,8 @@ import {
 } from '@/features/insights/data.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
-import { BarList, ChartCard, ColumnChart, LineChart, SERIES, StackedRows } from '@/shared/components/Charts.jsx'
+import { BarList, ChartCard, ColumnChart, LineChart, Ring, SERIES, StackedRows, STATUS } from '@/shared/components/Charts.jsx'
+import '@/features/insights/insights.css'
 import { Row, Section } from '@/shared/components/DashboardGrid.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
@@ -55,7 +56,9 @@ export default function Insights() {
   const rows = useMemo(() => buildRows(shownLevel, q, tree, names), [shownLevel, q, tree, names])
   const parts = q
   const loadingFirst = [parts.tasks, parts.projects, parts.time, parts.budgets, parts.workforce].some((x) => x.loading) && rows.length === 0
-  const failed = [parts.tasks, parts.projects, parts.time, parts.budgets, parts.workforce, parts.kpis, parts.units].find((x) => x.error && !x.data)
+  const parts_ = [['work', parts.tasks], ['projects', parts.projects], ['hours', parts.time], ['budgets', parts.budgets], ['people', parts.workforce], ['KPIs', parts.kpis], ['company structure', parts.units]]
+  const failedParts = parts_.filter(([, x]) => x.error && !x.data)
+  const failed = failedParts[0]?.[1]
   const currency = parts.budgets.data?.currency || 'INR'
   const isUnit = shownLevel !== 'person'
   const maxOpen = Math.max(1, ...rows.map((r) => r.work?.open ?? 0))
@@ -137,22 +140,18 @@ export default function Insights() {
         </div>
       </div>
       {!hasUnits && !parts.units.loading && <div className="alert info">The company structure isn’t available to you, so everything is shown per person.</div>}
-      {failed && <ErrorBanner error={failed.error} onRetry={() => failed.reload()} />}
-
-      <Totals q={parts} currency={currency} />
-
-      <section className="panel ins-board-panel">
-        <div className="chart-head">
-          <div>
-            <h3>{levelInfo.plural} at a glance</h3>
-            <p className="chart-sub">
-              Open work by stage ({WORK_STAGES.map((s) => s.label.toLowerCase()).join(', ')}), work finished in the period, project completion
-              {isUnit ? ', budget spent against approved' : ''}, KPI achievement and hours recorded. Select a name to open its page.
-            </p>
-          </div>
+      {failedParts.length > 0 && (
+        <div className="alert warn ins-failed" role="status" title={failed.error?.message}>
+          <span>
+            <strong>Some figures couldn’t be loaded:</strong> {failedParts.map(([name]) => name).join(', ')}. The rest is shown below.
+          </span>
+          <button type="button" className="btn secondary small-btn" onClick={() => failedParts.forEach(([, x]) => x.reload())}>Try again</button>
         </div>
-        {loadingFirst ? <PanelSkeleton lines={5} /> : <Scoreboard rows={rows} columns={columns} initialSort={{ key: columns.find((c) => c.key === 'open') ? 'open' : 'name', dir: -1 }} />}
-      </section>
+      )}
+
+      <Health q={parts} currency={currency} />
+
+      <Attention rows={rows} levelInfo={levelInfo} currency={currency} />
 
       {isUnit && parts.budgets.data && (
         <Section
@@ -160,6 +159,12 @@ export default function Insights() {
           sub={`${parts.budgets.data.fiscal_year_code} · ${money(parts.budgets.data.actual, currency)} spent of ${money(parts.budgets.data.approved, currency)} approved`}
         >
           <BudgetCards data={parts.budgets.data} rows={rows} levelInfo={levelInfo} />
+        </Section>
+      )}
+
+      {parts.kpis.data && (
+        <Section title="KPIs" sub={parts.kpis.data.period ? `${parts.kpis.data.period.name} · ${count(parts.kpis.data.results.length)} results` : 'No planning period covers today'}>
+          <KpiCards data={parts.kpis.data} rows={rows} levelInfo={levelInfo} tree={tree} names={names} />
         </Section>
       )}
 
@@ -260,11 +265,19 @@ export default function Insights() {
         </Section>
       )}
 
-      {parts.kpis.data && (
-        <Section title="KPIs" sub={parts.kpis.data.period ? `${parts.kpis.data.period.name} · ${count(parts.kpis.data.results.length)} results` : 'No planning period covers today'}>
-          <KpiCards data={parts.kpis.data} rows={rows} levelInfo={levelInfo} tree={tree} names={names} />
-        </Section>
-      )}
+
+      <section className="panel ins-board-panel">
+        <div className="chart-head">
+          <div>
+            <h3>{levelInfo.plural} at a glance</h3>
+            <p className="chart-sub">
+              Open work by stage ({WORK_STAGES.map((s) => s.label.toLowerCase()).join(', ')}), work finished in the period, project completion
+              {isUnit ? ', budget spent against approved' : ''}, KPI achievement and hours recorded. Select a name to open its page.
+            </p>
+          </div>
+        </div>
+        {loadingFirst ? <PanelSkeleton lines={5} /> : <Scoreboard rows={rows} columns={columns} initialSort={{ key: columns.find((c) => c.key === 'open') ? 'open' : 'name', dir: -1 }} />}
+      </section>
     </div>
   )
 }
@@ -336,8 +349,42 @@ function buildRows(level, q, tree, names) {
     .filter((r) => r.id || r.work?.open || r.work?.done_recent || r.projects?.total || r.budget?.count || r.time?.minutes || r.people || r.kpi?.count)
 }
 
-// ---------- Top numbers ----------
-function Totals({ q, currency }) {
+// ---------- The first look: four gauges ----------
+// What a head of the company asks first: is the money on plan, are the targets met, are the
+// projects moving and is the work on time. People and hours sit beside them as plain figures.
+const GAUGE = { good: STATUS.good, warn: STATUS.warning, bad: STATUS.critical, blue: SERIES[0] }
+
+function Gauge({ gauge }) {
+  if (gauge.missing) {
+    return (
+      <div className="ins-gauge is-missing">
+        <span className="ins-gauge-ring">
+          <Ring value={0} max={100} size={72} color={GAUGE.blue} label={`${gauge.label}: not available`} />
+          <strong>—</strong>
+        </span>
+        <span className="ins-gauge-text">
+          <b>{gauge.label}</b>
+          <small>{gauge.missing}</small>
+        </span>
+      </div>
+    )
+  }
+  const body = (
+    <>
+      <span className="ins-gauge-ring">
+        <Ring value={Math.min(100, gauge.value)} max={100} size={72} color={GAUGE[gauge.tone]} label={`${gauge.label}: ${Math.round(gauge.value)}%`} />
+        <strong>{Math.round(gauge.value)}%</strong>
+      </span>
+      <span className="ins-gauge-text">
+        <b>{gauge.label}</b>
+        <small className={gauge.tone === 'bad' || gauge.tone === 'warn' ? gauge.tone : ''}>{gauge.sub}</small>
+      </span>
+    </>
+  )
+  return gauge.to ? <Link to={gauge.to} className="ins-gauge">{body}</Link> : <div className="ins-gauge">{body}</div>
+}
+
+function Health({ q, currency }) {
   const tasks = q.tasks.data
   const projects = q.projects.data
   const budgets = q.budgets.data
@@ -345,34 +392,73 @@ function Totals({ q, currency }) {
   const people = q.workforce.data
   const kpis = q.kpis.data
   const score = kpis ? kpiScore(kpis.results.reduce((acc, r) => add.kpi(acc, r), add.kpi())) : null
+  const used = budgets ? budgetUse({ approved: budgets.approved, actual: budgets.actual }) : null
+  const onTime = tasks && tasks.open > 0 ? Math.max(0, 100 - (tasks.overdue / tasks.open) * 100) : null
+  // Why a figure is missing: could not load, or nothing to measure yet.
+  const gap = (part, none) => (part.error && !part.data ? 'Couldn’t be loaded' : part.loading ? 'Loading…' : none)
+  const gauges = [
+    used === null && !budgets && { key: 'budget', label: 'Budget used', missing: gap(q.budgets, 'Not available to you') },
+    score === null && !kpis && { key: 'kpi', label: 'KPI achievement', missing: gap(q.kpis, 'Not available to you') },
+    used !== null && {
+      key: 'budget', label: `Budget used · ${budgets.fiscal_year_code}`, value: used, tone: used > 100 ? 'bad' : used > 85 ? 'warn' : 'blue',
+      sub: `${money(budgets.actual, currency)} of ${money(budgets.approved, currency)} approved`, to: '/budgets',
+    },
+    score !== null && {
+      key: 'kpi', label: 'KPI achievement', value: score, tone: { green: 'good', amber: 'warn', red: 'bad' }[kpiRag(score)],
+      sub: `${RAG[kpiRag(score)].label} · ${count(kpis.results.length)} results`, to: '/scorecard',
+    },
+    projects && projects.average_progress_pct !== null && projects.average_progress_pct !== undefined && {
+      key: 'projects', label: 'Project completion', value: projects.average_progress_pct, tone: projects.late ? 'warn' : 'blue',
+      sub: `${count(projects.running)} running · ${count(projects.late)} late`, to: '/projects',
+    },
+    onTime !== null && {
+      key: 'ontime', label: 'Work on time', value: onTime, tone: onTime < 70 ? 'bad' : onTime < 90 ? 'warn' : 'good',
+      sub: `${count(tasks.overdue)} late of ${count(tasks.open)} open`, to: '/tasks',
+    },
+  ].filter(Boolean)
   const stats = [
     people && <Stat key="p" label="People" value={count(people.headcount)} sub={`${people.by_unit.length} units`} to="/users" />,
-    tasks && <Stat key="t" label="Open work" value={count(tasks.open)} sub={tasks.overdue ? `${count(tasks.overdue)} late` : 'Nothing late'} tone={tasks.overdue ? 'bad' : 'good'} to="/tasks" />,
-    projects && <Stat key="pr" label="Project completion" value={pct(projects.average_progress_pct)} sub={`${count(projects.running)} running · ${count(projects.late)} late`} tone={projects.late ? 'bad' : undefined} to="/projects" />,
-    budgets && (
-      <Stat
-        key="b"
-        label={`Budget used · ${budgets.fiscal_year_code}`}
-        value={pct(budgetUse({ approved: budgets.approved, actual: budgets.actual }))}
-        sub={`${money(budgets.actual, currency)} of ${money(budgets.approved, currency)} approved`}
-        tone={budgets.actual > budgets.approved && budgets.approved > 0 ? 'bad' : undefined}
-        to="/budgets"
-      />
-    ),
-    kpis && (
-      <Stat
-        key="k"
-        label={`KPIs · ${kpis.period?.name || kpis.period?.code || 'no period'}`}
-        value={score === null ? '—' : pct(score)}
-        sub={score === null ? 'No results yet' : `${RAG[kpiRag(score)].label} · ${count(kpis.results.length)} results`}
-        tone={score !== null && kpiRag(score) === 'red' ? 'bad' : undefined}
-        to="/scorecard"
-      />
-    ),
     time && <Stat key="h" label="Hours recorded" value={hours(time.minutes)} sub={`${hours(time.billable_minutes)} billable`} />,
   ].filter(Boolean)
-  if (!stats.length) return null
-  return <div className="ins-stats">{stats}</div>
+  if (!gauges.length && !stats.length) return null
+  return (
+    <section className="ins-health" aria-label="The company at a glance">
+      <div className="ins-gauges">
+        {gauges.map((g) => <Gauge key={g.key} gauge={g} />)}
+        {stats}
+      </div>
+    </section>
+  )
+}
+
+// ---------- Needs attention: the units to look at first ----------
+function Attention({ rows, levelInfo, currency }) {
+  const level = levelInfo.label.toLowerCase()
+  const late = rows.filter((r) => r.work?.overdue > 0).sort((a, b) => b.work.overdue - a.work.overdue).slice(0, 5)
+  const budget = rows.filter((r) => budgetUse(r.budget) >= 85).sort((a, b) => budgetUse(b.budget) - budgetUse(a.budget)).slice(0, 5)
+  const kpi = rows.filter((r) => kpiScore(r.kpi) !== null && kpiScore(r.kpi) < 90).sort((a, b) => kpiScore(a.kpi) - kpiScore(b.kpi)).slice(0, 5)
+  if (!late.length && !budget.length && !kpi.length) return null
+  return (
+    <Section title="Needs attention" sub={`The ${level}s to look at first`}>
+      <Row spans={[4, 4, 4]}>
+        {late.length > 0 && (
+          <ChartCard key="late" title="Most late work" subtitle="Open tasks past their due date">
+            <BarList fill color={STATUS.critical} format={count} rows={late.map((r) => ({ key: r.key, label: r.label, value: r.work.overdue, sub: `of ${count(r.work.open)} open`, tipLabel: 'Late tasks' }))} />
+          </ChartCard>
+        )}
+        {budget.length > 0 && (
+          <ChartCard key="budget" title="Budget nearly or fully used" subtitle="Spent as a share of approved; over 100% is over budget">
+            <BarList fill color={STATUS.warning} format={pct} rows={budget.map((r) => ({ key: r.key, label: `${budgetUse(r.budget) > 100 ? '▲ ' : ''}${r.label}`, value: budgetUse(r.budget), sub: `${money(r.budget.actual, currency)} of ${money(r.budget.approved, currency)}`, tipLabel: 'Of the approved budget' }))} />
+          </ChartCard>
+        )}
+        {kpi.length > 0 && (
+          <ChartCard key="kpi" title="KPIs furthest from target" subtitle="Average achievement; green from 90%">
+            <BarList fill color={STATUS.serious} format={pct} rows={kpi.map((r) => ({ key: r.key, label: r.label, value: kpiScore(r.kpi), sub: `${count(r.kpi.count)} results`, tipLabel: 'Average achievement' }))} />
+          </ChartCard>
+        )}
+      </Row>
+    </Section>
+  )
 }
 
 // ---------- Budgets ----------

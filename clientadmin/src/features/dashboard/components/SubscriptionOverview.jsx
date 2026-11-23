@@ -2,12 +2,13 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { clientApi } from '@/features/dashboard/api.js'
 import Overview from '@/features/dashboard/components/Overview.jsx'
-import { HomeHero, Meter, WelcomeCard, Workspace } from '@/features/dashboard/components/HomeParts.jsx'
+import { HomeHero, WelcomeCard, Workspace } from '@/features/dashboard/components/HomeParts.jsx'
 import NeedsYou from '@/features/dashboard/components/NeedsYou.jsx'
 import { CREATE_ACTIONS } from '@/app/navigation.jsx'
-import { hasAccess } from '@/features/auth/access.js'
+import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { organizationsApi } from '@/features/organizations/api.js'
 import { useQuery } from '@/shared/api/useQuery.js'
+import { Ring, SERIES, STATUS } from '@/shared/components/Charts.jsx'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { DetailSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
@@ -20,6 +21,20 @@ function periodUse(start, end) {
   if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return null
   const day = 86_400_000
   return { used: Math.max(0, Math.min(to - from, Date.now() - from)) / day, total: (to - from) / day }
+}
+
+// A ring and its caption: how much of a period or a limit is used.
+function PlanRing({ value, max, what }) {
+  const share = max > 0 ? Math.round((value / max) * 100) : 0
+  return (
+    <div className="plan-ring">
+      <span className="flowv-ring">
+        <Ring value={value} max={max} size={56} color={share >= 100 ? STATUS.critical : share >= 85 ? STATUS.warning : SERIES[0]} label={`${share}% ${what}`} />
+        <strong>{share}%</strong>
+      </span>
+      <span>{what}</span>
+    </div>
+  )
 }
 
 // Client admins: the client's service period and quotas (/clients/me is client-admin only).
@@ -58,8 +73,13 @@ export default function SubscriptionOverview() {
           </>
         }
         name={user?.name}
-        sub="Workspace overview and every area of the console you can open."
-      />
+        sub="What needs you first, then how things are going."
+      >
+        <div className="row-actions home-actions">
+          {hasAccess(user, ACCESS.ceoDashboard) && <Link className="btn" to="/ceo">CEO Command Center</Link>}
+          <Link className="btn secondary" to="/profile">My profile</Link>
+        </div>
+      </HomeHero>
 
       {client.subscription_state === 'expiring' && (
         <div className="alert warn">
@@ -68,6 +88,15 @@ export default function SubscriptionOverview() {
         </div>
       )}
 
+      <NeedsYou />
+
+      <Overview />
+
+      <section className="home-section" aria-label="Service period and limits">
+        <div className="home-section-head">
+          <h2>Your plan</h2>
+          <span>Service period and limits of your account</span>
+        </div>
       <div className="cards">
         <div className="panel home-feature">
           <div className="stat-label">{noExpiry ? 'Service status' : 'Service period ends'}</div>
@@ -78,7 +107,7 @@ export default function SubscriptionOverview() {
               : `${formatDate(client.subscription_start)} → ${formatDate(client.subscription_end)}`}
             {left !== null && left >= 0 && ` · ${left} day${left === 1 ? '' : 's'} left`}
           </div>
-          {period && <Meter value={period.used} max={period.total} label="Share of the service period used" />}
+          {period && <PlanRing value={period.used} max={period.total} what="of the service period used" />}
         </div>
         <div className="panel">
           <div className="stat-label">Companies</div>
@@ -88,9 +117,7 @@ export default function SubscriptionOverview() {
           <div className="stat-sub">
             <Link to="/organizations">Manage companies</Link>
           </div>
-          {client.max_organizations != null && (
-            <Meter value={orgCount} max={client.max_organizations} label="Companies used" />
-          )}
+          {client.max_organizations != null && <PlanRing value={orgCount} max={client.max_organizations} what="of your companies used" />}
         </div>
         <div className="panel">
           <div className="stat-label">Users per company</div>
@@ -109,11 +136,9 @@ export default function SubscriptionOverview() {
         </div>
       </div>
 
+      </section>
+
       <WelcomeCard canCreate={CREATE_ACTIONS.some((a) => hasAccess(user, a.access))} />
-
-      <NeedsYou />
-
-      <Overview />
 
       <Workspace user={user} />
     </div>

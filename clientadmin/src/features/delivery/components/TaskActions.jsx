@@ -60,7 +60,7 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
       <button key="submit" className="btn" onClick={() => openForm('submit')}>
         {task.status === 'rework'
           ? 'Resubmit'
-          : taskType?.requires_review ? 'Submit for review' : taskType?.outcomes?.length ? 'Log outcome' : 'Complete'}
+          : taskType?.requires_review || task.reviewer ? 'Submit for review' : taskType?.outcomes?.length ? 'Log outcome' : 'Complete'}
       </button>
     ),
     !governed && mayReview && ['submitted', 'in_review'].includes(task.status) && (
@@ -121,6 +121,7 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
       )}
       {form === 'submit' && (
         <SubmitForm
+          orgId={orgId}
           task={task}
           taskType={taskType}
           fields={fields}

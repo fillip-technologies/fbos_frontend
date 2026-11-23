@@ -80,10 +80,13 @@ export const ACCESS = {
   manageCustomers: { permissions: ['revenue.client.write'] },
   clientServices: { permissions: ['revenue.client_service.read'] },
   manageClientServices: { permissions: ['revenue.client_service.write'] },
-  // Sales: lead → opportunity → quotation → contract. Converting into a new customer also
+  // Sales: lead → opportunity → quotation → contract. Qualifying into a new customer also
   // needs manageCustomers; quotations follow their opportunity's access.
   leads: { permissions: ['revenue.lead.read'] },
+  // Claim leads and work the ones you handle.
   manageLeads: { permissions: ['revenue.lead.write'] },
+  // Sales managers: hand anyone's lead to someone else, and work any lead.
+  assignLeads: { permissions: ['revenue.lead.assign'] },
   opportunities: { permissions: ['revenue.opportunity.read'] },
   manageOpportunities: { permissions: ['revenue.opportunity.write'] },
   approveQuotations: { permissions: ['revenue.quotation.approve'] },
@@ -126,6 +129,10 @@ export const ACCESS = {
   decideChangeRequests: { permissions: ['delivery.change_request.approve'] },
   tasks: { permissions: ['delivery.task.read'] },
   manageTasks: { permissions: ['delivery.task.write'] },
+  // Keep your own tasks with no team (a personal to-do list); members have it.
+  personalTasks: { permissions: ['delivery.task.personal'] },
+  // The New task form: task managers, or anyone adding a personal task.
+  createTasks: { anyPermissions: ['delivery.task.write', 'delivery.task.personal'] },
   // Ask another team for work it takes requests for, and follow your requests.
   requestWork: { permissions: ['delivery.task.request'] },
   reviewTasks: { permissions: ['delivery.task.review'] },

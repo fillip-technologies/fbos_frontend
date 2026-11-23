@@ -1,4 +1,28 @@
 export const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'converted', 'disqualified']
+// Still being worked; converted (a quotation accepted) and disqualified are closed.
+export const OPEN_LEAD_STATUSES = ['new', 'contacted', 'qualified']
+
+// Delivery's task statuses and their labels (as delivery/utils.js words them), for the tasks
+// about a lead: sales links to delivery by route only.
+export const OPEN_TASK_STATUSES = ['draft', 'open', 'assigned', 'in_progress', 'blocked', 'submitted', 'in_review', 'rework']
+export const TASK_STATUS_LABELS = {
+  draft: 'Draft', open: 'Open', assigned: 'Assigned', in_progress: 'In progress', blocked: 'Blocked',
+  submitted: 'Submitted', in_review: 'In review', rework: 'Needs rework', done: 'Done', cancelled: 'Cancelled',
+}
+// The person who handles a lead, as every lead screen calls them.
+export const OUTREACH_LABEL = 'Sales outreach by'
+// A lead's history (GET /leads/{id}/events), in words.
+export const LEAD_EVENT_LABELS = {
+  created: 'Added',
+  claimed: 'Claimed',
+  transferred: 'Passed on',
+  released: 'Put back with the unclaimed leads',
+  contacted: 'Contacted (first call logged)',
+  qualified: 'Qualified',
+  disqualified: 'Disqualified',
+  reopened: 'Reopened',
+  converted: 'Converted: the customer accepted a quotation',
+}
 export const LEAD_SOURCES = {
   website: 'Website',
   referral: 'Referral',
@@ -41,11 +65,11 @@ export const QUOTATION_STATUS_LABELS = {
   pending_approval: 'Waiting for approval',
   approved: 'Approved',
   sent: 'Sent',
-  changes_requested: 'Changes requested',
+  changes_requested: 'Under discussion',
   accepted: 'Accepted',
   rejected: 'Rejected',
   withdrawn: 'Withdrawn',
-  superseded: 'Superseded',
+  superseded: 'Replaced',
   not_chosen: 'Not chosen',
 }
 // Revising answers the customer: a new draft revision after they have seen this one.
@@ -75,6 +99,42 @@ export const QUOTATION_EVENT_LABELS = {
   renamed: 'Renamed',
   made_main: 'Made the main quotation',
 }
+// Over this discount (of the subtotal) a quotation is approved before it goes out: Send
+// then sends it for approval instead.
+export const APPROVAL_DISCOUNT_PCT = 20
+export function needsDiscountApproval(quote) {
+  const subtotal = Number(quote?.totals?.subtotal?.amount || 0)
+  const discount = Number(quote?.totals?.discount_total?.amount || 0)
+  return subtotal > 0 && (discount / subtotal) * 100 > APPROVAL_DISCOUNT_PCT
+}
+
+// ---------- Proposals ----------
+export const PROPOSAL_STATUS_LABELS = {
+  draft: 'Draft',
+  sent: 'Sent',
+  under_discussion: 'Under discussion',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  superseded: 'Replaced',
+}
+// Being worked on: one at a time per opportunity.
+export const OPEN_PROPOSAL_STATUSES = ['draft', 'sent', 'under_discussion']
+export const PROPOSAL_EVENT_LABELS = {
+  created: 'Created',
+  edited: 'Edited',
+  sent: 'Marked as sent',
+  emailed: 'Emailed to the customer',
+  changes_requested: 'Customer feedback',
+  revised: 'Revised',
+  accepted: 'Customer accepted',
+  rejected: 'Customer rejected',
+  quoted: 'Quotation made from it',
+}
+export const proposalLabel = (p) => `${p.proposal_no} v${p.version_no}`
+// The status in words, with the version that replaced it ("Replaced by v2").
+export const proposalStatusText = (p) =>
+  p.status === 'superseded' && p.replaced_by ? `Replaced by v${p.replaced_by.version_no}` : PROPOSAL_STATUS_LABELS[p.status] || p.status
+
 // Still open on the opportunity: not yet answered for good.
 export const OPEN_QUOTATION_STATUSES = ['draft', 'pending_approval', 'approved', 'sent', 'changes_requested']
 // "Option A - Basic", else its number and revision.
@@ -138,6 +198,12 @@ export const SUBJECTS = {
   lead: 'commercial.lead',
   opportunity: 'commercial.opportunity',
   contract: 'commercial.contract',
+}
+// Delivery's names for the same records, which tasks are about.
+export const TASK_SUBJECTS = {
+  'commercial.lead': 'revenue.lead',
+  'commercial.opportunity': 'revenue.opportunity',
+  'commercial.contract': 'revenue.contract',
 }
 
 export const humanize = (s) => (s ? (s[0].toUpperCase() + s.slice(1)).replaceAll('_', ' ') : s)

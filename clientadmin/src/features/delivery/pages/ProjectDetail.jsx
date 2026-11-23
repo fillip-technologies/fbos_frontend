@@ -1,5 +1,6 @@
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { projectsApi } from '@/features/delivery/api.js'
+import BoardView from '@/features/delivery/components/BoardView.jsx'
 import ProjectChangeRequests from '@/features/delivery/components/ProjectChangeRequests.jsx'
 import ProjectMilestones from '@/features/delivery/components/ProjectMilestones.jsx'
 import ProjectOverview from '@/features/delivery/components/ProjectOverview.jsx'
@@ -7,6 +8,7 @@ import ProjectRisks from '@/features/delivery/components/ProjectRisks.jsx'
 import ProjectTasks from '@/features/delivery/components/ProjectTasks.jsx'
 import ProjectTeam from '@/features/delivery/components/ProjectTeam.jsx'
 import ProjectWorkPackages from '@/features/delivery/components/ProjectWorkPackages.jsx'
+import ProjectWorkstreams from '@/features/delivery/components/ProjectWorkstreams.jsx'
 import WorkflowPanel from '@/features/delivery/components/WorkflowPanel.jsx'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import { HEALTH_LABELS, PROJECT_STATUS_LABELS, SUBJECT_TYPES } from '@/features/delivery/utils.js'
@@ -24,8 +26,11 @@ import StatusBadge from '@/shared/components/StatusBadge.jsx'
 
 const TABS = [
   ['overview', 'Overview'],
+  // A project's departments and teams; a workstream has none of its own.
+  ['workstreams', 'Workstreams'],
   ['insights', 'Insights'],
   ['tasks', 'Tasks'],
+  ['board', 'Board'],
   ['milestones', 'Milestones'],
   ['team', 'Team'],
   ['risks', 'Risks'],
@@ -37,7 +42,7 @@ export default function ProjectDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const tab = TABS.some(([key]) => key === params.get('tab')) ? params.get('tab') : 'overview'
+  const requested = TABS.some(([key]) => key === params.get('tab')) ? params.get('tab') : 'overview'
   const { orgId, activeOrg } = useActiveOrg()
   const { user: me } = useAuth()
   const names = useDeliveryNames(orgId)
@@ -70,6 +75,8 @@ export default function ProjectDetail() {
     )
 
   const tabProps = { orgId, project, setProject, names }
+  const tabs = TABS.filter(([key]) => key !== 'workstreams' || !project.parent)
+  const tab = tabs.some(([key]) => key === requested) ? requested : 'overview'
   return (
     <div>
       <div className="page-head">
@@ -80,6 +87,13 @@ export default function ProjectDetail() {
           </h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
             <span className="mono">{project.code}</span> · {project.type.name}
+            {project.parent && (
+              <>
+                {' · part of '}
+                <Link to={`/projects/${project.parent.id}?tab=workstreams`}>{project.parent.name}</Link>
+              </>
+            )}
+            {project.workstream_count > 0 && ` · ${project.workstream_count} workstream${project.workstream_count === 1 ? '' : 's'}`}
             {activeOrg && ` · ${activeOrg.name}`}
           </p>
         </div>
@@ -89,7 +103,7 @@ export default function ProjectDetail() {
       {project.contract?.id && <JourneyPath subject="project" id={project.id} contractId={project.contract.id} />}
 
       <div className="version-tabs" role="tablist">
-        {TABS.map(([key, label]) => (
+        {tabs.map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -109,8 +123,24 @@ export default function ProjectDetail() {
           <WorkflowPanel orgId={orgId} subject={{ type: SUBJECT_TYPES.project, id: project.id }} />
         </>
       )}
+      {tab === 'workstreams' && <ProjectWorkstreams {...tabProps} />}
       {tab === 'insights' && <ProjectInsights project={project} />}
       {tab === 'tasks' && <ProjectTasks {...tabProps} />}
+      {tab === 'board' && (
+        <>
+          <p className="muted small" style={{ margin: '0 0 10px' }}>
+            Divide the project's work into modules and track them across columns. Drag a module to reorder it or move it on; open
+            one to link the tasks it covers.
+            {project.client?.id && (
+              <>
+                {' '}
+                <Link to={`/customer-boards/${project.client.id}`}>See all of this customer's projects on one board →</Link>
+              </>
+            )}
+          </p>
+          <BoardView key={`${orgId}-${project.id}`} orgId={orgId} workUnitId={project.id} names={names} />
+        </>
+      )}
       {tab === 'milestones' && (
         <>
           <ProjectMilestones {...tabProps} />
@@ -120,6 +150,9 @@ export default function ProjectDetail() {
       {tab === 'team' && <ProjectTeam {...tabProps} />}
       {tab === 'risks' && <ProjectRisks {...tabProps} />}
       {tab === 'changes' && <ProjectChangeRequests {...tabProps} />}
+      {tab === 'documents' && params.get('attach') === 'failed' && (
+        <div className="alert warn">The project was made, but the sale’s proposal and quotation couldn’t be attached. Attach them here.</div>
+      )}
       {tab === 'documents' && (
         hasAccess(me, ACCESS.documents) ? (
           <DocumentPanel

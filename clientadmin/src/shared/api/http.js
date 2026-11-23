@@ -227,7 +227,7 @@ async function sendWithRetry(method, path, opts) {
   return send(method, path, opts)
 }
 
-async function request(method, path, { body, auth = true, headers = {}, signal, background = false } = {}) {
+async function request(method, path, { body, auth = true, headers = {}, signal, background = false, asBlob = false } = {}) {
   // The signal only cancels this call's own fetches: the token refresh below is shared by
   // every caller and must never be aborted on one page's behalf.
   let res = await sendWithRetry(method, path, { body, auth, headers, signal, background })
@@ -248,6 +248,8 @@ async function request(method, path, { body, auth = true, headers = {}, signal, 
   }
 
   if (res.status === 204) return null
+  // A file (a PDF): its bytes, not JSON. Errors still come back as JSON, read below.
+  if (asBlob && res.ok) return res.blob()
   const payload = await readPayload(res)
 
   if (!res.ok) {
@@ -272,6 +274,8 @@ async function request(method, path, { body, auth = true, headers = {}, signal, 
 
 export const api = {
   get: (path, opts) => request('GET', path, opts),
+  // A file the server makes (a proposal or quotation PDF), as a Blob.
+  getBlob: (path, opts) => request('GET', path, { ...opts, asBlob: true, headers: { Accept: '*/*', ...opts?.headers } }),
   post: (path, body, opts) => request('POST', path, { ...opts, body }),
   patch: (path, body, opts) => request('PATCH', path, { ...opts, body }),
   put: (path, body, opts) => request('PUT', path, { ...opts, body }),

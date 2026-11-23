@@ -21,6 +21,7 @@ import {
   useCountUp,
 } from '@/shared/components/Charts.jsx'
 import { Row, Section } from '@/shared/components/DashboardGrid.jsx'
+import '@/features/dashboard/dashboard.css'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 
 // ---------- Formatting ----------
@@ -151,13 +152,34 @@ export default function Overview() {
 }
 
 // ---------- Headline numbers ----------
-function Kpi({ title, value, format, sub, tone, to }) {
+// A line-drawn icon and a colour for each headline tile.
+const TILE_ICONS = {
+  pipeline: ['M3 4h18l-7 8v6l-4 2v-8z', '#7c3aed'],
+  outstanding: ['M3 7h18v12H3zM3 11h18M7 15h3', '#ea580c'],
+  collected: ['M4 20V10m6 10V4m6 16v-7m4 7H2', '#16a34a'],
+  tasks: ['M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9', '#2563eb'],
+  projects: ['M9 3h6v3H9zM6 5h12v16H6zM9 11h6M9 15h6', '#0891b2'],
+  people: ['M12 12a4 4 0 100-8 4 4 0 000 8zM4 21c0-4 4-7 8-7s8 3 8 7', '#6366f1'],
+}
+
+function Kpi({ icon, title, value, format, sub, tone, to, bar }) {
   const shown = useCountUp(num(value))
+  const [path, color] = TILE_ICONS[icon] ?? TILE_ICONS.pipeline
   const body = (
     <>
-      <div className="kpi-label">{title}</div>
-      <div className="kpi-value">{format(shown)}</div>
-      {sub && <div className={`kpi-sub${tone ? ` ${tone}` : ''}`}>{sub}</div>}
+      <span className="kpi-icon" style={{ '--tile': color }} aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={path} /></svg>
+      </span>
+      <div className="kpi-text">
+        <div className="kpi-label">{title}</div>
+        <div className="kpi-value">{format(shown)}</div>
+        {sub && <div className={`kpi-sub${tone ? ` ${tone}` : ''}`}>{sub}</div>}
+        {bar && bar.max > 0 && (
+          <span className={`kpi-bar${bar.bad ? ' bad' : ''}`} role="meter" aria-label={`${title}: ${bar.label}`} aria-valuemin={0} aria-valuemax={bar.max} aria-valuenow={bar.value}>
+            <span style={{ width: `${Math.min(100, (bar.value / bar.max) * 100)}%` }} />
+          </span>
+        )}
+      </div>
     </>
   )
   return to ? (
@@ -204,16 +226,29 @@ function Headlines({ q }) {
     },
   ].filter(Boolean)
   if (!tiles.length) return null
+  // The share each tile's note talks about, drawn as a bar under it.
+  const invoicedTotal = inv ? inv.invoiced_by_month.reduce((s, m) => s + num(m.amount.amount), 0) : 0
+  const bars = {
+    pipeline: opp && { value: num(opp.weighted_value.amount), max: num(opp.open_value.amount), label: 'share weighted by chance' },
+    outstanding: inv && { value: num(inv.overdue.amount), max: num(inv.outstanding.amount), label: 'share that is late', bad: true },
+    collected: pay && { value: num(pay.collected.amount), max: invoicedTotal, label: 'share of what was invoiced' },
+    tasks: tasks && { value: num(tasks.overdue), max: num(tasks.open), label: 'share overdue', bad: true },
+    projects: projects && { value: num(projects.late), max: num(projects.running), label: 'share past their end date', bad: true },
+    people: people?.attendance_today && present !== undefined && { value: num(present), max: num(people.attendance_today.expected), label: 'share in today' },
+  }
   return (
     <div className="kpi-row">
       {tiles.map(({ key, ...t }) => (
-        <Kpi key={key} {...t} />
+        <Kpi key={key} icon={key} bar={bars[key]} {...t} />
       ))}
     </div>
   )
 }
 
 // ---------- From lead to cash ----------
+// Each step a shade darker, from the first enquiry to the cash in hand.
+const FLOW_COLORS = ['#0e7ec4', '#0c6fb8', '#0a5fab', '#06509f', '#0242a2', '#081c2e']
+
 function FlowStrip({ q }) {
   const leads = q.leads.data
   const opp = q.opportunities.data
@@ -261,25 +296,69 @@ function FlowStrip({ q }) {
     },
   ].filter(Boolean)
 
+  // Two rates and where the money stands, drawn next to the steps.
+  const winRate = decided ? pct(won?.count ?? 0, decided) : null
+  const collectedRate = invoiced ? Math.min(100, pct(collected, invoiced)) : null
+  const owed = inv ? num(inv.outstanding.amount) : 0
+  const late = inv ? Math.min(owed, num(inv.overdue.amount)) : 0
+  const moneyParts = [
+    { label: 'Collected', value: collected ?? 0, color: STATUS.good },
+    { label: 'Owed, not yet due', value: Math.max(0, owed - late), color: SERIES[3] },
+    { label: 'Late', value: late, color: STATUS.critical },
+  ]
+  const gauges = [
+    winRate !== null && { key: 'win', label: 'Win rate', value: winRate, sub: `${count(won?.count)} won of ${count(decided)} decided`, color: SERIES[2] },
+    collectedRate !== null && { key: 'collect', label: 'Collected', value: collectedRate, sub: `of ${money(invoiced, cur)} invoiced`, color: SERIES[0] },
+  ].filter(Boolean)
+
   return (
-    <section className="panel flow" aria-label="From lead to cash">
-      <div className="flow-head">
+    <section className="panel flowv" aria-label="From lead to cash">
+      <div className="flowv-head">
         <h3>From lead to cash</h3>
         <span className="chart-sub">Where the business is right now, step by step</span>
       </div>
-      <ol className="flow-steps">
+      <ol className="flowv-steps">
         {steps.map((s, i) => (
-          <li key={s.key} className="flow-step" style={{ '--i': i }}>
+          <li key={s.key} style={{ '--i': i, '--c': FLOW_COLORS[Math.min(i, FLOW_COLORS.length - 1)] }}>
             <Link to={s.to}>
-              <span className="flow-index">{String(i + 1).padStart(2, '0')}</span>
-              <span className="flow-title">{s.title}</span>
-              <span className="flow-big">{s.big}</span>
-              <span className="flow-note">{s.note}</span>
-              <span className="flow-detail">{s.detail}</span>
+              <span className="flowv-title">{s.title}</span>
+              <span className="flowv-big">{s.big}</span>
+              <span className="flowv-note">{s.note}</span>
+              <span className="flowv-detail">{s.detail}</span>
             </Link>
           </li>
         ))}
       </ol>
+      {(gauges.length > 0 || (inv && moneyParts.some((p) => p.value > 0))) && (
+        <div className="flowv-visuals">
+          {gauges.map((g) => (
+            <div key={g.key} className="flowv-gauge">
+              <span className="flowv-ring">
+                <Ring value={g.value} max={100} size={64} color={g.color} label={`${g.label}: ${g.value}%`} />
+                <strong>{g.value}%</strong>
+              </span>
+              <span className="flowv-gauge-text">
+                <b>{g.label}</b>
+                <small>{g.sub}</small>
+              </span>
+            </div>
+          ))}
+          {inv && moneyParts.some((p) => p.value > 0) && (
+            <div className="flowv-money">
+              <b>Collected and owed</b>
+              <SegmentedBar parts={moneyParts} format={(v) => money(v, cur)} label="Money" />
+              <ul className="chart-legend">
+                {moneyParts.map((p) => (
+                  <li key={p.label}>
+                    <span className="legend-key rect" style={{ background: p.color }} />
+                    {p.label} · {money(p.value, cur)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }

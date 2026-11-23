@@ -398,7 +398,7 @@ const DESCRIPTIONS = {
   '/calendars': 'Working days, hours and holidays for the company and its teams.',
   '/custom-fields': 'Add your own fields to forms such as leads, projects and tasks.',
   '/verticals': 'Your business lines (e.g. IT services, solar), used to tailor forms and routing.',
-  '/leads': 'New enquiries. Qualify them, then turn the good ones into opportunities.',
+  '/leads': 'New enquiries. Claim one, log your calls, then qualify the good ones into opportunities.',
   '/opportunities': 'Sales you are working on: quotations, negotiation, won or lost.',
   '/customers': 'Everyone you sell to: contacts, contracts, invoices and services in one place.',
   '/contracts': 'Signed agreements. Activating one starts delivery and its billing schedule.',
@@ -435,7 +435,7 @@ const DESCRIPTIONS = {
 // NAV_ITEMS entry is never hidden. `hint` says what the section is for (guide, tooltips);
 // Settings starts folded: setup is done now and then, daily work every day.
 export const SECTIONS = [
-  { id: 'home', label: 'Home', hint: 'Start here', paths: ['/', '/ceo', '/guide', '/insights'] },
+  { id: 'home', label: 'Home', hint: 'Start here', paths: ['/ceo', '/', '/insights'] },
   {
     id: 'work',
     label: 'My work',
@@ -494,6 +494,8 @@ export const SECTIONS = [
       '/task-types', '/project-templates', '/service-providers', '/finance-setup', '/custom-fields', '/verticals', '/document-categories', '/audit-log',
     ],
   },
+  // Last, below Settings: not part of the work, there when someone is lost.
+  { id: 'help', label: 'Help', hint: 'How FBOS fits together', paths: ['/guide'] },
 ]
 
 // The end-to-end flows pages belong to, step by step. A page's intro shows its flow, so a person
@@ -576,6 +578,7 @@ const BELONGS_UNDER = {
   '/people/employees': '/users',
   '/task-workflows': '/task-types',
   '/project-workflows': '/project-templates',
+  '/customer-boards': '/customers',
 }
 
 // The nav item a path belongs to: the longest `to` that is the path or a parent of it.
@@ -597,7 +600,8 @@ export const CREATE_ACTIONS = [
   { to: '/customers/new', label: 'Customer', hint: 'A company or person you sell to', access: ACCESS.manageCustomers },
   { to: '/opportunities/new', label: 'Opportunity', hint: 'A sale to quote for', access: ACCESS.manageOpportunities },
   { to: '/projects/new', label: 'Project', hint: 'Work to deliver, with milestones', access: ACCESS.manageProjects },
-  { to: '/tasks/new', label: 'Task', hint: 'One piece of work for someone', access: ACCESS.manageTasks },
+  { to: '/tasks/new?personal=1', label: 'Task for me', hint: 'A to-do of your own; someone reviews it if needed', access: ACCESS.personalTasks },
+  { to: '/tasks/new', label: 'Task', hint: 'One piece of work for a team or someone in it', access: ACCESS.manageTasks },
   { to: '/requests/new', label: 'Request to a team', hint: 'Ask another team to do something', access: ACCESS.requestWork },
   { to: '/invoices/new', label: 'Invoice', hint: 'Bill a customer for an extra charge', access: ACCESS.manageInvoices },
   { to: '/payments/new', label: 'Payment received', hint: 'Record money a customer paid', access: ACCESS.recordPayments },

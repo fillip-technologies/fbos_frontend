@@ -1,0 +1,37 @@
+/* The sidebar folded to an icon rail. Wide screens only: below 961px the sidebar is already an
+   off-canvas drawer opened from the menu button, so the rail button is hidden there. */
+.pagebar-rail { display: none; }
+
+@media (min-width: 961px) {
+  .pagebar-rail {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 6px; margin-left: -6px; border: 0; border-radius: var(--r-sm);
+    background: none; color: var(--muted); cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .pagebar-rail:hover { background: var(--sunken); color: var(--ink); }
+
+  .app-shell.with-sidebar .sidebar { transition: width 0.25s var(--ease); }
+  .app-shell.with-sidebar .content { transition: margin-left 0.25s var(--ease); }
+  .app-shell.sidebar-rail { --sidebar-w: 72px; }
+
+  /* Only the icons stay. */
+  .sidebar-rail .brand-word,
+  .sidebar-rail .sidebar-search span,
+  .sidebar-rail .sidebar-search kbd,
+  .sidebar-rail .sidebar-link > span,
+  .sidebar-rail .nav-section-head,
+  .sidebar-rail .sidebar-user-text { display: none; }
+
+  .sidebar-rail .sidebar-brand { justify-content: center; padding: 22px 0 18px; }
+  .sidebar-rail .sidebar-search { justify-content: center; margin: 0 12px 10px; padding: 9px 0; }
+  .sidebar-rail .sidebar-nav { padding: 6px 12px 16px; }
+  .sidebar-rail .sidebar-link { justify-content: center; padding: 9px 0; }
+  .sidebar-rail .sidebar-link::before { left: -12px; }
+  /* Sections are told apart by a thin line instead of their headings. */
+  .sidebar-rail .nav-section + .nav-section { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--night-line); }
+  .sidebar-rail .nav-section-items { grid-template-rows: 1fr; }
+
+  .sidebar-rail .sidebar-user { flex-direction: column; gap: 6px; padding: 12px 0 14px; }
+  .sidebar-rail .sidebar-user-name { flex: none; margin-right: 0; padding: 4px; }
+}
