@@ -435,7 +435,7 @@ const DESCRIPTIONS = {
 // NAV_ITEMS entry is never hidden. `hint` says what the section is for (guide, tooltips);
 // Settings starts folded: setup is done now and then, daily work every day.
 export const SECTIONS = [
-  { id: 'home', label: 'Home', hint: 'Start here', paths: ['/', '/ceo', '/guide', '/insights'] },
+  { id: 'home', label: 'Home', hint: 'Start here', paths: ['/ceo', '/', '/insights'] },
   {
     id: 'work',
     label: 'My work',
@@ -494,6 +494,8 @@ export const SECTIONS = [
       '/task-types', '/project-templates', '/service-providers', '/finance-setup', '/custom-fields', '/verticals', '/document-categories', '/audit-log',
     ],
   },
+  // Last, below Settings: not part of the work, there when someone is lost.
+  { id: 'help', label: 'Help', hint: 'How FBOS fits together', paths: ['/guide'] },
 ]
 
 // The end-to-end flows pages belong to, step by step. A page's intro shows its flow, so a person

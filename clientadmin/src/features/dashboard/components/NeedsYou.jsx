@@ -21,7 +21,11 @@ function money(m) {
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
-function Item({ item }) {
+// "12+" or 12 as a number; money figures ("₹1,200") have no queue length and get no bar.
+const queueLength = (figure) => (typeof figure === 'number' ? figure : /^\d+\+?$/.test(String(figure)) ? parseInt(figure, 10) : null)
+
+function Item({ item, longest }) {
+  const length = queueLength(item.figure)
   return (
     <li className={`needs-item${item.tone ? ` is-${item.tone}` : ''}`}>
       <Link to={item.to}>
@@ -29,6 +33,11 @@ function Item({ item }) {
         <span className="needs-text">
           <strong>{item.title}</strong>
           <small>{item.hint}</small>
+          {length !== null && longest > 0 && (
+            <span className="needs-bar" aria-hidden="true">
+              <span style={{ width: `${Math.max(6, (length / longest) * 100)}%` }} />
+            </span>
+          )}
         </span>
         <span className="needs-go" aria-hidden="true">→</span>
       </Link>
@@ -116,6 +125,7 @@ export default function NeedsYou() {
     items.push({ key: 'leave', figure: leaveList.length, title: `${plural(leaveList.length, 'leave request')} pending`, hint: 'Waiting for a decision', to: '/people/leaves' })
   }
 
+  const longest = Math.max(0, ...items.map((i) => queueLength(i.figure) ?? 0))
   const sources = [tasks, quotes, billing, invoices, roles, leave, unclaimed, followUps]
   const asked = [may(ACCESS.tasks), may(ACCESS.approveQuotations) && may(ACCESS.opportunities), may(ACCESS.billingSchedules), may(ACCESS.invoices), may(ACCESS.approveRoleChanges), may(ACCESS.approveLeaves), may(ACCESS.manageLeads), may(ACCESS.manageLeads)]
   const anyAsked = asked.some(Boolean)
@@ -131,7 +141,7 @@ export default function NeedsYou() {
       {items.length > 0 ? (
         <ul className="needs-list">
           {items.map((item) => (
-            <Item key={item.key} item={item} />
+            <Item key={item.key} item={item} longest={longest} />
           ))}
         </ul>
       ) : (
