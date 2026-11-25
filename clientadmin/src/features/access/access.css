@@ -1,0 +1,37 @@
+/* Roles and a person's access, in plain words. */
+.ac-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ac-chip {
+  display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 999px;
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface)); border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  font-size: 13px;
+}
+.ac-chip small { color: var(--muted); font-size: 12px; }
+
+.ae-advanced > summary, .ae-list > summary, .ae-code > summary { cursor: pointer; list-style: none; }
+.ae-advanced > summary::-webkit-details-marker, .ae-list > summary::-webkit-details-marker, .ae-code > summary::-webkit-details-marker { display: none; }
+.ae-advanced > summary h3 { display: inline; }
+.ae-advanced > summary h3 small { font-weight: 400; color: var(--muted); }
+.ae-advanced > summary::before, .ae-list > summary::before, .ae-code > summary::before { content: '▸ '; color: var(--muted); }
+.ae-advanced[open] > summary::before, .ae-list[open] > summary::before, .ae-code[open] > summary::before { content: '▾ '; }
+.ae-advanced > p { margin: 6px 0 0; }
+.ae-list { margin-top: 12px; }
+.ae-list > summary, .ae-code > summary { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.ae-code { margin: 4px 0 12px; }
+
+.role-help { margin: 0 0 14px; padding: 12px 14px; border-radius: var(--r-lg); background: var(--sunken); font-size: 13px; line-height: 1.5; }
+.role-search { max-width: 360px; margin: 0 0 8px; }
+.role-search input { width: 100%; min-height: 40px; padding: 9px 12px; }
+.perm-group-head .perm-count { color: var(--muted); font-weight: 400; font-size: 12px; }
+
+/* Access level: how much, in one colour family (not good or bad). */
+.ac-level { display: inline-block; margin-left: 8px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; vertical-align: middle; border: 1px solid transparent; }
+.ac-full { background: #ece8fb; color: #4b2fa8; border-color: #cfc5f3; }
+.ac-wide { background: #e3edfb; color: #174a8f; border-color: #bdd3f3; }
+.ac-limited { background: #eef5fd; color: #2a5fa3; border-color: #d3e3f6; }
+.ac-minimal { background: #f1f5f9; color: #475569; border-color: #dbe2ea; }
+
+/* A role's area header with its "Remove all". */
+.perm-group-bar { display: flex; align-items: stretch; background: var(--surface-2); }
+.perm-group-bar .perm-group-head { flex: 1; width: auto; }
+.perm-clear { border: 0; background: transparent; color: #b42318; font: inherit; font-size: 12.5px; font-weight: 600; padding: 0 14px; cursor: pointer; white-space: nowrap; }
+.perm-clear:hover { background: #fdecea; }

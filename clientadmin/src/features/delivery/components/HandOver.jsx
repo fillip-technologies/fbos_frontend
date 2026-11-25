@@ -49,7 +49,7 @@ export default function HandOver({ orgId, subject, fromUnit, names, finished = f
         <button className="btn secondary" onClick={() => { setRequested(false); setOpen(true) }}>Hand over to another team</button>
         {requested && (
           <span className="small">
-            Asked. <Link to="/tasks?view=handovers">See handovers</Link>
+            Asked. <Link to="/tasks?view=team&show=handovers">See what was passed over</Link>
           </span>
         )}
       </div>

@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import '@/features/access/access.css'
+import AccessChips, { AccessLevel } from '@/features/access/components/AccessChips.jsx'
 import UnitSelect from '@/features/access/components/UnitSelect.jsx'
 import {
   actionLabel,
@@ -157,10 +159,10 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
       <section className="access-section">
         <div className="section-head">
           <div>
-            <h3>Role presets</h3>
+            <h3>Roles</h3>
             <p className="muted">
-              A user can have several roles, each at its own level. A role's permissions are added below; removing a
-              role takes away only what no other role or direct permission still gives.
+              A role is a ready-made set of permissions for a job. Give this person the role that fits their work,
+              and choose whether it covers the whole company or only one team.
             </p>
           </div>
           {presetsEditable && value.presets.length > 1 && (
@@ -184,8 +186,8 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
                 <thead>
                   <tr>
                     <th>Role</th>
-                    <th>Applies to</th>
-                    <th>Own records only</th>
+                    <th>Where it applies</th>
+                    <th>Only their own work</th>
                     <th aria-label="Remove" />
                   </tr>
                 </thead>
@@ -248,7 +250,7 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
                   </select>
                 </div>
                 <div className="field">
-                  <label>Applies to</label>
+                  <label>Where it applies</label>
                   <UnitSelect
                     units={units}
                     value={roleDraft.scope_unit_id}
@@ -263,7 +265,7 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
                       checked={roleDraft.self_only}
                       onChange={(e) => setRoleDraft((d) => ({ ...d, self_only: e.target.checked }))}
                     />
-                    Only their own records
+                    Only their own work
                   </label>
                   <button
                     type="button"
@@ -282,13 +284,9 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
       </section>
 
       {/* ---------------- Individual permissions ---------------- */}
-      <section className="access-section">
-        <div className="section-head">
-          <div>
-            <h3>Individual permissions</h3>
-            <p className="muted">Grant specific actions directly. Each can cover the whole company or one branch, department or team and everything under it.</p>
-          </div>
-        </div>
+      <details className="access-section ae-advanced">
+        <summary><h3>Fine-tune, one permission at a time <small>(advanced: most people don't need this)</small></h3></summary>
+        <p className="muted">Tick single actions on top of the roles. Each can cover the whole company or just one team and everything under it.</p>
         {groups.map((group) => (
           <div key={group.service} className="perm-group">
             <button type="button" className="perm-group-head" onClick={() => toggleService(group.service)}>
@@ -353,14 +351,18 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
               ))}
           </div>
         ))}
-      </section>
+      </details>
 
       {/* ---------------- Summary ---------------- */}
       <section className="access-section">
-        <h3>Effective access ({effective.length})</h3>
+        <h3>What this person can do now ({effective.length} permissions) <AccessLevel count={new Set(effective.map((e) => e.code)).size} total={catalog.length} /></h3>
         {effective.length === 0 ? (
           <p className="muted small">No permissions: the user can sign in but can't open anything.</p>
         ) : (
+          <>
+          <AccessChips codes={effective.map((e) => e.code)} catalog={catalog} />
+          <details className="ae-list">
+          <summary>See the full list</summary>
           <table className="compact">
             <thead>
               <tr>
@@ -382,6 +384,8 @@ export default function AccessEditor({ catalog, roles, units, value, onChange, f
               ))}
             </tbody>
           </table>
+          </details>
+          </>
         )}
       </section>
     </div>

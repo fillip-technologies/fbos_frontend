@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { lookupsApi, projectsApi, routingApi, tasksApi } from '@/features/delivery/api.js'
 import AssigneeOptions from '@/features/delivery/components/AssigneeOptions.jsx'
 import CustomFieldInputs from '@/shared/components/CustomFieldInputs.jsx'
@@ -10,6 +10,7 @@ import useTaskReviewers from '@/features/delivery/useTaskReviewers.js'
 import useAssignablePeople from '@/features/delivery/useAssignablePeople.js'
 import useAssignmentPolicies from '@/features/delivery/useAssignmentPolicies.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
+import useMyTaskTypes from '@/features/delivery/useMyTaskTypes.js'
 import useTaskTypes, { useTaskFields } from '@/features/delivery/useTaskTypes.js'
 import { SUBJECT_TYPES, TASK_PRIORITY_LABELS, dueAtFromDate, parseDuration } from '@/features/delivery/utils.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
@@ -165,7 +166,10 @@ export default function TaskCreate() {
     }
   }
 
-  const disciplines = [...new Set([...DISCIPLINE_ORDER, ...taskTypes.map((t) => t.discipline)])].filter((d) => taskTypes.some((t) => t.discipline === d))
+  // Only the kinds of work for the person's own teams (an admin sees all); a type already chosen stays.
+  const { types: myTypes, hiddenCount, reason: typesReason, teamName } = useMyTaskTypes(orgId, taskTypes, names.units)
+  const offeredTypes = myTypes.some((t) => t.code === form.task_type_code) || !taskType ? myTypes : [...myTypes, taskType]
+  const disciplines = [...new Set([...DISCIPLINE_ORDER, ...offeredTypes.map((t) => t.discipline)])].filter((d) => offeredTypes.some((t) => t.discipline === d))
   const resolution = taskType?.resolution_sla_minutes?.[form.priority]
   const response = taskType?.response_sla_minutes?.[form.priority]
 
@@ -187,7 +191,7 @@ export default function TaskCreate() {
             <div key={discipline} className="type-group">
               <div className="type-group-label"><span className={`discipline-dot ${discipline}`} /> {disciplineLabel(discipline)}</div>
               <div className="type-options">
-                {taskTypes.filter((t) => t.discipline === discipline).map((t) => (
+                {offeredTypes.filter((t) => t.discipline === discipline).map((t) => (
                   <label key={t.code} className={`type-option${form.task_type_code === t.code ? ' chosen' : ''}`}>
                     <input type="radio" name="task_type" value={t.code} checked={form.task_type_code === t.code} onChange={() => chooseType(t.code)} />
                     {t.name}
@@ -197,6 +201,23 @@ export default function TaskCreate() {
               </div>
             </div>
           ))}
+          {typesReason === 'admin' && <p className="muted small" style={{ margin: '10px 0 0' }}>You can set up work, so every kind of work is shown.</p>}
+          {typesReason === 'no-team' && (
+            <p className="muted small" style={{ margin: '10px 0 0' }}>
+              You are not placed in a team yet, so every kind of work is shown. An admin sets your team under Users → your page → Home unit.
+            </p>
+          )}
+          {typesReason === 'no-rule' && (
+            <p className="muted small" style={{ margin: '10px 0 0' }}>
+              Your team{teamName ? ' (' + teamName + ')' : ''} has no “Who gets the work” rule yet, so every kind of work is shown. An admin adds one under Settings → Task types.
+            </p>
+          )}
+          {hiddenCount > 0 && (
+            <p className="muted small" style={{ margin: '10px 0 0' }}>
+              Only your own team’s kinds of work are shown. Need something from another team?{' '}
+              {hasAccess(me, ACCESS.requestWork) ? <Link to="/requests/new">Ask that team</Link> : 'Ask your team head or an admin.'}
+            </p>
+          )}
         </fieldset>
 
         <div className="field">

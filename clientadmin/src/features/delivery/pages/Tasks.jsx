@@ -1,7 +1,9 @@
+import '@/features/delivery/tasks.css'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { tasksApi } from '@/features/delivery/api.js'
 import Handovers from '@/features/delivery/components/Handovers.jsx'
+import TeamOverview from '@/features/delivery/components/TeamOverview.jsx'
 import TaskBoard from '@/features/delivery/components/TaskBoard.jsx'
 import TaskFilterBar, { NO_TASK_FILTERS } from '@/features/delivery/components/TaskFilterBar.jsx'
 import TaskTable from '@/features/delivery/components/TaskTable.jsx'
@@ -17,16 +19,21 @@ import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 
-// One task engine, several ways to work it: a list, a board (agile teams, review pipelines),
-// a queue worked one task at a time (sales cadences, service desks), time, and handovers.
+// One task engine, three places to start: what is mine, what the team is doing, and the time spent.
+// The team's work can be looked at as a list, a board, a pile to pick up, or work passed over.
 const TABS = [
-  ['mine', 'My work'],
-  ['board', 'Board'],
-  ['queue', 'Queue'],
-  ['all', 'All tasks'],
-  ['timesheet', 'Timesheet'],
-  ['handovers', 'Handovers', ACCESS.handovers],
+  ['mine', 'My tasks'],
+  ['team', 'All tasks'],
+  ['time', 'Time'],
 ]
+const TEAM_VIEWS = [
+  ['list', 'List'],
+  ['board', 'Board'],
+  ['queue', 'Pick up unassigned'],
+  ['handovers', 'Passed to my team', ACCESS.handovers],
+]
+// Links from before the tabs were folded together (?view=board, ?view=handovers…) still land in the right place.
+const LEGACY_VIEWS = { board: ['team', 'board'], all: ['team', 'list'], queue: ['team', 'queue'], handovers: ['team', 'handovers'], timesheet: ['time', null] }
 
 export default function Tasks() {
   const { user: me } = useAuth()
@@ -34,8 +41,14 @@ export default function Tasks() {
   const names = useDeliveryNames(orgId)
   const { active: taskTypes } = useTaskTypes(orgId)
   const [params, setParams] = useSearchParams()
-  const tabs = TABS.filter(([, , rule]) => !rule || hasAccess(me, rule))
-  const tab = tabs.some(([key]) => key === params.get('view')) ? params.get('view') : 'mine'
+  const raw = params.get('view')
+  const [legacyTab, legacyShow] = LEGACY_VIEWS[raw] ?? []
+  // Whoever manages tasks (an admin) lands on everyone's tasks; others on their own.
+  const homeTab = hasAccess(me, ACCESS.manageTasks) ? 'team' : 'mine'
+  const tab = TABS.some(([key]) => key === raw) ? raw : legacyTab ?? homeTab
+  const teamViews = TEAM_VIEWS.filter(([, , rule]) => !rule || hasAccess(me, rule))
+  const wanted = params.get('show') ?? legacyShow
+  const show = teamViews.some(([key]) => key === wanted) ? wanted : 'list'
 
   return (
     <div>
@@ -43,7 +56,7 @@ export default function Tasks() {
         <div>
           <h1>Tasks</h1>
           <p className="muted small" style={{ margin: '4px 0 0' }}>
-            Work to do in {activeOrg ? `“${activeOrg.name}”` : 'this company'}, and the time spent on it.
+            Everyone's work (All tasks), what is yours to do (My tasks), and the time spent, in {activeOrg ? `“${activeOrg.name}”` : 'this company'}.
           </p>
         </div>
         <div className="row-actions">
@@ -56,14 +69,14 @@ export default function Tasks() {
       </div>
 
       <div className="version-tabs" role="tablist">
-        {tabs.map(([key, label]) => (
+        {TABS.map(([key, label]) => (
           <button
             key={key}
             type="button"
             role="tab"
             aria-selected={tab === key}
             className={`version-tab${tab === key ? ' active' : ''}`}
-            onClick={() => setParams(key === 'mine' ? {} : { view: key }, { replace: true })}
+            onClick={() => setParams(key === homeTab ? {} : { view: key }, { replace: true })}
           >
             {label}
           </button>
@@ -72,20 +85,62 @@ export default function Tasks() {
 
       {tab === 'mine' && (
         <>
+          <MyStrip key={`strip-${orgId}`} orgId={orgId} />
           <TaskList key={`mine-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} mine />
           <TeamQueue key={`team-queue-${orgId}`} orgId={orgId} names={names} />
         </>
       )}
-      {tab === 'board' && <TaskBoard key={`board-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
-      {tab === 'queue' && <WorkQueue key={`queue-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
-      {tab === 'all' && <TaskList key={`all-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
-      {tab === 'timesheet' && <Timesheet orgId={orgId} names={names} />}
-      {tab === 'handovers' && <Handovers key={orgId} orgId={orgId} names={names} />}
+      {tab === 'team' && (
+        <>
+          {(show === 'list' || show === 'board') && <TeamOverview key={`ov-${orgId}`} orgId={orgId} names={names} />}
+          <div className="segmented task-views" role="group" aria-label="Look at the team's work as">
+            {teamViews.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={show === key ? 'active' : ''}
+                aria-pressed={show === key}
+                onClick={() => setParams({ ...(homeTab === 'team' ? {} : { view: 'team' }), ...(key === 'list' ? {} : { show: key }) }, { replace: true })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {show === 'list' && <TaskList key={`all-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
+          {show === 'board' && <TaskBoard key={`board-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
+          {show === 'queue' && <WorkQueue key={`queue-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
+          {show === 'handovers' && <Handovers key={orgId} orgId={orgId} names={names} />}
+        </>
+      )}
+      {tab === 'time' && <Timesheet orgId={orgId} names={names} />}
     </div>
   )
 }
 
-// My work, second half: what waits in the queues of the teams I belong to (my home unit and my
+// My tasks, at a glance: how many are open, due today and late, drawn as bars against what is open.
+function MyStrip({ orgId }) {
+  const { data } = useQuery(['tasks', orgId, 'my-summary'], ({ signal }) => tasksApi.mySummary(orgId, { signal }), { enabled: Boolean(orgId) })
+  if (!data) return null
+  const open = Number(data.assigned_open) || 0
+  const parts = [
+    { key: 'open', label: 'Open', value: open, share: open ? 1 : 0, tone: '' },
+    { key: 'today', label: 'Due today', value: Number(data.due_today) || 0, share: open ? (Number(data.due_today) || 0) / open : 0, tone: 'warn' },
+    { key: 'late', label: 'Overdue', value: Number(data.overdue) || 0, share: open ? (Number(data.overdue) || 0) / open : 0, tone: 'bad' },
+  ]
+  return (
+    <div className="task-strip" aria-label="Your tasks at a glance">
+      {parts.map((p) => (
+        <div key={p.key} className={`task-strip-item ${p.tone}`}>
+          <span className="task-strip-label">{p.label}</span>
+          <strong>{p.value}</strong>
+          <span className="task-strip-bar" aria-hidden="true"><span style={{ width: `${Math.min(100, p.share * 100)}%` }} /></span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// My tasks, second half: tasks nobody has taken yet in the teams I belong to (my home unit and my
 // extra teams, with the units above them), nearest due first, to open and take.
 const TEAM_QUEUE_SIZE = 10
 
@@ -100,11 +155,11 @@ function TeamQueue({ orgId, names }) {
   return (
     <section style={{ marginTop: 28 }}>
       <div className="page-head" style={{ marginBottom: 8 }}>
-        <h2 style={{ margin: 0, fontSize: 17 }}>Your teams’ queue</h2>
-        <Link className="btn secondary" to="/tasks?view=queue">Work the queue →</Link>
+        <h2 style={{ margin: 0, fontSize: 17 }}>Unassigned in your teams</h2>
+        <Link className="btn secondary" to="/tasks?view=team&show=queue">Pick up tasks →</Link>
       </div>
       <p className="muted small" style={{ marginTop: 0 }}>
-        Tasks nobody has taken yet in the teams you belong to. Open one and choose “Take it” to make it yours.
+        Nobody has taken these yet. Open one and choose “Take it” to make it yours.
       </p>
       <ErrorBanner error={error} onRetry={reload} />
       <TaskTable
@@ -113,10 +168,10 @@ function TeamQueue({ orgId, names }) {
         loading={loading}
         refreshing={refreshing}
         names={names}
-        empty="Nothing waiting in your teams’ queues."
+        empty="Nothing unassigned in your teams."
       />
       {data?.page?.has_more && (
-        <p className="muted small">Showing the first {TEAM_QUEUE_SIZE}. The queue view has the rest.</p>
+        <p className="muted small">Showing the first {TEAM_QUEUE_SIZE}. “Pick up unassigned” under Team has the rest.</p>
       )}
     </section>
   )

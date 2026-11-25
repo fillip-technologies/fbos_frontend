@@ -1,0 +1,40 @@
+/* Tasks page: the "at a glance" strip and the Team view switch. */
+.task-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 0 0 18px; }
+.task-strip-item {
+  display: flex; flex-direction: column; gap: 3px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1);
+}
+.task-strip-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.task-strip-item strong { font-size: 26px; letter-spacing: -0.03em; line-height: 1.1; }
+.task-strip-item.warn strong { color: #d97706; }
+.task-strip-item.bad strong { color: #dc2626; }
+.task-strip-bar { display: block; height: 5px; margin-top: 4px; border-radius: 3px; background: var(--sunken); overflow: hidden; }
+.task-strip-bar > span { display: block; height: 100%; border-radius: 3px; background: var(--brand); transition: width 0.5s var(--ease); }
+.task-strip-item.warn .task-strip-bar > span { background: #f59e0b; }
+.task-strip-item.bad .task-strip-bar > span { background: #dc2626; }
+
+.task-views { margin: 0 0 16px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.task-views button { white-space: nowrap; }
+
+/* All tasks: the overview above the list. */
+.tov { margin: 0 0 18px; }
+.tov .task-strip { margin-bottom: 12px; }
+.tov-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1); padding: 14px 16px; }
+.tov-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.tov-head h2 { margin: 0; font-size: 15px; }
+.tov-legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
+.tov-legend li { display: flex; align-items: center; gap: 6px; }
+.tov-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.tov-rows { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.tov-rows li { display: grid; grid-template-columns: 28px minmax(90px, 160px) 1fr auto; align-items: center; gap: 10px; }
+.tov-name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tov-bar { display: flex; height: 14px; min-width: 14px; border-radius: 7px; overflow: hidden; gap: 2px; background: var(--sunken); }
+.tov-bar > span { display: block; min-width: 4px; }
+.tov-nums { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.tov-nums strong { color: var(--text, inherit); }
+.tov-nums em { color: #d03b3b; font-style: normal; font-weight: 600; }
+.tov-note { margin: 10px 0 0; }
+@media (max-width: 640px) {
+  .tov-rows li { grid-template-columns: 28px 1fr auto; }
+  .tov-rows .tov-bar { grid-column: 1 / -1; width: 100% !important; order: 5; }
+}

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { overviewApi } from '@/features/dashboard/api.js'
+import useDepartment from '@/features/dashboard/useDepartment.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
@@ -80,7 +81,7 @@ function isoDay(d) {
 }
 
 // ---------- Data: one query per service summary the user may read ----------
-function useOverview(orgId, months) {
+function useOverview(orgId, months, taskUnitId) {
   const { user } = useAuth()
   const can = (rule) => Boolean(orgId) && hasAccess(user, rule)
   const weeks = Math.min(26, months * 4 + 1)
@@ -94,7 +95,7 @@ function useOverview(orgId, months) {
     contracts: useQuery(['overview', orgId, 'contracts'], (o) => overviewApi.contracts(orgId, o), opts(ACCESS.contracts)),
     invoices: useQuery(['overview', orgId, 'invoices', months], (o) => overviewApi.invoices(orgId, months, o), opts(ACCESS.invoices)),
     payments: useQuery(['overview', orgId, 'payments', months], (o) => overviewApi.payments(orgId, months, o), opts(ACCESS.payments)),
-    tasks: useQuery(['overview', orgId, 'tasks', weeks], (o) => overviewApi.tasks(orgId, weeks, o), opts(ACCESS.tasks)),
+    tasks: useQuery(['overview', orgId, 'tasks', weeks, ...(taskUnitId ? [taskUnitId] : [])], (o) => overviewApi.tasks(orgId, weeks, o, taskUnitId), opts(ACCESS.tasks)),
     projects: useQuery(['overview', orgId, 'projects'], (o) => overviewApi.projects(orgId, o), opts(ACCESS.projects)),
     workforce: useQuery(['overview', orgId, 'workforce', months], (o) => overviewApi.workforce(orgId, months, o), opts(ACCESS.people)),
     utilization: useQuery(['overview', orgId, 'utilization', from], (o) => overviewApi.utilization(orgId, from, to, o), opts(ACCESS.capacity)),
@@ -105,7 +106,17 @@ function useOverview(orgId, months) {
 export default function Overview() {
   const { orgId, activeOrg } = useActiveOrg()
   const [months, setMonths] = useState(6)
-  const q = useOverview(orgId, months)
+  // A person in a department sees that department's numbers first (Sales: pipeline; Development,
+  // Digital Marketing and the like: their team's tasks and projects; HR: people), and can switch
+  // to the whole company. Someone in no department keeps the whole-company view.
+  const { user: viewer } = useAuth()
+  const dept = useDepartment(orgId)
+  // Whoever runs the company (admin, CEO view, task setup) starts on the whole company; the
+  // department's view is one click away. Everyone else starts on their own department.
+  const runsCompany = hasAccess(viewer, ACCESS.deliverySetup) || hasAccess(viewer, ACCESS.ceoDashboard)
+  const [scope, setScope] = useState(runsCompany ? 'company' : 'team')
+  const focus = dept && scope === 'team' ? dept.kind : null
+  const q = useOverview(orgId, months, focus ? dept.unit.id : null)
   const names = useDeliveryNames(orgId)
   const queries = Object.values(q).filter((x) => x.loading || x.data || x.error)
   if (queries.length === 0) return null // nothing here this person may read
@@ -117,12 +128,22 @@ export default function Overview() {
   return (
     <section className={`overview${refreshing ? ' is-refetching' : ''}`} aria-label="Company overview">
       <div className="home-section-head overview-head">
-        <h2>How {activeOrg?.name || 'the company'} is doing</h2>
-        <span>Live from sales, billing, delivery and people</span>
+        <h2>How {focus ? dept.unit.name : activeOrg?.name || 'the company'} is doing</h2>
+        <span>{focus ? 'Your department first. Switch to see the whole company.' : 'Live from sales, billing, delivery and people'}</span>
       </div>
 
       <div className="overview-filters">
         <OrgSwitcher />
+        {dept && (
+          <div className="segmented" role="group" aria-label="What to show">
+            <button type="button" className={scope === 'team' ? 'active' : ''} aria-pressed={scope === 'team'} onClick={() => setScope('team')}>
+              {dept.unit.name}
+            </button>
+            <button type="button" className={scope === 'company' ? 'active' : ''} aria-pressed={scope === 'company'} onClick={() => setScope('company')}>
+              Whole company
+            </button>
+          </div>
+        )}
         <div className="segmented" role="group" aria-label="Period">
           {WINDOWS.map((m) => (
             <button key={m} type="button" className={months === m ? 'active' : ''} aria-pressed={months === m} onClick={() => setMonths(m)}>
@@ -140,13 +161,13 @@ export default function Overview() {
         <ErrorBanner error={failed[0][1].error} onRetry={reloadAll} />
       )}
 
-      <Headlines q={q} />
-      <FlowStrip q={q} />
+      <Headlines q={q} only={HEADLINES_FOR[focus]} />
+      {(!focus || focus === 'sales') && <FlowStrip q={q} />}
 
-      <SalesSection q={q} names={names} />
-      <MoneySection q={q} />
-      <WorkSection q={q} names={names} />
-      <PeopleSection q={q} names={names} />
+      {(!focus || focus === 'sales') && <SalesSection q={q} names={names} />}
+      {!focus && <MoneySection q={q} />}
+      {focus !== 'people' && <WorkSection q={q} names={names} />}
+      {(!focus || focus === 'people') && <PeopleSection q={q} names={names} />}
     </section>
   )
 }
@@ -191,7 +212,10 @@ function Kpi({ icon, title, value, format, sub, tone, to, bar }) {
   )
 }
 
-function Headlines({ q }) {
+// The tiles each department's view keeps; no focus keeps them all.
+const HEADLINES_FOR = { sales: ['pipeline', 'tasks'], work: ['tasks', 'projects'], people: ['people'] }
+
+function Headlines({ q, only }) {
   const opp = q.opportunities.data
   const inv = q.invoices.data
   const pay = q.payments.data
@@ -224,7 +248,7 @@ function Headlines({ q }) {
       key: 'people', title: 'People', value: people.headcount, format: count, to: '/users',
       sub: present !== undefined && people.attendance_today ? `${count(present)} of ${count(people.attendance_today.expected)} in today` : `${people.by_unit.length} departments`,
     },
-  ].filter(Boolean)
+  ].filter(Boolean).filter((t) => !only || only.includes(t.key))
   if (!tiles.length) return null
   // The share each tile's note talks about, drawn as a bar under it.
   const invoicedTotal = inv ? inv.invoiced_by_month.reduce((s, m) => s + num(m.amount.amount), 0) : 0

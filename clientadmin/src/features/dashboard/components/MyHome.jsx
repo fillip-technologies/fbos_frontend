@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import Overview from '@/features/dashboard/components/Overview.jsx'
+import ChecklistsCard from '@/features/dashboard/components/ChecklistsCard.jsx'
 import NeedsYou from '@/features/dashboard/components/NeedsYou.jsx'
 import { HomeHero, WelcomeCard, Workspace } from '@/features/dashboard/components/HomeParts.jsx'
 import { CREATE_ACTIONS, NAV_ITEMS } from '@/app/navigation.jsx'
@@ -29,6 +30,8 @@ export default function MyHome() {
       )}
 
       <NeedsYou />
+
+      <ChecklistsCard />
 
       <Overview />
 

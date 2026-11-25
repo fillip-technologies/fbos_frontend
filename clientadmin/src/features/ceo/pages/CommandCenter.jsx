@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import '@/features/ceo/ceo.css'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
@@ -7,6 +7,7 @@ import {
   Amc, AssociatesTable, ClientDonut, CompaniesTable, ExpenseShares, FieldTeam, FinanceIncome, Freelancers, Geography,
   Hardware, KeyAlerts, NextSteps, Procurement, SegmentDonut, TrendLine,
 } from '@/features/ceo/components/Cards.jsx'
+import KeyRatios from '@/features/ceo/components/KeyRatios.jsx'
 import { Delta } from '@/features/ceo/components/Parts.jsx'
 import Watchlist from '@/features/ceo/components/Watchlist.jsx'
 import { count, moneyIN, num, periodFor, RANGES, REASON_TEXT } from '@/features/ceo/utils.js'
@@ -18,6 +19,7 @@ import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
 import { PanelSkeleton } from '@/shared/components/Skeleton.jsx'
 
 const dayShort = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+const asOfFormat = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 const dayOf = (iso) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)))
 
 // Every company on one screen. The gateway adds the companies up and leaves out what the person
@@ -35,6 +37,8 @@ export default function CommandCenter() {
   const names = useNames(orgId)
   const screen = query.data
   const busy = query.refreshing || query.fetching
+  // When the figures on screen were loaded: shown on the page and on the printout.
+  const asOf = useMemo(() => (screen ? new Date() : null), [screen])
   const rangeLabel = RANGES.find((r) => r.key === range)?.label ?? 'This month'
 
   return (
@@ -53,7 +57,9 @@ export default function CommandCenter() {
           <select className="cc-select" value={range} onChange={(e) => setRange(e.target.value)} aria-label="Period">
             {RANGES.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
           </select>
+          {asOf && <span className="cc-asof" title="When these figures were loaded">As of {asOfFormat.format(asOf)}</span>}
           <button type="button" className="btn secondary small-btn" onClick={query.reload} aria-busy={busy}>Refresh</button>
+          <button type="button" className="btn secondary small-btn" onClick={() => window.print()} disabled={!screen}>Print / PDF</button>
         </div>
       </div>
 
@@ -81,6 +87,7 @@ function Screen({ screen, names, range, rangeLabel }) {
         <div className="alert warn">Some records use another currency; their amounts are added as they are, in {screen.currency}.</div>
       )}
       <Headlines kpis={screen.kpis} fmt={fmt} compare={range === 'this_month' ? 'vs. last month' : 'vs. previous period'} />
+      <KeyRatios screen={screen} compare={range === 'this_month' ? 'vs. last month' : 'vs. previous period'} />
 
       <div className="cc-row cols-3">
         <SegmentDonut n={1} screen={screen} fmt={fmt} rangeLabel={rangeLabel} />

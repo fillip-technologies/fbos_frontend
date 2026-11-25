@@ -9,6 +9,7 @@ export const DISCIPLINES = {
   software: 'Software',
   sales: 'Sales',
   creative: 'Creative',
+  digital_marketing: 'Digital marketing',
   operations: 'Operations',
 }
 export const DISCIPLINE_ORDER = Object.keys(DISCIPLINES)

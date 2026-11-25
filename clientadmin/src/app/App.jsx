@@ -76,6 +76,7 @@ const Projects = lazy(pages.Projects)
 const ProjectCreate = lazy(pages.ProjectCreate)
 const ProjectDetail = lazy(pages.ProjectDetail)
 const CustomerBoard = lazy(pages.CustomerBoard)
+const Playbooks = lazy(pages.Playbooks)
 const ProjectTemplates = lazy(pages.ProjectTemplates)
 const ProjectTemplateBuilder = lazy(pages.ProjectTemplateBuilder)
 const Tasks = lazy(pages.Tasks)
@@ -235,6 +236,7 @@ export default function App() {
           <Route path="/projects/new" element={<RequireAccess rule={ACCESS.manageProjects}><ProjectCreate /></RequireAccess>} />
           <Route path="/projects/:id" element={<RequireAccess rule={ACCESS.projects}><ProjectDetail /></RequireAccess>} />
           <Route path="/customer-boards/:clientId" element={<RequireAccess rule={ACCESS.projects}><CustomerBoard /></RequireAccess>} />
+          <Route path="/playbooks" element={<RequireAccess rule={ACCESS.deliverySetup}><Playbooks /></RequireAccess>} />
           <Route path="/project-templates" element={<RequireAccess rule={ACCESS.projectTemplates}><ProjectTemplates /></RequireAccess>} />
           <Route path="/project-templates/:code" element={<RequireAccess rule={ACCESS.projectTemplates}><ProjectTemplateBuilder /></RequireAccess>} />
           <Route path="/project-workflows/:code" element={<RequireAccess rule={ACCESS.designWorkflows}><WorkflowBuilder subject="project" /></RequireAccess>} />

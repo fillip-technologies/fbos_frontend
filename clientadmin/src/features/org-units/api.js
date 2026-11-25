@@ -18,6 +18,8 @@ export const orgUnitsApi = {
   // Branches and departments only; [] means "inherit from the parent".
   setVerticals: (orgId, id, verticalIds) =>
     api.put(`${IDENTITY}/org-units/${id}/verticals`, { vertical_ids: verticalIds }, { headers: inOrg(orgId) }),
+  // Everyone active in the company, to draw the people on the structure chart (identity.user.read).
+  listPeople: (orgId, { signal } = {}) => listAll(`${IDENTITY}/users`, orgId, { status: 'active' }, { signal }),
   // The client's verticals, to name and pick them here.
   verticalOptions: (orgId, { signal } = {}) => listAll(`${IDENTITY}/verticals`, orgId, {}, { signal }),
 }

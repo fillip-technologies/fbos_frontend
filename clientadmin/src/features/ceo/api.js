@@ -13,7 +13,9 @@ export const ceoApi = {
   invoices: (orgId, months, { signal } = {}) => api.get(`${REVENUE}/invoices/summary?months=${months}`, { headers: inOrg(orgId), signal }),
   payments: (orgId, months, { signal } = {}) => api.get(`${REVENUE}/payments/summary?months=${months}`, { headers: inOrg(orgId), signal }),
   projects: (orgId, { signal } = {}) => api.get(`${DELIVERY}/work-units/stats`, { headers: inOrg(orgId), signal }),
+  tasks: (orgId, weeks, { signal } = {}) => api.get(`${DELIVERY}/tasks/stats?weeks=${weeks}&done_within_days=30`, { headers: inOrg(orgId), signal }),
   workforce: (orgId, months, { signal } = {}) => api.get(`${PEOPLE}/workers/summary?months=${months}`, { headers: inOrg(orgId), signal }),
+  opportunities: (orgId, { signal } = {}) => api.get(`${REVENUE}/opportunities/summary`, { headers: inOrg(orgId), signal }),
   gstVsCash: (orgId, period, { signal } = {}) =>
     api.get(`${REVENUE}/reports/gst-vs-cash?${new URLSearchParams({ period })}`, { headers: inOrg(orgId), signal }),
   // To name the revenue-by-vertical rows (revenue stores only the id).

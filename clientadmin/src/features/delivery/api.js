@@ -73,6 +73,8 @@ export const tasksApi = {
   queue: (orgId, opts, { signal } = {}) => api.get(`${DELIVERY}/tasks/queue?${pageQuery(opts)}`, { headers: inOrg(orgId), signal }),
   get: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/tasks/${id}`, { headers: inOrg(orgId), signal }),
   // The signed-in user's own open work: { assigned_open, due_today, overdue }.
+  // Company-wide counts by stage, with people and teams (the Dashboard's summary).
+  stats: (orgId, weeks, { signal } = {}) => api.get(`${DELIVERY}/tasks/stats?weeks=${weeks}&done_within_days=30`, { headers: inOrg(orgId), signal }),
   mySummary: (orgId, { signal } = {}) => api.get(`${DELIVERY}/tasks/summary`, { headers: inOrg(orgId), signal }),
   create: (orgId, body) => api.post(`${DELIVERY}/tasks`, body, { headers: inOrg(orgId) }),
   update: (orgId, id, version, body) => api.patch(`${DELIVERY}/tasks/${id}`, body, { headers: ifMatch(orgId, version) }),

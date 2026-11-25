@@ -221,6 +221,12 @@ export const NAV_ITEMS = [
     icon: icon(<><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 17.5h7M17.5 14v7" /></>),
   },
   {
+    to: '/playbooks',
+    label: 'Service checklists',
+    access: ACCESS.deliverySetup,
+    icon: icon(<><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8l1.5 1.5L12 7M8 13l1.5 1.5L12 12M14 8.5h3M14 13.5h3M8 18h9" /></>),
+  },
+  {
     to: '/project-templates',
     label: 'Project templates',
     access: ACCESS.projectTemplates,
@@ -406,6 +412,7 @@ const DESCRIPTIONS = {
   '/tasks': 'Your work and your team\'s: to do, in progress, in review, done.',
   '/requests': 'Work you asked other teams to do, and where it stands.',
   '/task-types': 'Kinds of task, how work is routed to teams, and delivery settings.',
+  '/playbooks': 'A checklist for each service you give clients (SMM, SEO, Ads). Start it for a client and the team ticks it off.',
   '/project-templates': 'Ready-made project plans: phases, milestones and workflows.',
   '/inventory/devices': 'Every device you track, where it is installed and its history.',
   '/inventory/stock': 'What is in each store or warehouse.',
@@ -431,7 +438,7 @@ const DESCRIPTIONS = {
 }
 
 // Sidebar sections, by the job people come to do, in display order. Each page belongs to the
-// first section listing its path; a page listed nowhere lands in Settings (the last), so a new
+// first section listing its path; a page listed nowhere lands in Settings, so a new
 // NAV_ITEMS entry is never hidden. `hint` says what the section is for (guide, tooltips);
 // Settings starts folded: setup is done now and then, daily work every day.
 export const SECTIONS = [
@@ -443,28 +450,16 @@ export const SECTIONS = [
     paths: ['/tasks', '/requests', '/people/interviews', '/people/leaves'],
   },
   {
-    id: 'sales',
-    label: 'Sell',
-    hint: 'Win customers: from first enquiry to signed contract',
-    paths: ['/leads', '/opportunities', '/contracts', '/customers'],
-  },
-  {
     id: 'delivery',
     label: 'Deliver',
     hint: 'Do the work customers paid for',
     paths: ['/projects', '/client-services'],
   },
   {
-    id: 'billing',
-    label: 'Bill & collect',
-    hint: 'Invoice the work and get paid',
-    paths: ['/billing-schedules', '/invoices', '/payments', '/collections', '/tax-reports'],
-  },
-  {
-    id: 'spend',
-    label: 'Spend & invest',
-    hint: 'Record what the company spends and invests',
-    paths: ['/expenses', '/investments'],
+    id: 'sales',
+    label: 'Sell',
+    hint: 'Win customers: from first enquiry to signed contract',
+    paths: ['/leads', '/opportunities', '/contracts', '/customers'],
   },
   {
     id: 'people',
@@ -473,10 +468,32 @@ export const SECTIONS = [
     paths: ['/users', '/people/jobs', '/people/attendance', '/people/payroll', '/people/role-changes', '/people/offboarding', '/people/org-chart', '/people/post-report'],
   },
   {
+    id: 'settings',
+    label: 'Settings',
+    hint: 'Set the company up once; change it now and then',
+    defaultCollapsed: true,
+    paths: [
+      '/org-units', '/task-types', '/playbooks', '/project-templates', '/roles', '/people/approvals', '/calendars', '/custom-fields', '/verticals', '/offerings',
+      '/organizations', '/tax-setup', '/service-providers', '/finance-setup', '/document-categories', '/audit-log',
+    ],
+  },
+  {
+    id: 'billing',
+    label: 'Bill & collect',
+    hint: 'Invoice the work and get paid',
+    paths: ['/billing-schedules', '/invoices', '/payments', '/collections', '/tax-reports'],
+  },
+  {
     id: 'plan',
     label: 'Plan & measure',
     hint: 'Set goals and budgets, then see how you are doing',
     paths: ['/planning', '/budgets', '/capacity', '/scorecard'],
+  },
+  {
+    id: 'spend',
+    label: 'Spend & invest',
+    hint: 'Record what the company spends and invests',
+    paths: ['/expenses', '/investments'],
   },
   {
     id: 'assets',
@@ -484,17 +501,6 @@ export const SECTIONS = [
     hint: 'Equipment and stock: buy, track, fix and retire',
     paths: ['/assets', '/inventory/purchase-orders', '/inventory/stock', '/inventory/devices', '/inventory/transfers', '/inventory/issues', '/inventory/repairs', '/inventory/disposals', '/inventory/reports'],
   },
-  {
-    id: 'settings',
-    label: 'Settings',
-    hint: 'Set the company up once; change it now and then',
-    defaultCollapsed: true,
-    paths: [
-      '/organizations', '/org-units', '/calendars', '/roles', '/people/approvals', '/offerings', '/tax-setup',
-      '/task-types', '/project-templates', '/service-providers', '/finance-setup', '/custom-fields', '/verticals', '/document-categories', '/audit-log',
-    ],
-  },
-  // Last, below Settings: not part of the work, there when someone is lost.
   { id: 'help', label: 'Help', hint: 'How FBOS fits together', paths: ['/guide'] },
 ]
 
@@ -564,7 +570,7 @@ for (const item of NAV_ITEMS) item.description = DESCRIPTIONS[item.to] ?? null
 export function navSections(items) {
   const groups = SECTIONS.map((s) => ({ ...s, items: [] }))
   for (const item of items) {
-    const group = groups.find((g) => g.paths.includes(item.to)) ?? groups[groups.length - 1]
+    const group = groups.find((g) => g.paths.includes(item.to)) ?? groups.find((g) => g.id === 'settings')
     group.items.push(item)
   }
   for (const g of groups) g.items.sort((a, b) => g.paths.indexOf(a.to) - g.paths.indexOf(b.to))

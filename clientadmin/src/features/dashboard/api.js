@@ -18,7 +18,9 @@ export const overviewApi = {
   contracts: (orgId, opts) => get(orgId, `${REVENUE}/contracts/summary`, opts),
   invoices: (orgId, months, opts) => get(orgId, `${REVENUE}/invoices/summary?months=${months}`, opts),
   payments: (orgId, months, opts) => get(orgId, `${REVENUE}/payments/summary?months=${months}`, opts),
-  tasks: (orgId, weeks, opts) => get(orgId, `${DELIVERY}/tasks/stats?weeks=${weeks}&done_within_days=30`, opts),
+  // unitId: only the work a team owns (the department's own view).
+  tasks: (orgId, weeks, opts, unitId) =>
+    get(orgId, `${DELIVERY}/tasks/stats?weeks=${weeks}&done_within_days=30${unitId ? `&owning_unit_id=${unitId}` : ''}`, opts),
   projects: (orgId, opts) => get(orgId, `${DELIVERY}/work-units/stats`, opts),
   workforce: (orgId, months, opts) => get(orgId, `${PEOPLE}/workers/summary?months=${months}`, opts),
   // Capacity is minutes on the API; this month, first day to last.

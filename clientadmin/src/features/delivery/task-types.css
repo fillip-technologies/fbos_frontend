@@ -1,0 +1,70 @@
+/* Task types page: the three setup steps, the ready examples and the simpler editor. */
+.tt-steps { list-style: none; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.tt-steps button {
+  width: 100%; display: flex; gap: 10px; align-items: flex-start; text-align: left; cursor: pointer;
+  padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1);
+}
+.tt-steps button.active { border-color: var(--brand); box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 18%, transparent); }
+.tt-steps strong { display: block; font-size: 14px; }
+.tt-steps small { display: block; color: var(--muted); margin-top: 2px; font-size: 12px; line-height: 1.4; }
+.tt-step-no {
+  flex: none; width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center;
+  background: var(--brand); color: #fff; font-size: 12px; font-weight: 700;
+}
+.tt-lead { margin: 0 0 12px; }
+
+.tt-quick { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 12px 14px; background: var(--sunken); border-radius: var(--r-lg); }
+.tt-quick .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.tt-quick .chip { cursor: pointer; border: 1px solid var(--line); background: var(--surface); }
+.tt-quick .chip:hover { border-color: var(--brand); color: var(--brand); }
+
+.tt-editor { margin-bottom: 18px; }
+.tt-block { margin: 0 0 18px; padding: 0 0 18px; border-bottom: 1px solid var(--line); }
+.tt-block h3, .tt-more summary { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 15px; }
+.tt-more summary { cursor: pointer; list-style: none; }
+.tt-more summary::-webkit-details-marker { display: none; }
+.tt-more summary small { color: var(--muted); font-weight: 400; }
+.tt-more[open] summary { margin-bottom: 14px; }
+.tt-narrow { max-width: 320px; margin-top: 10px; }
+
+.tt-field { padding: 14px 16px; margin: 0 0 10px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.tt-field input:not([type='checkbox']), .tt-field select { width: 100%; min-height: 40px; padding: 9px 12px; font-size: 14px; border-radius: var(--r); }
+.tt-field input::placeholder { color: var(--faint); }
+.tt-field-main { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(130px, 1fr) minmax(150px, 1.2fr); gap: 10px; margin-bottom: 12px; }
+.tt-field-main .mono-input { grid-column: 1 / -1; }
+.tt-field .editor-row-flags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 0; padding-top: 10px; border-top: 1px dashed var(--line); }
+.tt-field .editor-row-flags .inline-check { margin: 0; font-size: 13px; }
+.tt-field .editor-row-flags .btn:first-of-type { margin-left: auto; }
+.tt-table-wrap { overflow-x: auto; }
+.tt-save { margin-top: 4px; }
+
+@media (max-width: 640px) {
+  .tt-field-main { grid-template-columns: 1fr; }
+}
+
+/* Which team gets which work. */
+.rr-list { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 10px; }
+.rr-rule {
+  display: grid; grid-template-columns: minmax(180px, 1.3fr) auto minmax(170px, 1fr) auto auto; align-items: center; gap: 12px 16px;
+  padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface);
+}
+.rr-rule.is-off { background: var(--sunken); }
+.rr-rule.is-off .rr-work strong { color: var(--muted); }
+.rr-work { display: grid; gap: 2px; }
+.rr-arrow { color: var(--faint); font-size: 18px; }
+.rr-rule .field { margin: 0; }
+.rr-ask { margin: 0; font-size: 13px; }
+.rr-state { display: flex; align-items: center; gap: 8px; justify-self: end; }
+.rr-add { padding: 16px; border: 1px dashed var(--line-strong); border-radius: var(--r-lg); background: var(--sunken); }
+.rr-add h3 { margin: 0 0 12px; font-size: 15px; }
+.rr-add-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rr-add-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.rr-help { margin-top: 14px; }
+.rr-help summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 900px) {
+  .rr-rule { grid-template-columns: 1fr; }
+  .rr-arrow { display: none; }
+  .rr-state { justify-self: start; }
+  .rr-add-grid { grid-template-columns: 1fr; }
+}

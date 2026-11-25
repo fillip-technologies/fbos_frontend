@@ -1,0 +1,29 @@
+/* Service checklists: the list, the item editor and the dashboard card. */
+.pb-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.pb-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.pb-card-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.pb-count { flex: none; padding: 3px 10px; border-radius: 999px; background: var(--sunken); font-size: 12px; font-weight: 600; color: var(--muted); }
+.pb-items { margin: 0; padding-left: 20px; font-size: 13px; color: var(--ink); display: grid; gap: 3px; }
+.pb-items small { color: var(--muted); }
+.pb-card .row-actions { margin-top: auto; }
+
+.pb-row { display: grid; grid-template-columns: 24px minmax(180px, 1fr) auto auto auto auto; gap: 8px; align-items: center; margin: 0 0 8px; }
+.pb-row input:not([type='checkbox']) { min-height: 40px; padding: 9px 12px; font-size: 14px; width: 100%; }
+.pb-no { color: var(--muted); font-size: 12px; text-align: right; }
+@media (max-width: 760px) {
+  .pb-row { grid-template-columns: 24px 1fr; }
+  .pb-row > :nth-child(n + 3) { grid-column: 2; justify-self: start; }
+}
+
+/* Dashboard card: checklists in progress. */
+.pbd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pbd-list li { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(120px, 1.2fr) auto; gap: 12px; align-items: center; }
+.pbd-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pbd-bar { height: 8px; border-radius: 4px; background: var(--sunken); overflow: hidden; }
+.pbd-bar > span { display: block; height: 100%; border-radius: 4px; background: var(--brand); transition: width 0.4s var(--ease); }
+.pbd-bar.is-done > span { background: #1baf7a; }
+.pbd-nums { font-size: 12px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 640px) {
+  .pbd-list li { grid-template-columns: 1fr auto; }
+  .pbd-bar { grid-column: 1 / -1; order: 3; }
+}

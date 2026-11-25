@@ -3,6 +3,7 @@ import { ACCESS, hasAccess } from '@/features/auth/access.js'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
 import { ceoApi } from '@/features/ceo/api.js'
 import { Stat } from '@/features/ceo/components/Parts.jsx'
+import TeamPulse from '@/features/ceo/components/TeamPulse.jsx'
 import { count, label, moneyIN, num } from '@/features/ceo/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
@@ -41,9 +42,10 @@ export default function Watchlist() {
   const payments = asked(useQuery(['overview', orgId, 'payments', MONTHS], (o) => ceoApi.payments(orgId, MONTHS, o), opts(ACCESS.payments)), ACCESS.payments)
   const projects = asked(useQuery(['overview', orgId, 'projects'], (o) => ceoApi.projects(orgId, o), opts(ACCESS.projects)), ACCESS.projects)
   const people = asked(useQuery(['overview', orgId, 'workforce', MONTHS], (o) => ceoApi.workforce(orgId, MONTHS, o), opts(ACCESS.people)), ACCESS.people)
+  const opportunities = asked(useQuery(['overview', orgId, 'opportunities'], (o) => ceoApi.opportunities(orgId, o), opts(ACCESS.opportunities)), ACCESS.opportunities)
   const tax = asked(useQuery(['gst-vs-cash', orgId, thisMonth()], (o) => ceoApi.gstVsCash(orgId, thisMonth(), o), opts(ACCESS.taxReports)), ACCESS.taxReports)
 
-  if (![invoices, payments, projects, people, tax].some((q) => q.enabled)) return null
+  if (![invoices, payments, projects, people, tax, opportunities].some((q) => q.enabled)) return null
 
   return (
     <section className="cc-watch" aria-label="Company watchlist">
@@ -59,10 +61,12 @@ export default function Watchlist() {
         <Receivables invoices={invoices} />
         <TaxPosition tax={tax} />
       </div>
-      <div className="cc-row cols-2">
+      <div className="cc-row cols-3">
+        <Forecast opp={opportunities} />
         <ProjectsAtRisk projects={projects} />
         <PeopleMovement people={people} />
       </div>
+      <TeamPulse orgId={orgId} workforce={people} />
     </section>
   )
 }
@@ -178,6 +182,41 @@ function TaxPosition({ tax }) {
               { key: 'tds', label: 'TDS withheld by customers', value: num(r.tds_withheld.amount) },
             ]} />
           <p className="cc-note-line">A gap is GST you pay the government before you have collected it. Filing dates are not tracked here.</p>
+        </>
+      )}
+    </ChartCard>
+  )
+}
+
+// What the open pipeline is expected to bring: each opportunity's value weighted by its chance.
+const STAGES = { qualification: 'Qualification', proposal: 'Proposal', negotiation: 'Negotiation' }
+
+function Forecast({ opp }) {
+  if (!opp.enabled) return null
+  const d = opp.data
+  const cur = d?.currency || 'INR'
+  const stage = (k) => d?.by_stage.find((s) => s.stage === k)
+  const open = Object.keys(STAGES).map(stage).filter(Boolean)
+  const won = stage('won')
+  const decided = (won?.count ?? 0) + (stage('lost')?.count ?? 0)
+  const winRate = decided ? Math.round(((won?.count ?? 0) / decided) * 100) : null
+  return (
+    <ChartCard title="Sales forecast" subtitle="What the open pipeline is expected to bring"
+      action={<Link className="link-btn" to="/opportunities">Opportunities</Link>}
+      table={d ? { columns: ['Stage', 'Deals', 'Value'], rows: open.map((s) => [STAGES[s.stage], count(s.count), moneyIN(s.value.amount, cur)]) } : undefined}>
+      {!d ? (
+        <Empty query={opp} text="No opportunities yet." />
+      ) : (
+        <>
+          <div className="cc-stats">
+            <Stat label="Open pipeline" value={moneyIN(d.open_value.amount, cur)} />
+            <Stat label="Expected" value={moneyIN(d.weighted_value.amount, cur)} tone="good" />
+            {winRate !== null && <Stat label="Win rate" value={`${winRate}%`} />}
+          </div>
+          <h4>Open pipeline by stage</h4>
+          <BarList format={(v) => moneyIN(v, cur)} colors={ORDINAL} emptyText="Nothing in the pipeline."
+            rows={open.map((s) => ({ key: s.stage, label: STAGES[s.stage], value: num(s.value.amount), sub: `${count(s.count)} deals` }))} />
+          <p className="cc-note-line">Expected is each opportunity’s value times its chance of closing.</p>
         </>
       )}
     </ChartCard>

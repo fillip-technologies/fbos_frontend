@@ -5,6 +5,7 @@ import TaskActions from '@/features/delivery/components/TaskActions.jsx'
 import TaskAttributes from '@/features/delivery/components/TaskAttributes.jsx'
 import TaskChecklist from '@/features/delivery/components/TaskChecklist.jsx'
 import HandOver from '@/features/delivery/components/HandOver.jsx'
+import { PLAYBOOK_LABEL } from '@/features/delivery/playbooks.js'
 import TaskComments from '@/features/delivery/components/TaskComments.jsx'
 import TaskDependencies from '@/features/delivery/components/TaskDependencies.jsx'
 import TaskHistory from '@/features/delivery/components/TaskHistory.jsx'
@@ -139,7 +140,8 @@ export default function TaskDetail() {
       </div>
 
       <TaskAttributes {...props} />
-      <WorkflowPanel orgId={orgId} subject={{ type: SUBJECT_TYPES.task, id: task.id }} />
+      {/* A service checklist is its own list of steps: no workflow to start on top of it. */}
+      {!task.labels.includes(PLAYBOOK_LABEL) && <WorkflowPanel orgId={orgId} subject={{ type: SUBJECT_TYPES.task, id: task.id }} />}
       <HandOver
         orgId={orgId}
         subject={{ type: SUBJECT_TYPES.task, id: task.id }}
