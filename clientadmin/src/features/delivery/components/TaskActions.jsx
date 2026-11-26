@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import '@/features/delivery/task-flow.css'
 import { tasksApi } from '@/features/delivery/api.js'
 import AssigneeOptions from '@/features/delivery/components/AssigneeOptions.jsx'
 import { ReasonForm, ReviewForm, SubmitForm } from '@/features/delivery/components/TaskForms.jsx'
@@ -64,21 +65,25 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
       </button>
     ),
     !governed && mayReview && ['submitted', 'in_review'].includes(task.status) && (
-      <button key="review" className="btn" onClick={() => openForm('review')}>Review</button>
+      <button key="review" className="btn" onClick={() => openForm('review')}>Review: pass or send back</button>
     ),
     worksOn && task.status === 'blocked' && (
       <button key="unblock" className="btn" disabled={busy} onClick={() => run(() => tasksApi.unblock(orgId, task))}>Unblock</button>
     ),
     canManage && open && (
-      <button key="assign" className="btn secondary" onClick={() => openForm('assign')}>{task.assignee ? 'Reassign' : 'Assign'}</button>
+      <button key={task.assignee ? 'assign' : 'assign-first'} className={task.assignee ? 'btn secondary small-btn' : 'btn'} onClick={() => openForm('assign')}>{task.assignee ? 'Give to someone else' : 'Assign to someone'}</button>
     ),
     worksOn && open && !['blocked', 'submitted', 'in_review'].includes(task.status) && (
-      <button key="block" className="btn secondary" onClick={() => openForm('block')}>Mark blocked</button>
+      <button key="block" className="btn secondary small-btn" onClick={() => openForm('block')}>Stuck? Mark blocked</button>
     ),
     canManage && open && (
-      <button key="cancel" className="btn secondary" onClick={() => openForm('cancel')}>Cancel task</button>
+      <button key="cancel" className="btn danger-outline small-btn" onClick={() => openForm('cancel')}>Cancel this task</button>
     ),
   ].filter(Boolean)
+  // The next step comes first; giving it to someone else, marking it stuck and cancelling sit below.
+  const SIDE = ['assign', 'block', 'cancel']
+  const mainButtons = buttons.filter((b) => !SIDE.includes(b.key))
+  const sideButtons = buttons.filter((b) => SIDE.includes(b.key))
 
   if (buttons.length === 0 && !error && !governed) return null
   const close = () => setForm(null)
@@ -94,7 +99,13 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
           onStep={(code, note) => run(() => tasksApi.takeStep(orgId, task, code, note))}
         />
       )}
-      <div className="row-actions" style={{ flexWrap: 'wrap' }}>{buttons}</div>
+      {mainButtons.length > 0 && <div className="ta-primary">{mainButtons}</div>}
+      {sideButtons.length > 0 && (
+        <div className="ta-other">
+          {mainButtons.length > 0 && <span className="ta-other-label">Other:</span>}
+          {sideButtons}
+        </div>
+      )}
       {form === 'assign' && (
         <AssignForm orgId={orgId} task={task} names={names} busy={busy} error={error} onCancel={close} onSubmit={(body) => run(() => tasksApi.assign(orgId, task, body))} />
       )}

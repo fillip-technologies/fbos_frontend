@@ -18,7 +18,7 @@ export default function TaskTable({ orgId, tasks, loading, refreshing, names, sh
         <thead>
           <tr>
             <th>Task</th>
-            <th>Assignee</th>
+            <th>Given to</th>
             {showTeam && <th>Team</th>}
             <th>Priority</th>
             <th>Status</th>
@@ -40,7 +40,7 @@ export default function TaskTable({ orgId, tasks, loading, refreshing, names, sh
                     {t.outcome && ` · ${t.outcome.replace(/_/g, ' ')}`}
                   </div>
                 </td>
-                <td>{t.assignee ? names.personName(t.assignee) : <span className="muted">Unassigned</span>}</td>
+                <td>{t.assignee ? names.personName(t.assignee) : <span className="muted">Nobody yet</span>}</td>
                 {showTeam && <td>{names.unitName(t.owning_unit)}</td>}
                 <td><StatusBadge status={t.priority} label={TASK_PRIORITY_LABELS[t.priority]} /></td>
                 <td>

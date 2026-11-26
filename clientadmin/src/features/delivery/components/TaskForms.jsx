@@ -1,3 +1,4 @@
+import '@/features/delivery/task-flow.css'
 import { useState } from 'react'
 import { tasksApi } from '@/features/delivery/api.js'
 import CustomFieldInputs from '@/shared/components/CustomFieldInputs.jsx'
@@ -60,6 +61,7 @@ export function SubmitForm({ orgId, task, taskType, fields, busy, error, onCance
   const serverProblems = attributeErrors(error)
   const fieldErrors = { ...serverProblems, ...problems }
   const chosen = outcomes.find((o) => o.code === outcome)
+  const requiredLeft = (task.checklist ?? []).filter((i) => i.mandatory && !i.done).length
   const proposedFollowUp = chosen?.follow_up_in_days != null ? addDays(chosen.follow_up_in_days) : ''
 
   function handleSubmit(e) {
@@ -81,6 +83,16 @@ export function SubmitForm({ orgId, task, taskType, fields, busy, error, onCance
   return (
     <form style={{ marginTop: 14 }} onSubmit={handleSubmit}>
       {error && Object.keys(serverProblems).length === 0 && <ErrorBanner error={error} />}
+      <p className="tf-now" style={{ marginBottom: 12 }}>
+        {goesForReview
+          ? `You are handing this in. It goes to ${task.reviewer?.name || 'a reviewer'} to check, and you are told if it is sent back.`
+          : 'You are finishing this task. It will be marked done.'}
+      </p>
+      {requiredLeft > 0 && (
+        <div className="alert warn">
+          {requiredLeft} required {requiredLeft === 1 ? 'step is' : 'steps are'} not ticked yet. Tick {requiredLeft === 1 ? 'it' : 'them'} in the checklist first, or this will be refused.
+        </div>
+      )}
       {outcomes.length > 0 && (
         <div className="field">
           <label>How did it go? *</label>
@@ -127,10 +139,12 @@ export function SubmitForm({ orgId, task, taskType, fields, busy, error, onCance
         <p className="hint">Goes to {task.reviewer.name || 'your reviewer'} for review.</p>
       )}
       <div className="field">
-        <label htmlFor="submit_note">Note</label>
-        <input id="submit_note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was done, anything to know" />
+        <label htmlFor="submit_note">What did you do? <span className="muted">(optional)</span></label>
+        <input id="submit_note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything the person checking should know" />
       </div>
-      <div className="grid-2">
+      <details className="tf-fold" open={Boolean(proposedFollowUp || followUp || skipFollowUp)}>
+        <summary>Plan a follow-up task <small>(optional)</small></summary>
+        <div className="grid-2">
         <div className="field">
           <label htmlFor="follow_up">Follow up on</label>
           <input
@@ -150,7 +164,8 @@ export function SubmitForm({ orgId, task, taskType, fields, busy, error, onCance
             No follow-up
           </label>
         </div>
-      </div>
+        </div>
+      </details>
       <div className="row-actions">
         <button className="btn" type="submit" disabled={busy} aria-busy={busy}>
           {goesForReview ? 'Submit for review' : 'Complete'}
@@ -205,20 +220,17 @@ export function ReviewForm({ orgId, task, taskType, names, busy, error, onCancel
           ))}
         </div>
       )}
-      <div className="grid-2">
-        <div className="field">
-          <label htmlFor="review_result">Decision</label>
-          <select id="review_result" value={result} onChange={(e) => setResult(e.target.value)}>
-            <option value="pass">Approve: the task is done</option>
-            <option value="fail">Send back for rework</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="review_rating">Rating</label>
-          <select id="review_rating" value={rating} onChange={(e) => setRating(e.target.value)}>
-            <option value="">—</option>
-            {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
+      <div className="field">
+        <label>Your decision</label>
+        <div className="rv-choice" role="radiogroup" aria-label="Your decision">
+          <button type="button" role="radio" aria-checked={result === 'pass'} className={`rv-opt pass${result === 'pass' ? ' chosen' : ''}`} onClick={() => setResult('pass')}>
+            <strong>✓ Approve</strong>
+            <small>The work is good. The task is done.</small>
+          </button>
+          <button type="button" role="radio" aria-checked={result === 'fail'} className={`rv-opt fail${result === 'fail' ? ' chosen' : ''}`} onClick={() => setResult('fail')}>
+            <strong>↩ Send back</strong>
+            <small>It needs changes. The person fixes it and hands it in again.</small>
+          </button>
         </div>
       </div>
       {beyondIncluded && (
@@ -227,7 +239,7 @@ export function ReviewForm({ orgId, task, taskType, names, busy, error, onCancel
         </div>
       )}
       <div className="field">
-        <label htmlFor="review_feedback">What needs to change{result === 'fail' ? ' *' : ''}</label>
+        <label htmlFor="review_feedback">{result === 'fail' ? 'What needs to change? *' : 'A comment (optional)'}</label>
         <textarea
           id="review_feedback"
           rows={3}
@@ -237,8 +249,18 @@ export function ReviewForm({ orgId, task, taskType, names, busy, error, onCancel
           placeholder={result === 'fail' ? 'Be specific: what to change and why' : 'Optional'}
         />
       </div>
+      <details className="tf-fold">
+        <summary>Rate the work <small>(optional)</small></summary>
+        <div className="field" style={{ maxWidth: 200 }}>
+          <label htmlFor="review_rating" className="sr-only">Rating</label>
+          <select id="review_rating" value={rating} onChange={(e) => setRating(e.target.value)}>
+            <option value="">No rating</option>
+            {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} out of 5</option>)}
+          </select>
+        </div>
+      </details>
       <div className="row-actions">
-        <button className="btn" type="submit" disabled={busy} aria-busy={busy}>{result === 'pass' ? 'Approve' : 'Send back'}</button>
+        <button className="btn" type="submit" disabled={busy} aria-busy={busy}>{result === 'pass' ? 'Approve it' : 'Send it back'}</button>
         <button className="btn secondary" type="button" onClick={onCancel}>Close</button>
       </div>
     </form>

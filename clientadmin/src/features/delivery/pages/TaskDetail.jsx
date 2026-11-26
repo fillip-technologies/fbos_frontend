@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { tasksApi } from '@/features/delivery/api.js'
 import SlaBadge from '@/features/delivery/components/SlaBadge.jsx'
+import TaskFlow from '@/features/delivery/components/TaskFlow.jsx'
 import TaskActions from '@/features/delivery/components/TaskActions.jsx'
 import TaskAttributes from '@/features/delivery/components/TaskAttributes.jsx'
 import TaskChecklist from '@/features/delivery/components/TaskChecklist.jsx'
@@ -108,12 +109,13 @@ export default function TaskDetail() {
         <button className="btn secondary" onClick={() => navigate(-1)}>← Back</button>
       </div>
 
+      <TaskFlow task={task} taskType={taskType} names={names} />
       <TaskActions {...props} />
 
       <div className="panel">
         <div className="details-grid">
-          <Detail label="Assignee">{task.assignee ? names.personName(task.assignee) : 'Unassigned'}</Detail>
-          <Detail label="Reviewer">{task.reviewer && names.personName(task.reviewer)}</Detail>
+          <Detail label="Given to">{task.assignee ? names.personName(task.assignee) : 'Nobody yet'}</Detail>
+          <Detail label="Checked by">{task.reviewer && names.personName(task.reviewer)}</Detail>
           <Detail label="Team">{names.unitName(task.owning_unit)}</Detail>
           <Detail label="Due">
             {task.due_at && <span style={isOverdue(task) ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>{formatDay(task.due_at)}</span>}
@@ -123,7 +125,7 @@ export default function TaskDetail() {
           </Detail>
           {points && <Detail label="Story points">{String(points)}</Detail>}
           <Detail label="Created by">{task.created_by && names.personName(task.created_by)}</Detail>
-          <Detail label="Labels">{task.labels.length > 0 && task.labels.join(', ')}</Detail>
+          <Detail label="Tags">{task.labels.length > 0 && task.labels.join(', ')}</Detail>
           {task.review_round > 0 && (
             <Detail label="Sent back">
               {`${task.review_round} time${task.review_round === 1 ? '' : 's'}`}
@@ -139,21 +141,27 @@ export default function TaskDetail() {
         )}
       </div>
 
-      <TaskAttributes {...props} />
-      {/* A service checklist is its own list of steps: no workflow to start on top of it. */}
-      {!task.labels.includes(PLAYBOOK_LABEL) && <WorkflowPanel orgId={orgId} subject={{ type: SUBJECT_TYPES.task, id: task.id }} />}
-      <HandOver
-        orgId={orgId}
-        subject={{ type: SUBJECT_TYPES.task, id: task.id }}
-        fromUnit={task.owning_unit}
-        names={names}
-        finished={['done', 'cancelled'].includes(task.status)}
-      />
+      {/* The work itself first: the steps to tick, the task's own boxes, time and talk. */}
       <TaskChecklist {...props} />
+      <TaskAttributes {...props} />
       <TaskTime {...props} />
-      <TaskDependencies {...props} />
       <TaskComments {...props} />
-      <TaskHistory {...props} />
+
+      {/* Rarer things, folded away so they do not crowd the work. */}
+      <details className="td-more">
+        <summary>More: hand over to another team, what it waits for, history</summary>
+        {/* A service checklist is its own list of steps: no workflow to start on top of it. */}
+        {!task.labels.includes(PLAYBOOK_LABEL) && <WorkflowPanel orgId={orgId} subject={{ type: SUBJECT_TYPES.task, id: task.id }} />}
+        <HandOver
+          orgId={orgId}
+          subject={{ type: SUBJECT_TYPES.task, id: task.id }}
+          fromUnit={task.owning_unit}
+          names={names}
+          finished={['done', 'cancelled'].includes(task.status)}
+        />
+        <TaskDependencies {...props} />
+        <TaskHistory {...props} />
+      </details>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import '@/features/delivery/task-types.css'
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { lookupsApi, projectsApi, routingApi, tasksApi } from '@/features/delivery/api.js'
@@ -184,62 +185,160 @@ export default function TaskCreate() {
       </div>
       {error && Object.keys(getFieldErrors(error)).length === 0 && Object.keys(serverProblems).length === 0 && <ErrorBanner error={error} />}
 
-      <form className="panel" onSubmit={handleSubmit}>
-        <fieldset className="type-picker">
-          <legend>What kind of work? *</legend>
-          {disciplines.map((discipline) => (
-            <div key={discipline} className="type-group">
-              <div className="type-group-label"><span className={`discipline-dot ${discipline}`} /> {disciplineLabel(discipline)}</div>
-              <div className="type-options">
-                {offeredTypes.filter((t) => t.discipline === discipline).map((t) => (
-                  <label key={t.code} className={`type-option${form.task_type_code === t.code ? ' chosen' : ''}`}>
-                    <input type="radio" name="task_type" value={t.code} checked={form.task_type_code === t.code} onChange={() => chooseType(t.code)} />
-                    {t.name}
-                    {t.requires_review && <span className="muted small"> · reviewed</span>}
-                  </label>
-                ))}
+      <form className="panel tt-editor" onSubmit={handleSubmit}>
+        {/* ---------------- 1. What ---------------- */}
+        <section className="tt-block">
+          <h3><span className="tt-step-no">1</span> What is the work?</h3>
+          <fieldset className="type-picker">
+            <legend>Kind of work *</legend>
+            {disciplines.map((discipline) => (
+              <div key={discipline} className="type-group">
+                <div className="type-group-label"><span className={`discipline-dot ${discipline}`} /> {disciplineLabel(discipline)}</div>
+                <div className="type-options">
+                  {offeredTypes.filter((t) => t.discipline === discipline).map((t) => (
+                    <label key={t.code} className={`type-option${form.task_type_code === t.code ? ' chosen' : ''}`}>
+                      <input type="radio" name="task_type" value={t.code} checked={form.task_type_code === t.code} onChange={() => chooseType(t.code)} />
+                      {t.name}
+                      {t.requires_review && <span className="muted small"> · reviewed</span>}
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-          {typesReason === 'admin' && <p className="muted small" style={{ margin: '10px 0 0' }}>You can set up work, so every kind of work is shown.</p>}
-          {typesReason === 'no-team' && (
-            <p className="muted small" style={{ margin: '10px 0 0' }}>
-              You are not placed in a team yet, so every kind of work is shown. An admin sets your team under Users → your page → Home unit.
-            </p>
-          )}
-          {typesReason === 'no-rule' && (
-            <p className="muted small" style={{ margin: '10px 0 0' }}>
-              Your team{teamName ? ' (' + teamName + ')' : ''} has no “Who gets the work” rule yet, so every kind of work is shown. An admin adds one under Settings → Task types.
-            </p>
-          )}
-          {hiddenCount > 0 && (
-            <p className="muted small" style={{ margin: '10px 0 0' }}>
-              Only your own team’s kinds of work are shown. Need something from another team?{' '}
-              {hasAccess(me, ACCESS.requestWork) ? <Link to="/requests/new">Ask that team</Link> : 'Ask your team head or an admin.'}
-            </p>
-          )}
-        </fieldset>
+            ))}
+            {typesReason === 'admin' && <p className="muted small" style={{ margin: '10px 0 0' }}>You can set up work, so every kind of work is shown.</p>}
+            {typesReason === 'no-team' && (
+              <p className="muted small" style={{ margin: '10px 0 0' }}>
+                You are not placed in a team yet, so every kind of work is shown. An admin sets your team under Users → your page → Home unit.
+              </p>
+            )}
+            {typesReason === 'no-rule' && (
+              <p className="muted small" style={{ margin: '10px 0 0' }}>
+                Your team{teamName ? ' (' + teamName + ')' : ''} has no “Who gets the work” rule yet, so every kind of work is shown. An admin adds one under Settings → Task types.
+              </p>
+            )}
+            {hiddenCount > 0 && (
+              <p className="muted small" style={{ margin: '10px 0 0' }}>
+                Only your own team’s kinds of work are shown. Need something from another team?{' '}
+                {hasAccess(me, ACCESS.requestWork) ? <Link to="/requests/new">Ask that team</Link> : 'Ask your team head or an admin.'}
+              </p>
+            )}
+          </fieldset>
 
-        <div className="field">
-          <label htmlFor="title">Title *</label>
-          <input id="title" required maxLength={255} value={form.title} onChange={(e) => set('title', e.target.value)} />
-          {fieldErrors.title && <div className="field-error">{fieldErrors.title}</div>}
-        </div>
-
-        <div className="grid-2">
           <div className="field">
-            <label htmlFor="subject_kind">About</label>
-            <select id="subject_kind" value={form.subject_kind} onChange={(e) => set('subject_kind', e.target.value)}>
-              <option value="project">A project</option>
-              {leads && <option value="lead">A lead</option>}
-              <option value="none">Nothing in particular (a to-do)</option>
-            </select>
+            <label htmlFor="title">Give it a title *</label>
+            <input id="title" required maxLength={255} value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Instagram post for Ejaz Hospital, 5 Dec" />
+            {fieldErrors.title && <div className="field-error">{fieldErrors.title}</div>}
           </div>
+
+          {createFields.length > 0 && (
+            <div className="subpanel">
+              <div className="subpanel-head">
+                <div className="subpanel-title">{taskType?.name} details</div>
+                <CustomizeFormLink formCode="task.task" />
+              </div>
+              <CustomFieldInputs fields={createFields} values={values} onChange={setValues} errors={fieldErrors} />
+              {fields.some((f) => f.required_on_submit) && (
+                <p className="muted small" style={{ margin: 0 }}>
+                  Filled in when it's submitted: {fields.filter((f) => f.required_on_submit).map((f) => f.label).join(', ')}.
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="field">
+            <label htmlFor="description">More about it <span className="muted">(optional)</span></label>
+            <textarea id="description" rows={2} value={form.description} onChange={(e) => set('description', e.target.value)} />
+          </div>
+        </section>
+
+        {/* ---------------- 2. Who ---------------- */}
+        <section className="tt-block">
+          <h3><span className="tt-step-no">2</span> Who does it?</h3>
+          {canManage && (
+            <div className="segmented tc-who" role="group" aria-label="Who is it for">
+              <button type="button" className={!form.personal ? 'active' : ''} aria-pressed={!form.personal} onClick={() => setForm((f) => ({ ...f, personal: false, assignee_user_id: '' }))}>A team</button>
+              <button type="button" className={form.personal ? 'active' : ''} aria-pressed={form.personal} onClick={() => setForm((f) => ({ ...f, personal: true, owning_unit_id: '', assignee_user_id: '' }))}>Just me</button>
+            </div>
+          )}
+
+          {form.personal ? (
+            <p className="muted small" style={{ margin: '8px 0 0' }}>A personal to-do: it is yours, and no team sees it in their queue.</p>
+          ) : (
+            <>
+              <div className="grid-2">
+                <div className="field">
+                  <label htmlFor="owning_unit_id">Which team? *</label>
+                  <select id="owning_unit_id" required value={owningUnitId} onChange={(e) => setForm((f) => ({ ...f, owning_unit_id: e.target.value, assignee_user_id: '' }))}>
+                    <option value="">Choose the team…</option>
+                    {(names.units || []).filter((u) => u.status !== 'inactive').map((u) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                  {!form.owning_unit_id && routedUnitId && <div className="hint">Filled in from “Who gets the work” for this kind of work.</div>}
+                </div>
+                <div className="field">
+                  <label htmlFor="assignee_user_id">Which person? <span className="muted">(optional)</span></label>
+                  <select id="assignee_user_id" value={form.assignee_user_id} onChange={(e) => set('assignee_user_id', e.target.value)}>
+                    <option value="">{givenOut ? 'Let the team give it out' : 'Leave it for the team to pick up'}</option>
+                    <AssigneeOptions people={assignable.people} me={me} />
+                  </select>
+                  {!owningUnitId && <div className="hint">Choose the team first to see its people.</div>}
+                  {assignable.teamOnly && <div className="hint">Only people in this team can be given its tasks.</div>}
+                  {assignable.error && <div className="hint">The team’s people couldn’t be loaded, so only you are offered. Try again shortly.</div>}
+                </div>
+              </div>
+              {owningUnitId && (
+                <p className="tc-summary">
+                  Goes to <strong>{names.unitName(owningUnitId)}</strong>
+                  {form.assignee_user_id
+                    ? <>, and is given to <strong>{names.personName(form.assignee_user_id)}</strong>.</>
+                    : givenOut
+                      ? <>. Not given to anyone yet: {givenOut}.</>
+                      : <>. Nobody is named, so it waits in the team’s queue until someone takes it.</>}
+                </p>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* ---------------- 3. When ---------------- */}
+        <section className="tt-block">
+          <h3><span className="tt-step-no">3</span> When, and what is it for?</h3>
+          <div className="grid-3">
+            <div className="field">
+              <label htmlFor="due_date">Due date</label>
+              <input id="due_date" type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} />
+              {resolution && !form.due_date && <div className="hint">Left empty: due when the {formatTarget(resolution)} time limit runs out.</div>}
+            </div>
+            <div className="field">
+              <label htmlFor="priority">How urgent</label>
+              <select id="priority" value={form.priority} onChange={(e) => set('priority', e.target.value)}>
+                {Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="subject_kind">Linked to</label>
+              <select id="subject_kind" value={form.subject_kind} onChange={(e) => set('subject_kind', e.target.value)}>
+                <option value="project">A project</option>
+                {leads && <option value="lead">A lead</option>}
+                <option value="none">Nothing (a plain to-do)</option>
+              </select>
+            </div>
+          </div>
+          {(resolution || response) && (
+            <p className="muted small" style={{ marginTop: 0 }}>
+              Time limit for {TASK_PRIORITY_LABELS[form.priority]} {taskType.name.toLowerCase()}:
+              {response ? ` start within ${formatTarget(response)}` : ''}{response && resolution ? ',' : ''}
+              {resolution ? ` finish within ${formatTarget(resolution)}` : ''}.
+            </p>
+          )}
           {form.subject_kind === 'project' && (
             <div className="field">
-              <label htmlFor="project_id">Project *</label>
+              <label htmlFor="project_id">Which project? *</label>
               <select id="project_id" required value={form.project_id} onChange={(e) => set('project_id', e.target.value)}>
-                <option value="">— Choose —</option>
+                <option value="">Choose the project…</option>
                 {openProjects.map((p) => (
                   <option key={p.id} value={p.id}>{p.code} · {p.name}</option>
                 ))}
@@ -248,9 +347,9 @@ export default function TaskCreate() {
           )}
           {form.subject_kind === 'lead' && (
             <div className="field">
-              <label htmlFor="lead_id">Lead *</label>
+              <label htmlFor="lead_id">Which lead? *</label>
               <select id="lead_id" required value={form.lead_id} onChange={(e) => chooseLead(e.target.value)}>
-                <option value="">— Choose —</option>
+                <option value="">Choose the lead…</option>
                 {(leads ?? []).map((l) => (
                   <option key={l.id} value={l.id}>{l.code} · {l.contact_name || l.company_name || 'Lead'}{l.company_name && l.contact_name ? ` (${l.company_name})` : ''}</option>
                 ))}
@@ -258,170 +357,64 @@ export default function TaskCreate() {
               {chosenLead && <div className="hint">{[chosenLead.contact_email, chosenLead.contact_phone].filter(Boolean).join(' · ')}</div>}
             </div>
           )}
-        </div>
+        </section>
 
-        {createFields.length > 0 && (
-          <div className="subpanel">
-            <div className="subpanel-head">
-              <div className="subpanel-title">{taskType?.name} details</div>
-              <CustomizeFormLink formCode="task.task" />
-            </div>
-            <CustomFieldInputs fields={createFields} values={values} onChange={setValues} errors={fieldErrors} />
-            {fields.some((f) => f.required_on_submit) && (
-              <p className="muted small" style={{ margin: 0 }}>
-                Filled in when it's submitted: {fields.filter((f) => f.required_on_submit).map((f) => f.label).join(', ')}.
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="field">
-          <label htmlFor="description">Description</label>
-          <textarea id="description" rows={3} value={form.description} onChange={(e) => set('description', e.target.value)} />
-        </div>
-
-        <div className="grid-3">
-          <div className="field">
-            <label htmlFor="priority">Priority</label>
-            <select id="priority" value={form.priority} onChange={(e) => set('priority', e.target.value)}>
-              {Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-          {form.personal ? (
-            <div className="field">
-              <label htmlFor="owning_unit_id">Team</label>
-              {canManage ? (
-                <select id="owning_unit_id" value="" onChange={(e) => setForm((f) => ({ ...f, personal: e.target.value === '', owning_unit_id: e.target.value, assignee_user_id: '' }))}>
-                  <option value="">Just for me (no team)</option>
-                  {(names.units || []).filter((u) => u.status !== 'inactive').map((u) => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
-              ) : (
-                <input id="owning_unit_id" disabled value="Just for me (no team)" />
-              )}
-              <div className="hint">A personal task: yours, and no team sees it in their queue.</div>
-            </div>
-          ) : (
-            <div className="field">
-              <label htmlFor="owning_unit_id">Team *</label>
-              <select
-                id="owning_unit_id"
-                required
-                value={owningUnitId}
-                onChange={(e) => setForm((f) => ({ ...f, personal: e.target.value === 'personal', owning_unit_id: e.target.value === 'personal' ? '' : e.target.value, assignee_user_id: '', reviewer_user_id: e.target.value === 'personal' ? '' : f.reviewer_user_id }))}
-              >
-                <option value="">— Choose —</option>
-                <option value="personal">Just for me (no team)</option>
-                {(names.units || []).filter((u) => u.status !== 'inactive').map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
-              {!form.owning_unit_id && routedUnitId && <div className="hint">From the routing rule for this kind of work.</div>}
-            </div>
-          )}
-          <div className="field">
-            <label htmlFor="due_date">Due</label>
-            <input id="due_date" type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} />
-            {resolution && !form.due_date && <div className="hint">Left empty: due when the {formatTarget(resolution)} SLA runs out.</div>}
-          </div>
-        </div>
-        {(resolution || response) && (
-          <p className="muted small" style={{ marginTop: -6 }}>
-            {TASK_PRIORITY_LABELS[form.priority]} {taskType.name.toLowerCase()} SLA:
-            {response ? ` pick up within ${formatTarget(response)}` : ''}{response && resolution ? ',' : ''}
-            {resolution ? ` resolve within ${formatTarget(resolution)}` : ''}.
-          </p>
-        )}
-
-        {!form.personal && (
-        <div className="grid-3">
-          <div className="field">
-            <label htmlFor="assignee_user_id">Assignee</label>
-            <select id="assignee_user_id" value={form.assignee_user_id} onChange={(e) => set('assignee_user_id', e.target.value)}>
-              <option value="">{givenOut ? '— Let the team give it out —' : '— Leave in the team’s queue —'}</option>
-              <AssigneeOptions people={assignable.people} me={me} />
-            </select>
-            {!owningUnitId && <div className="hint">Choose the team to see its people.</div>}
-            {givenOut && !form.assignee_user_id && <div className="hint">Left empty, {givenOut}.</div>}
-            {assignable.teamOnly && <div className="hint">Only people in this team can be given its tasks.</div>}
-            {assignable.error && <div className="hint">The team’s people couldn’t be loaded, so only you are offered. Try again shortly.</div>}
-          </div>
-          <div className="field">
-            <label htmlFor="reviewer_user_id">Reviewer</label>
-            <select id="reviewer_user_id" value={form.reviewer_user_id} onChange={(e) => set('reviewer_user_id', e.target.value)}>
-              <option value="">— Anyone allowed to review —</option>
-              {people.map((u) => (
-                <option key={u.id} value={u.id}>{u.id === me?.id ? `${u.name} (you)` : u.name}</option>
-              ))}
-            </select>
-          </div>
-          {usesTime ? (
-            <div className="field">
-              <label htmlFor="estimate">Estimate</label>
-              <input id="estimate" placeholder="e.g. 2h 30m" value={form.estimate} onChange={(e) => set('estimate', e.target.value)} />
-              {estimateInvalid && <div className="field-error">Write it like 90, 1h 30m or 1.5h.</div>}
-            </div>
-          ) : (
-            <div className="field">
-              <label htmlFor="labels">Labels</label>
-              <input id="labels" placeholder="Comma separated" value={form.labels} onChange={(e) => set('labels', e.target.value)} />
-            </div>
-          )}
-        </div>
-        )}
-        {form.personal && (
+        {/* ---------------- More ---------------- */}
+        <details className="tt-block tt-more">
+          <summary>More options <small>(you can skip these)</small></summary>
           <div className="grid-3">
             <div className="field">
-              <label htmlFor="personal_reviewer">Reviewer</label>
-              <select id="personal_reviewer" value={form.reviewer_user_id} onChange={(e) => set('reviewer_user_id', e.target.value)}>
-                <option value="">{taskType?.requires_review ? '— Choose when handing it in —' : '— No review —'}</option>
-                {reviewers.people.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
-              <div className="hint">
-                {taskType?.requires_review
-                  ? 'This kind of task goes for review: name who checks it now, or when you hand it in.'
-                  : 'Optional: someone checks it before it counts as done.'}
-              </div>
-              {reviewers.error && <div className="hint">The company’s people couldn’t be loaded. Try again shortly.</div>}
+              <label htmlFor="reviewer_user_id">Who checks it?</label>
+              {form.personal ? (
+                <>
+                  <select id="reviewer_user_id" value={form.reviewer_user_id} onChange={(e) => set('reviewer_user_id', e.target.value)}>
+                    <option value="">{taskType?.requires_review ? 'Choose when handing it in' : 'No one'}</option>
+                    {reviewers.people.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                  <div className="hint">
+                    {taskType?.requires_review ? 'This kind of task goes for review: name who checks it now, or when you hand it in.' : 'Optional: someone checks it before it counts as done.'}
+                  </div>
+                  {reviewers.error && <div className="hint">The company’s people couldn’t be loaded. Try again shortly.</div>}
+                </>
+              ) : (
+                <select id="reviewer_user_id" value={form.reviewer_user_id} onChange={(e) => set('reviewer_user_id', e.target.value)}>
+                  <option value="">Anyone allowed to review</option>
+                  {people.map((u) => (
+                    <option key={u.id} value={u.id}>{u.id === me?.id ? `${u.name} (you)` : u.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
-            {usesTime ? (
+            {usesTime && (
               <div className="field">
-                <label htmlFor="estimate">Estimate</label>
+                <label htmlFor="estimate">How long will it take?</label>
                 <input id="estimate" placeholder="e.g. 2h 30m" value={form.estimate} onChange={(e) => set('estimate', e.target.value)} />
                 {estimateInvalid && <div className="field-error">Write it like 90, 1h 30m or 1.5h.</div>}
               </div>
-            ) : (
-              <div className="field">
-                <label htmlFor="labels">Labels</label>
-                <input id="labels" placeholder="Comma separated" value={form.labels} onChange={(e) => set('labels', e.target.value)} />
-              </div>
             )}
+            <div className="field">
+              <label htmlFor="labels">Tags</label>
+              <input id="labels" placeholder="Separated by commas" value={form.labels} onChange={(e) => set('labels', e.target.value)} />
+            </div>
           </div>
-        )}
-
-        {usesTime && (
           <div className="field">
-            <label htmlFor="labels">Labels</label>
-            <input id="labels" placeholder="Comma separated" value={form.labels} onChange={(e) => set('labels', e.target.value)} />
+            <label htmlFor="checklist">Steps to tick</label>
+            <textarea
+              id="checklist"
+              rows={3}
+              placeholder="One step per line. Each must be ticked before the task is handed in."
+              value={form.checklist}
+              onChange={(e) => set('checklist', e.target.value)}
+            />
           </div>
-        )}
-        <div className="field">
-          <label htmlFor="checklist">Checklist</label>
-          <textarea
-            id="checklist"
-            rows={3}
-            placeholder="One item per line. Each must be ticked before the task is submitted."
-            value={form.checklist}
-            onChange={(e) => set('checklist', e.target.value)}
-          />
-        </div>
+        </details>
 
-        <button className="btn" type="submit" disabled={submitting || !taskType} aria-busy={submitting}>Create task</button>
+        <div className="row-actions tt-save">
+          <button className="btn" type="submit" disabled={submitting || !taskType} aria-busy={submitting}>Create task</button>
+          <button className="btn secondary" type="button" onClick={() => navigate(-1)}>Cancel</button>
+        </div>
       </form>
     </div>
   )
