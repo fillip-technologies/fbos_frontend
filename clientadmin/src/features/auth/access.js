@@ -143,6 +143,8 @@ export const ACCESS = {
   // Project templates: the phases and milestones a new project starts with (reading them is a project read).
   projectTemplates: { permissions: ['delivery.template.manage', 'delivery.work_unit.read'] },
   workflows: { permissions: ['delivery.workflow.read'] },
+  // Department setup: see what each operation still needs (setting it up also needs designWorkflows).
+  departmentSetup: { permissions: ['delivery.template.manage', 'delivery.workflow.read'] },
   designWorkflows: { permissions: ['delivery.workflow.manage'] },
   operateWorkflows: { permissions: ['delivery.workflow.operate'] },
   approveWorkflowSteps: { permissions: ['delivery.workflow.approve'] },

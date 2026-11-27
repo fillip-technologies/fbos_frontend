@@ -7,7 +7,7 @@ import { checkFields, toAttributes, toFormValues } from '@/shared/utils/customFi
 import { formatDateTime } from '@/features/delivery/utils.js'
 import { useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
-import useTaskReviewers, { isPersonalTask } from '@/features/delivery/useTaskReviewers.js'
+import useTaskReviewers, { goesForReview as goesForReviewRule, isPersonalTask } from '@/features/delivery/useTaskReviewers.js'
 
 // The forms a task's steps need, shared by the task page, the board and the queue.
 // Each takes `busy`, `error`, `onCancel` and calls `onSubmit(body)` with the request body.
@@ -50,7 +50,7 @@ export function SubmitForm({ orgId, task, taskType, fields, busy, error, onCance
   const choosesReviewer = isPersonalTask(task) && !task.reviewer
   const reviewers = useTaskReviewers(orgId, choosesReviewer)
   const [reviewer, setReviewer] = useState('')
-  const goesForReview = taskType?.requires_review || Boolean(task.reviewer) || Boolean(reviewer)
+  const goesForReview = goesForReviewRule(task, taskType) || (choosesReviewer && Boolean(reviewer))
   const submitFields = fields.filter((f) => f.required_on_submit || (!f.custom && !f.required))
   const [outcome, setOutcome] = useState('')
   const [values, setValues] = useState(() => toFormValues(submitFields, task.attributes))

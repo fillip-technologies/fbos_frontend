@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import '@/features/delivery/task-flow.css'
 import { tasksApi } from '@/features/delivery/api.js'
+import { goesForReview } from '@/features/delivery/useTaskReviewers.js'
 import AssigneeOptions from '@/features/delivery/components/AssigneeOptions.jsx'
 import { ReasonForm, ReviewForm, SubmitForm } from '@/features/delivery/components/TaskForms.jsx'
 import useAssignablePeople from '@/features/delivery/useAssignablePeople.js'
@@ -26,7 +27,9 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
   const isAssignee = task.assignee?.id === me?.id
   const canManage = hasAccess(me, ACCESS.manageTasks)
   const worksOn = isAssignee || canManage
-  const mayReview = task.reviewer?.id === me?.id || hasAccess(me, ACCESS.reviewTasks)
+  // The named checker reviews; so may someone holding the review permission, but never the person
+  // who did the work (they do not check their own task).
+  const mayReview = task.reviewer?.id === me?.id || (hasAccess(me, ACCESS.reviewTasks) && !isAssignee)
   const open = !FINISHED.includes(task.status)
   const hasSla = Boolean(task.sla)
   const governed = task.governing_workflow
@@ -61,7 +64,7 @@ export default function TaskActions({ orgId, task, setTask, names, taskType, fie
       <button key="submit" className="btn" onClick={() => openForm('submit')}>
         {task.status === 'rework'
           ? 'Resubmit'
-          : taskType?.requires_review || task.reviewer ? 'Submit for review' : taskType?.outcomes?.length ? 'Log outcome' : 'Complete'}
+          : goesForReview(task, taskType) ? 'Submit for review' : taskType?.outcomes?.length ? 'Log outcome' : 'Complete'}
       </button>
     ),
     !governed && mayReview && ['submitted', 'in_review'].includes(task.status) && (

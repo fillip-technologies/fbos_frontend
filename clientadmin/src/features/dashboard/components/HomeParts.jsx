@@ -68,6 +68,30 @@ export function Workspace({ user, exclude = HOME_ONLY }) {
   )
   if (sections.length === 0) return null
   const total = sections.reduce((n, s) => n + s.items.length, 0)
+  // Sections the person has no working part in (their `openFor` permission is missing) are folded
+  // away under "More places"; every page stays one click away, and in the search.
+  const mine = sections.filter((s) => !s.openFor || hasAccess(user, s.openFor))
+  const more = sections.filter((s) => s.openFor && !hasAccess(user, s.openFor))
+  const groups = (list) =>
+    list.map((section) => (
+      <div key={section.id} className="directory-group">
+        <h3>
+          {section.label}
+          <span>{section.items.length}</span>
+        </h3>
+        <ul>
+          {section.items.map((item) => (
+            <li key={item.to}>
+              <Link to={item.to} className="directory-link" title={item.description || undefined} onMouseEnter={() => preloadPage(item.to)} onFocus={() => preloadPage(item.to)}>
+                <span className="place-icon">{item.icon}</span>
+                <span className="place-label">{item.label}</span>
+                {arrow}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))
   // One directory: the sections flow into balanced columns, so no row is left half empty.
   return (
     <section className="home-section">
@@ -77,27 +101,21 @@ export function Workspace({ user, exclude = HOME_ONLY }) {
           {total} {total === 1 ? 'place' : 'places'} you can open · press / to search them
         </span>
       </div>
-      <nav className="panel directory" aria-label="Places you can open">
-        {sections.map((section) => (
-          <div key={section.id} className="directory-group">
-            <h3>
-              {section.label}
-              <span>{section.items.length}</span>
-            </h3>
-            <ul>
-              {section.items.map((item) => (
-                <li key={item.to}>
-                  <Link to={item.to} className="directory-link" title={item.description || undefined} onMouseEnter={() => preloadPage(item.to)} onFocus={() => preloadPage(item.to)}>
-                    <span className="place-icon">{item.icon}</span>
-                    <span className="place-label">{item.label}</span>
-                    {arrow}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </nav>
+      {mine.length > 0 && (
+        <nav className="panel directory" aria-label="Places you can open">
+          {groups(mine)}
+        </nav>
+      )}
+      {more.length > 0 && (
+        <details className="more-places" style={{ marginTop: 12 }}>
+          <summary className="muted small" style={{ cursor: 'pointer' }}>
+            More places you can open ({more.reduce((n, s) => n + s.items.length, 0)})
+          </summary>
+          <nav className="panel directory" aria-label="More places you can open" style={{ marginTop: 8 }}>
+            {groups(more)}
+          </nav>
+        </details>
+      )}
     </section>
   )
 }

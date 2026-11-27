@@ -83,6 +83,7 @@ const Tasks = lazy(pages.Tasks)
 const TaskCreate = lazy(pages.TaskCreate)
 const TaskDetail = lazy(pages.TaskDetail)
 const TaskTypes = lazy(pages.TaskTypes)
+const DepartmentSetup = lazy(pages.DepartmentSetup)
 const WorkflowBuilder = lazy(pages.WorkflowBuilder)
 const Requests = lazy(pages.Requests)
 const RequestCreate = lazy(pages.RequestCreate)
@@ -244,6 +245,7 @@ export default function App() {
           <Route path="/tasks/new" element={<RequireAccess rule={ACCESS.createTasks}><TaskCreate /></RequireAccess>} />
           <Route path="/tasks/:id" element={<RequireAccess rule={ACCESS.tasks}><TaskDetail /></RequireAccess>} />
           <Route path="/task-types" element={<RequireAccess rule={ACCESS.tasks}><TaskTypes /></RequireAccess>} />
+          <Route path="/department-setup" element={<RequireAccess rule={ACCESS.departmentSetup}><DepartmentSetup /></RequireAccess>} />
           <Route path="/task-workflows/:code" element={<RequireAccess rule={ACCESS.designWorkflows}><WorkflowBuilder /></RequireAccess>} />
           <Route path="/requests" element={<RequireAccess rule={ACCESS.requestWork}><Requests /></RequireAccess>} />
           <Route path="/requests/new" element={<RequireAccess rule={ACCESS.requestWork}><RequestCreate /></RequireAccess>} />

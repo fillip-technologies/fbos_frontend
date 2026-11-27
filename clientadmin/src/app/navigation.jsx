@@ -1,4 +1,4 @@
-import { ACCESS } from '@/features/auth/access.js'
+﻿import { ACCESS } from '@/features/auth/access.js'
 import { inventoryPageOn } from '@/features/inventory/flags.js'
 
 const icon = (d) => (
@@ -215,6 +215,12 @@ export const NAV_ITEMS = [
     icon: icon(<><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></>),
   },
   {
+    to: '/department-setup',
+    label: 'Department setup',
+    access: ACCESS.departmentSetup,
+    icon: icon(<><path d="M3 21h18" /><path d="M5 21V8l7-5 7 5v13" /><path d="M9 21v-6h6v6" /><path d="M9 10h.01M15 10h.01" /></>),
+  },
+  {
     to: '/task-types',
     label: 'Task types',
     access: ACCESS.deliverySetup,
@@ -411,6 +417,7 @@ const DESCRIPTIONS = {
   '/projects': 'Work you deliver for a customer or for the company: milestones, team, risks.',
   '/tasks': 'Your work and your team\'s: to do, in progress, in review, done.',
   '/requests': 'Work you asked other teams to do, and where it stands.',
+  '/department-setup': 'Pick a department and an operation (SEO audit, Social media post, Bug…), see what is set up and what is missing, and set it up.',
   '/task-types': 'Kinds of task, how work is routed to teams, and delivery settings.',
   '/playbooks': 'A checklist for each service you give clients (SMM, SEO, Ads). Start it for a client and the team ticks it off.',
   '/project-templates': 'Ready-made project plans: phases, milestones and workflows.',
@@ -438,72 +445,81 @@ const DESCRIPTIONS = {
 }
 
 // Sidebar sections, by the job people come to do, in display order. Each page belongs to the
-// first section listing its path; a page listed nowhere lands in Settings, so a new
-// NAV_ITEMS entry is never hidden. `hint` says what the section is for (guide, tooltips);
-// Settings starts folded: setup is done now and then, daily work every day.
+// first section listing its path; a page listed nowhere lands in Administration & setup, so a new
+// NAV_ITEMS entry is never hidden. `hint` says what the section is for (guide, tooltips).
+// Daily work comes first (Overview, My workspace, Department operations), then the business areas,
+// then reports. Setup comes last and shows only to people who may change it, so an employee never
+// walks past configuration screens. A section with `openFor` starts open only for people who hold that
+// permission (anyone else can open it with one click, and their choice is remembered); every page in it
+// stays reachable. Section ids stay as they were: people's folded/open choice is saved under them.
 export const SECTIONS = [
-  { id: 'home', label: 'Home', hint: 'Start here', paths: ['/ceo', '/', '/insights'] },
+  { id: 'home', label: 'Overview', hint: 'Start here: the numbers and how FBOS fits together', paths: ['/ceo', '/', '/guide'] },
   {
     id: 'work',
-    label: 'My work',
+    label: 'My workspace',
     hint: 'What is on your plate',
     paths: ['/tasks', '/requests', '/people/interviews', '/people/leaves'],
   },
   {
     id: 'delivery',
-    label: 'Deliver',
-    hint: 'Do the work customers paid for',
+    label: 'Department operations',
+    hint: 'Run your department: projects, client services and the work in them',
     paths: ['/projects', '/client-services'],
   },
   {
     id: 'sales',
     label: 'Sell',
+    openFor: ACCESS.manageLeads,
     hint: 'Win customers: from first enquiry to signed contract',
     paths: ['/leads', '/opportunities', '/contracts', '/customers'],
+  },
+  {
+    id: 'billing',
+    label: 'Bill & collect',
+    openFor: ACCESS.manageInvoices,
+    hint: 'Invoice the work and get paid',
+    paths: ['/billing-schedules', '/invoices', '/payments', '/collections'],
+  },
+  {
+    id: 'spend',
+    label: 'Spend & invest',
+    openFor: ACCESS.manageExpenses,
+    hint: 'Record what the company spends and invests',
+    paths: ['/expenses', '/investments'],
   },
   {
     id: 'people',
     label: 'People',
     hint: 'Hire, look after and pay your team',
-    paths: ['/users', '/people/jobs', '/people/attendance', '/people/payroll', '/people/role-changes', '/people/offboarding', '/people/org-chart', '/people/post-report'],
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    hint: 'Set the company up once; change it now and then',
-    defaultCollapsed: true,
-    paths: [
-      '/org-units', '/task-types', '/playbooks', '/project-templates', '/roles', '/people/approvals', '/calendars', '/custom-fields', '/verticals', '/offerings',
-      '/organizations', '/tax-setup', '/service-providers', '/finance-setup', '/document-categories', '/audit-log',
-    ],
-  },
-  {
-    id: 'billing',
-    label: 'Bill & collect',
-    hint: 'Invoice the work and get paid',
-    paths: ['/billing-schedules', '/invoices', '/payments', '/collections', '/tax-reports'],
-  },
-  {
-    id: 'plan',
-    label: 'Plan & measure',
-    hint: 'Set goals and budgets, then see how you are doing',
-    paths: ['/planning', '/budgets', '/capacity', '/scorecard'],
-  },
-  {
-    id: 'spend',
-    label: 'Spend & invest',
-    hint: 'Record what the company spends and invests',
-    paths: ['/expenses', '/investments'],
+    paths: ['/users', '/people/jobs', '/people/attendance', '/people/payroll', '/people/role-changes', '/people/offboarding', '/people/org-chart'],
   },
   {
     id: 'assets',
     label: 'Assets & inventory',
+    openFor: ACCESS.manageAssets,
     hint: 'Equipment and stock: buy, track, fix and retire',
-    paths: ['/assets', '/inventory/purchase-orders', '/inventory/stock', '/inventory/devices', '/inventory/transfers', '/inventory/issues', '/inventory/repairs', '/inventory/disposals', '/inventory/reports'],
+    paths: ['/assets', '/inventory/purchase-orders', '/inventory/stock', '/inventory/devices', '/inventory/transfers', '/inventory/issues', '/inventory/repairs', '/inventory/disposals'],
   },
-  { id: 'help', label: 'Help', hint: 'How FBOS fits together', paths: ['/guide'] },
+  {
+    id: 'plan',
+    label: 'Reports & performance',
+    openFor: ACCESS.insights,
+    hint: 'Set goals and budgets, then see how you are doing',
+    paths: ['/insights', '/scorecard', '/planning', '/budgets', '/capacity', '/tax-reports', '/people/post-report', '/inventory/reports'],
+  },
+  {
+    id: 'settings',
+    label: 'Administration & setup',
+    openFor: ACCESS.deliverySetup,
+    hint: 'Set the company and its departments up once; change it now and then',
+    paths: [
+      '/department-setup', '/task-types', '/playbooks', '/project-templates', '/org-units', '/roles', '/people/approvals', '/calendars',
+      '/custom-fields', '/verticals', '/offerings', '/organizations', '/tax-setup', '/service-providers', '/finance-setup',
+      '/document-categories', '/audit-log',
+    ],
+  },
+  { id: 'help', label: 'Help', hint: 'How FBOS fits together', paths: [] },
 ]
-
 // The end-to-end flows pages belong to, step by step. A page's intro shows its flow, so a person
 // sees what comes before and after the page they are on, and can go there in one click.
 export const FLOWS = [
@@ -621,3 +637,4 @@ export const CREATE_ACTIONS = [
     ? [{ to: '/inventory/transfers/new', label: 'Stock transfer', hint: 'Move stock between locations', access: ACCESS.manageStockTransfers }]
     : []),
 ]
+

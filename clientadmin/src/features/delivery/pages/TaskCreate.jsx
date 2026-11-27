@@ -386,6 +386,12 @@ export default function TaskCreate() {
                   ))}
                 </select>
               )}
+              {!form.personal && form.reviewer_user_id && taskType && !taskType.requires_review && (
+                <div className="alert warn" style={{ marginTop: 6 }}>
+                  “{taskType.name}” is not set to be checked, so this task will be marked done as soon as it is handed in, without waiting
+                  for this person. An admin can turn on “Someone checks it before it counts as done” for it under Task types.
+                </div>
+              )}
             </div>
             {usesTime && (
               <div className="field">

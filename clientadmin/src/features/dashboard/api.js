@@ -31,6 +31,11 @@ export const overviewApi = {
 export const attentionApi = {
   // { assigned_open, due_today, overdue }: the caller's own open tasks.
   myTasks: (orgId, opts) => get(orgId, `${DELIVERY}/tasks/summary`, opts),
+  // Tasks handed in and waiting to be checked; the page keeps the ones whose checker is the caller.
+  tasksToReview: (orgId, opts) => get(orgId, `${DELIVERY}/tasks?limit=100&status=submitted&status=in_review`, opts),
+  // Tasks still being worked on; the page keeps the ones the caller created and gave to someone else.
+  tasksInProgress: (orgId, opts) =>
+    get(orgId, `${DELIVERY}/tasks?limit=100&status=assigned&status=in_progress&status=blocked&status=rework`, opts),
   // Quotations waiting for approval, newest first.
   quotationsToApprove: (orgId, opts) => get(orgId, `${REVENUE}/quotations?status=pending_approval&limit=5`, opts),
   // Contract payment terms due to be invoiced now (a plain list).

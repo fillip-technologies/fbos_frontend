@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { projectsApi } from '@/features/delivery/api.js'
 import BoardView from '@/features/delivery/components/BoardView.jsx'
@@ -38,7 +39,10 @@ const TABS = [
   ['documents', 'Documents'],
 ]
 
+const MAIN_TABS = ['overview', 'tasks', 'board', 'documents']
+
 export default function ProjectDetail() {
+  const [moreOpen, setMoreOpen] = useState(false)
   const { id } = useParams()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
@@ -102,8 +106,13 @@ export default function ProjectDetail() {
 
       {project.contract?.id && <JourneyPath subject="project" id={project.id} contractId={project.contract.id} />}
 
-      <div className="version-tabs" role="tablist">
-        {tabs.map(([key, label]) => (
+      {/* The four tabs used every day stay in front; the rest sit behind "More". */}
+      {(() => {
+        const main = tabs.filter(([key]) => MAIN_TABS.includes(key))
+        const more = tabs.filter(([key]) => !MAIN_TABS.includes(key))
+        const moreActive = more.some(([key]) => key === tab)
+        const showMore = moreOpen || moreActive
+        const tabButton = ([key, label]) => (
           <button
             key={key}
             type="button"
@@ -114,8 +123,30 @@ export default function ProjectDetail() {
           >
             {label}
           </button>
-        ))}
-      </div>
+        )
+        return (
+          <>
+            <div className="version-tabs" role="tablist">
+              {main.map(tabButton)}
+              {more.length > 0 && (
+                <button
+                  type="button"
+                  className={`version-tab${moreActive ? ' active' : ''}`}
+                  aria-expanded={showMore}
+                  onClick={() => setMoreOpen(!showMore)}
+                >
+                  More {showMore ? '▴' : '▾'}
+                </button>
+              )}
+            </div>
+            {showMore && (
+              <div className="version-tabs" role="tablist" aria-label="More about this project" style={{ marginTop: -6 }}>
+                {more.map(tabButton)}
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {tab === 'overview' && (
         <>

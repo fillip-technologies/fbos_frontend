@@ -7,10 +7,10 @@ import { TableSkeleton } from '@/shared/components/Skeleton.jsx'
 import StatusBadge from '@/shared/components/StatusBadge.jsx'
 
 // A page of tasks; a row opens the task. `showTeam` adds the owning team column.
-export default function TaskTable({ orgId, tasks, loading, refreshing, names, showTeam = true, empty = 'No tasks found.' }) {
+export default function TaskTable({ orgId, tasks, loading, refreshing, names, showTeam = true, showAsker = false, empty = 'No tasks found.' }) {
   const navigate = useNavigate()
   const warm = (id) => prefetch(['task', orgId, id], ({ signal }) => tasksApi.get(orgId, id, { signal }))
-  const cols = showTeam ? 6 : 5
+  const cols = (showTeam ? 6 : 5) + (showAsker ? 1 : 0)
 
   return (
     <div className={`panel${refreshing ? ' is-refreshing' : ''}`} style={{ padding: 0, overflowX: 'auto' }}>
@@ -18,6 +18,7 @@ export default function TaskTable({ orgId, tasks, loading, refreshing, names, sh
         <thead>
           <tr>
             <th>Task</th>
+            {showAsker && <th>Asked by</th>}
             <th>Given to</th>
             {showTeam && <th>Team</th>}
             <th>Priority</th>
@@ -39,7 +40,17 @@ export default function TaskTable({ orgId, tasks, loading, refreshing, names, sh
                     <span className={`discipline-dot ${t.task_type.discipline}`} /> <span className="mono">{t.code}</span> · {t.task_type.name}
                     {t.outcome && ` · ${t.outcome.replace(/_/g, ' ')}`}
                   </div>
+                  {t.checklist?.length > 0 && (() => {
+                    const total = t.checklist.length
+                    const done = t.checklist.filter((i) => i.done).length
+                    return (
+                      <div className="small" style={{ marginTop: 4, color: done === total ? 'var(--ok, #1baf7a)' : 'var(--muted)' }}>
+                        {done === total ? '✓ ' : '☐ '}{done}/{total} steps done
+                      </div>
+                    )
+                  })()}
                 </td>
+                {showAsker && <td>{t.created_by ? names.personName(t.created_by) : <span className="muted">—</span>}</td>}
                 <td>{t.assignee ? names.personName(t.assignee) : <span className="muted">Nobody yet</span>}</td>
                 {showTeam && <td>{names.unitName(t.owning_unit)}</td>}
                 <td><StatusBadge status={t.priority} label={TASK_PRIORITY_LABELS[t.priority]} /></td>

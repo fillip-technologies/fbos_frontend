@@ -74,7 +74,9 @@ export const tasksApi = {
   get: (orgId, id, { signal } = {}) => api.get(`${DELIVERY}/tasks/${id}`, { headers: inOrg(orgId), signal }),
   // The signed-in user's own open work: { assigned_open, due_today, overdue }.
   // Company-wide counts by stage, with people and teams (the Dashboard's summary).
-  stats: (orgId, weeks, { signal } = {}) => api.get(`${DELIVERY}/tasks/stats?weeks=${weeks}&done_within_days=30`, { headers: inOrg(orgId), signal }),
+  // `unitId`: only the work a team owns (a department's view).
+  stats: (orgId, weeks, { signal, unitId } = {}) =>
+    api.get(`${DELIVERY}/tasks/stats?weeks=${weeks}&done_within_days=30${unitId ? `&owning_unit_id=${unitId}` : ''}`, { headers: inOrg(orgId), signal }),
   mySummary: (orgId, { signal } = {}) => api.get(`${DELIVERY}/tasks/summary`, { headers: inOrg(orgId), signal }),
   create: (orgId, body) => api.post(`${DELIVERY}/tasks`, body, { headers: inOrg(orgId) }),
   update: (orgId, id, version, body) => api.patch(`${DELIVERY}/tasks/${id}`, body, { headers: ifMatch(orgId, version) }),
@@ -249,6 +251,17 @@ export const setupApi = {
 }
 
 // ---------- Routing: which team does which kind of work ----------
+// ---------- Repeating checklists: a task made from a checklist on a schedule (delivery.task.write) ----------
+// A rule makes one task per occurrence for a project and team, titled with the day. There is no
+// pause or delete call yet: a rule stops only at its end date.
+export const recurringApi = {
+  // Rules of one project: { data: [{ id, template_code, subject, owning_unit, rrule, timezone, next_run_at, ends_at, status, last_run_at }] }.
+  list: (orgId, projectId, { signal } = {}) =>
+    api.get(`${DELIVERY}/recurring-task-rules?${pageQuery({ subject_id: projectId, limit: 100 })}`, { headers: inOrg(orgId), signal }),
+  // { template_code, subject: { type, id }, owning_unit_id, rrule, timezone, starts_at, ends_at? }
+  create: (orgId, body) => api.post(`${DELIVERY}/recurring-task-rules`, body, { headers: inOrg(orgId) }),
+}
+
 export const routingApi = {
   // Every rule, turned-off ones included: [{ id, task_type_code | discipline, vertical, unit, accepts_requests, active, version }].
   rules: (orgId, { signal } = {}) => listAll(`${DELIVERY}/routing-rules`, orgId, { include_inactive: 'true' }, { signal }),

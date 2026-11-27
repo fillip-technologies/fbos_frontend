@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { tasksApi } from '@/features/delivery/api.js'
 import Dialog from '@/features/delivery/components/Dialog.jsx'
-import TaskCard from '@/features/delivery/components/TaskCard.jsx'
+import TaskRow from '@/features/delivery/components/TaskRow.jsx'
 import TaskFilterBar, { NO_TASK_FILTERS } from '@/features/delivery/components/TaskFilterBar.jsx'
 import { ReasonForm, ReviewForm, SubmitForm } from '@/features/delivery/components/TaskForms.jsx'
 import { useEffectiveTaskFields } from '@/features/delivery/useTaskTypes.js'
@@ -42,20 +42,22 @@ export function movesFor(task, { me, canManage, canReview }) {
 // The tasks as columns. Grouped by status, cards move between columns by dragging or with
 // their "Move" menu; each move is the task's real next step (start, submit, review, block),
 // shown at once and undone if the backend refuses it.
-export default function TaskBoard({ orgId, names, taskTypes }) {
+export default function TaskBoard({ orgId, names, taskTypes, unitId = '' }) {
   const { user: me } = useAuth()
   const navigate = useNavigate()
   const ctx = { me, canManage: hasAccess(me, ACCESS.manageTasks), canReview: hasAccess(me, ACCESS.reviewTasks) }
   const [filters, setFilters] = useState(NO_TASK_FILTERS)
   const [groupBy, setGroupBy] = useState('status')
   const [moved, setMoved] = useState({}) // task id -> column it was just moved to
+  const [opened, setOpened] = useState({}) // column key -> folded open or shut by hand
   const [dragging, setDragging] = useState(null)
   const [overColumn, setOverColumn] = useState(null)
   const [dialog, setDialog] = useState(null) // { task, kind }
   const [busy, setBusy] = useState(false)
   const [moveError, setMoveError] = useState(null)
 
-  const params = { ...filters, group_by: groupBy, per_column: 50 }
+  // `unitId`: the department the page is showing (the switch above). A team picked in the filter wins.
+  const params = { ...filters, owning_unit_id: filters.owning_unit_id || unitId || '', group_by: groupBy, per_column: 50 }
   const { data, error, loading, refreshing, reload } = useQuery(
     ['tasks', orgId, 'board', params],
     ({ signal }) => tasksApi.board(orgId, params, { signal }),
@@ -124,21 +126,25 @@ export default function TaskBoard({ orgId, names, taskTypes }) {
         </label>
       </TaskFilterBar>
       {!dialog && <ErrorBanner error={moveError || error} onRetry={moveError ? undefined : reload} />}
-      {byStatus && <p className="muted small" style={{ margin: '-4px 0 10px' }}>Drag a card to its next step, or use its Move menu. Done shows the last 14 days.</p>}
+      {byStatus && <p className="muted small" style={{ margin: '-4px 0 10px' }}>Drag a row to its next step, or use its Move menu. Done shows the last 14 days.</p>}
 
       {loading ? (
         <PanelSkeleton />
       ) : columns.length === 0 ? (
         <div className="panel center-note">No open tasks match.</div>
       ) : (
-        <div className={`board${refreshing ? ' is-refreshing' : ''}`}>
+        <div className={`gl${refreshing ? ' is-refreshing' : ''}`}>
           {columns.map((column) => {
             const droppable = byStatus && Boolean(dropMove(column.key))
+            const label = columnLabel(column, groupBy, names)
+            // Stages with work are open; empty ones and Done are folded until asked for.
+            const isOpen = opened[column.key] ?? (column.count > 0 && column.key !== 'done')
             return (
               <section
                 key={column.key}
-                className={`board-column${droppable ? ' can-drop' : ''}${overColumn === column.key && droppable ? ' drop-over' : ''}`}
-                aria-label={columnLabel(column, groupBy, names)}
+                data-stage={byStatus ? column.key : undefined}
+                className={`gl-section${droppable ? ' can-drop' : ''}${overColumn === column.key && droppable ? ' drop-over' : ''}`}
+                aria-label={label}
                 onDragOver={(e) => {
                   if (!droppable) return
                   e.preventDefault()
@@ -154,61 +160,63 @@ export default function TaskBoard({ orgId, names, taskTypes }) {
                   if (move && task) perform(task, move)
                 }}
               >
-                <header className="board-column-head">
-                  <span>{columnLabel(column, groupBy, names)}</span>
+                <button type="button" className="gl-head" aria-expanded={isOpen} onClick={() => setOpened((o) => ({ ...o, [column.key]: !isOpen }))}>
+                  <span className="gl-caret" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
+                  <span>{label}</span>
                   <span className="count">{column.count}</span>
-                </header>
-                <div className="board-cards">
-                  {column.tasks.length === 0 && <div className="muted small board-empty">Nothing here</div>}
-                  {column.tasks.map((task) => {
-                    const moves = byStatus ? movesFor(task, ctx) : []
-                    return (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        taskType={typeOf(task)}
-                        names={names}
-                        onOpen={() => navigate(`/tasks/${task.id}`)}
-                        dragProps={
-                          moves.length
-                            ? {
-                                draggable: true,
-                                onDragStart: (e) => {
-                                  e.dataTransfer.effectAllowed = 'move'
-                                  e.dataTransfer.setData('text/plain', task.id)
-                                  setDragging(task)
-                                },
-                                onDragEnd: () => {
-                                  setDragging(null)
-                                  setOverColumn(null)
-                                },
-                                onMouseEnter: () => prefetch(['task', orgId, task.id], ({ signal }) => tasksApi.get(orgId, task.id, { signal })),
-                              }
-                            : undefined
-                        }
-                        footer={
-                          moves.length > 0 && (
-                            <select
-                              className="move-menu"
-                              aria-label={`Move ${task.code}`}
-                              value=""
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => e.stopPropagation()}
-                              onChange={(e) => {
-                                const move = moves[Number(e.target.value)]
-                                if (move) perform(task, move)
-                              }}
-                            >
-                              <option value="">Move…</option>
-                              {moves.map((m, i) => <option key={m.kind} value={i}>{m.label}</option>)}
-                            </select>
-                          )
-                        }
-                      />
-                    )
-                  })}
-                  {column.has_more && <div className="muted small board-empty">+ {column.count - column.tasks.length} more: narrow the filters</div>}
-                </div>
+                </button>
+                {isOpen && (
+                  <div className="gl-rows">
+                    {column.tasks.length === 0 && <div className="muted small gl-empty">Nothing here</div>}
+                    {column.tasks.map((task) => {
+                      const moves = byStatus ? movesFor(task, ctx) : []
+                      return (
+                        <TaskRow
+                          key={task.id}
+                          task={task}
+                          names={names}
+                          onOpen={() => navigate(`/tasks/${task.id}`)}
+                          dragProps={
+                            moves.length
+                              ? {
+                                  draggable: true,
+                                  onDragStart: (e) => {
+                                    e.dataTransfer.effectAllowed = 'move'
+                                    e.dataTransfer.setData('text/plain', task.id)
+                                    setDragging(task)
+                                  },
+                                  onDragEnd: () => {
+                                    setDragging(null)
+                                    setOverColumn(null)
+                                  },
+                                  onMouseEnter: () => prefetch(['task', orgId, task.id], ({ signal }) => tasksApi.get(orgId, task.id, { signal })),
+                                }
+                              : undefined
+                          }
+                          footer={
+                            moves.length > 0 && (
+                              <select
+                                className="move-menu"
+                                aria-label={`Move ${task.code}`}
+                                value=""
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                onChange={(e) => {
+                                  const move = moves[Number(e.target.value)]
+                                  if (move) perform(task, move)
+                                }}
+                              >
+                                <option value="">Move…</option>
+                                {moves.map((m, i) => <option key={m.kind} value={i}>{m.label}</option>)}
+                              </select>
+                            )
+                          }
+                        />
+                      )
+                    })}
+                    {column.has_more && <div className="muted small gl-empty">+ {column.count - column.tasks.length} more: narrow the filters</div>}
+                  </div>
+                )}
               </section>
             )
           })}

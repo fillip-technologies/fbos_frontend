@@ -9,6 +9,7 @@ import TaskFilterBar, { NO_TASK_FILTERS } from '@/features/delivery/components/T
 import TaskTable from '@/features/delivery/components/TaskTable.jsx'
 import Timesheet from '@/features/delivery/components/Timesheet.jsx'
 import WorkQueue from '@/features/delivery/components/WorkQueue.jsx'
+import useDepartment from '@/features/dashboard/useDepartment.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import useTaskTypes from '@/features/delivery/useTaskTypes.js'
 import { OPEN_TASK_STATUSES, TASK_STATUS_LABELS } from '@/features/delivery/utils.js'
@@ -49,6 +50,13 @@ export default function Tasks() {
   const teamViews = TEAM_VIEWS.filter(([, , rule]) => !rule || hasAccess(me, rule))
   const wanted = params.get('show') ?? legacyShow
   const show = teamViews.some(([key]) => key === wanted) ? wanted : 'list'
+
+  // Someone in a department starts on that department's work (numbers, list and board); whoever runs
+  // the company (admin, CEO view, task setup) starts on everything. One switch decides both.
+  const dept = useDepartment(orgId)
+  const runsCompany = hasAccess(me, ACCESS.deliverySetup) || hasAccess(me, ACCESS.ceoDashboard)
+  const [scope, setScope] = useState(runsCompany ? 'company' : 'team')
+  const unitId = dept && scope === 'team' ? dept.unit.id : ''
 
   return (
     <div>
@@ -92,7 +100,17 @@ export default function Tasks() {
       )}
       {tab === 'team' && (
         <>
-          {(show === 'list' || show === 'board') && <TeamOverview key={`ov-${orgId}`} orgId={orgId} names={names} />}
+          {dept && (show === 'list' || show === 'board') && (
+            <div className="segmented" role="group" aria-label="Whose work" style={{ marginBottom: 12 }}>
+              <button type="button" className={scope === 'team' ? 'active' : ''} aria-pressed={scope === 'team'} onClick={() => setScope('team')}>
+                {dept.unit.name}
+              </button>
+              <button type="button" className={scope === 'company' ? 'active' : ''} aria-pressed={scope === 'company'} onClick={() => setScope('company')}>
+                Whole company
+              </button>
+            </div>
+          )}
+          {(show === 'list' || show === 'board') && <TeamOverview key={`ov-${orgId}-${unitId}`} orgId={orgId} names={names} unitId={unitId} />}
           <div className="segmented task-views" role="group" aria-label="Look at the team's work as">
             {teamViews.map(([key, label]) => (
               <button
@@ -106,8 +124,8 @@ export default function Tasks() {
               </button>
             ))}
           </div>
-          {show === 'list' && <TaskList key={`all-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
-          {show === 'board' && <TaskBoard key={`board-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
+          {show === 'list' && <TaskList key={`all-${orgId}-${unitId}`} orgId={orgId} names={names} taskTypes={taskTypes} unitId={unitId} />}
+          {show === 'board' && <TaskBoard key={`board-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} unitId={unitId} />}
           {show === 'queue' && <WorkQueue key={`queue-${orgId}`} orgId={orgId} names={names} taskTypes={taskTypes} />}
           {show === 'handovers' && <Handovers key={orgId} orgId={orgId} names={names} />}
         </>
@@ -177,7 +195,7 @@ function TeamQueue({ orgId, names }) {
   )
 }
 
-function TaskList({ orgId, names, taskTypes, mine = false }) {
+function TaskList({ orgId, names, taskTypes, mine = false, unitId = '' }) {
   const [filters, setFilters] = useState({ ...NO_TASK_FILTERS, status: '', overdue: false, personal: false })
   const [showFinished, setShowFinished] = useState(false)
   const [cursor, setCursor] = useState(undefined)
@@ -185,7 +203,13 @@ function TaskList({ orgId, names, taskTypes, mine = false }) {
 
   // My tasks: what's still to do unless asked otherwise. All tasks: as filtered.
   const status = filters.status || (mine && !showFinished ? OPEN_TASK_STATUSES : '')
-  const query = { ...filters, status, overdue: filters.overdue || '', personal: filters.personal || '', ...(mine ? { assignee: 'me' } : {}) }
+  const query = {
+    ...filters,
+    status,
+    overdue: filters.overdue || '',
+    personal: filters.personal || '',
+    ...(mine ? { assignee: 'me' } : { owning_unit_id: filters.owning_unit_id || unitId }),
+  }
   const { data, error, loading, refreshing, reload } = useQuery(
     ['tasks', orgId, { cursor, query }],
     ({ signal }) => tasksApi.list(orgId, { limit: 25, cursor, ...query }, { signal }),

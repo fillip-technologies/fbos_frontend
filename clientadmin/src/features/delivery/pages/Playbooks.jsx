@@ -1,13 +1,13 @@
 import '@/features/delivery/playbooks.css'
 import '@/features/delivery/task-types.css'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { routingApi, setupApi, tasksApi } from '@/features/delivery/api.js'
+import { Link, useSearchParams } from 'react-router-dom'
+import { projectsApi, routingApi, setupApi, tasksApi } from '@/features/delivery/api.js'
 import { PLAYBOOK_LABEL, STARTER_CHECKLISTS } from '@/features/delivery/playbooks.js'
 import { disciplineLabel } from '@/features/delivery/taskFields.js'
 import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import useTaskTypes from '@/features/delivery/useTaskTypes.js'
-import { TASK_PRIORITY_LABELS } from '@/features/delivery/utils.js'
+import { SUBJECT_TYPES, TASK_PRIORITY_LABELS } from '@/features/delivery/utils.js'
 import { useActiveOrg } from '@/features/organizations/ActiveOrg.jsx'
 import OrgSwitcher from '@/features/organizations/components/OrgSwitcher.jsx'
 import { getFieldErrors } from '@/shared/api/errors.js'
@@ -30,6 +30,7 @@ export default function Playbooks() {
   const [editing, setEditing] = useState(null) // { template?, draft }
   const [starting, setStarting] = useState(null) // template
   const [notice, setNotice] = useState(null)
+  const [params] = useSearchParams()
 
   const { data, error, loading, reload } = useQuery(['task-templates', orgId], ({ signal }) => setupApi.taskTemplates(orgId, { signal }), {
     enabled: Boolean(orgId),
@@ -82,6 +83,7 @@ export default function Playbooks() {
           template={starting}
           names={names}
           typeName={byCode.get(starting.task_type.code)?.name ?? starting.task_type.name}
+          initialProject={params.get('project')}
           onClose={() => setStarting(null)}
           onStarted={(task, client) => { setStarting(null); setNotice({ text: `Started “${starting.title_template}” for ${client}.`, id: task.id }) }}
         />
@@ -273,12 +275,17 @@ function PlaybookEditor({ orgId, existing, initial, types, onClose, onSaved }) {
 }
 
 // Starting a checklist for a client: one task for the team, titled with the service and the client.
-function StartForm({ orgId, template, names, typeName, onClose, onStarted }) {
+function StartForm({ orgId, template, names, typeName, initialProject, onClose, onStarted }) {
   const customers = names.customers
   const units = (names.units ?? []).filter((u) => u.status !== 'inactive')
   const [clientId, setClientId] = useState('')
   const [clientText, setClientText] = useState('')
   const [unitId, setUnitId] = useState('')
+  // Optionally attach the checklist to a project, so it shows in that project's Tasks.
+  const [projectId, setProjectId] = useState(initialProject || '')
+  const { data: projects = [] } = useLookup(['projects', orgId, 'options'], ({ signal }) => projectsApi.options(orgId, { signal }))
+  const openProjects = projects.filter((p) => !['closed', 'cancelled', 'completed'].includes(p.status))
+  const chosenProject = openProjects.find((p) => p.id === projectId)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -288,7 +295,11 @@ function StartForm({ orgId, template, names, typeName, onClose, onStarted }) {
     ({ signal }) => routingApi.route(orgId, template.task_type.code, null, { signal })
   )
   const team = unitId || routed?.unit?.id || ''
-  const client = customers ? customers.find((c) => c.id === clientId)?.name ?? '' : clientText.trim()
+  // With a project chosen, its client is the client: nothing more to pick.
+  const projectClient = chosenProject
+    ? chosenProject.client?.name || customers?.find((c) => c.id === chosenProject.client?.id)?.name || chosenProject.name
+    : ''
+  const client = projectClient || (customers ? customers.find((c) => c.id === clientId)?.name ?? '' : clientText.trim())
 
   async function start(e) {
     e.preventDefault()
@@ -305,8 +316,10 @@ function StartForm({ orgId, template, names, typeName, onClose, onStarted }) {
         owning_unit_id: team,
       }
       if (template.description) body.description = template.description
+      if (chosenProject) body.subject = { type: SUBJECT_TYPES.project, id: chosenProject.id }
       const task = await tasksApi.create(orgId, body)
       invalidate(['tasks', orgId])
+      if (chosenProject) invalidate(['project', orgId, chosenProject.id])
       onStarted(task, client)
     } catch (err) {
       setError(err)
@@ -323,9 +336,21 @@ function StartForm({ orgId, template, names, typeName, onClose, onStarted }) {
       </p>
       <ErrorBanner error={error} />
       <div className="grid-3">
+        {openProjects.length > 0 && (
+          <div className="field">
+            <label htmlFor="st_project">Project <span className="muted">(optional)</span></label>
+            <select id="st_project" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">Not in a project</option>
+              {openProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <div className="hint">The checklist then shows in that project’s Tasks.</div>
+          </div>
+        )}
         <div className="field">
-          <label htmlFor="st_client">Client *</label>
-          {customers ? (
+          <label htmlFor="st_client">Client {chosenProject ? '' : '*'}</label>
+          {chosenProject ? (
+            <input id="st_client" readOnly value={client || '—'} />
+          ) : customers ? (
             <select id="st_client" required value={clientId} onChange={(e) => setClientId(e.target.value)}>
               <option value="">Choose the client…</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

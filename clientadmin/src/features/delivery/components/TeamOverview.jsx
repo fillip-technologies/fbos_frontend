@@ -16,8 +16,10 @@ const openOf = (row) => STAGES.reduce((sum, s) => sum + num(row[s.key]), 0)
 // The top of "All tasks": the company's numbers, then how much work each person has, split by stage,
 // so an admin sees who is loaded or stuck before reading the list. Reads the task summary the
 // Dashboard reads; people are named from the console's lookups.
-export default function TeamOverview({ orgId, names }) {
-  const { data } = useQuery(['overview', orgId, 'tasks', WEEKS], ({ signal }) => tasksApi.stats(orgId, WEEKS, { signal }), {
+export default function TeamOverview({ orgId, names, unitId = '' }) {
+  // A department's numbers are their own cache entry; the company's key is the Dashboard's.
+  const key = unitId ? ['overview', orgId, 'tasks', WEEKS, unitId] : ['overview', orgId, 'tasks', WEEKS]
+  const { data } = useQuery(key, ({ signal }) => tasksApi.stats(orgId, WEEKS, { signal, unitId }), {
     enabled: Boolean(orgId),
     keepPrevious: true,
   })

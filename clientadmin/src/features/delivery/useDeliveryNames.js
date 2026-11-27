@@ -29,7 +29,14 @@ export default function useDeliveryNames(orgId) {
     { enabled }
   )
 
-  const people = byId(owners)
+  // Someone who may not list users still reads the company's people by name through delivery's
+  // task-reviewers (everyone active but themselves; same cache key as the reviewer pickers),
+  // and is always "themselves" to themselves.
+  const mayListUsers = hasAccess(me, ACCESS.users)
+  const reviewersQuery = useLookup(['task-reviewers', orgId], ({ signal }) => lookupsApi.taskReviewers(orgId, { signal }), {
+    enabled: enabled && !mayListUsers,
+  })
+  const people = byId([...(reviewersQuery.data?.data ?? []), ...(me ? [{ id: me.id, name: me.name }] : []), ...(owners ?? [])])
   const units = byId(unitsQuery.data)
   const customers = byId(customersQuery.data)
   const verticals = byId(verticalsQuery.data)

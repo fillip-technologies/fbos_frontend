@@ -1,5 +1,6 @@
 import '@/features/delivery/task-flow.css'
 import { useAuth } from '@/features/auth/AuthContext.jsx'
+import { goesForReview } from '@/features/delivery/useTaskReviewers.js'
 
 // Where the task is, drawn as the path it takes (Created → Given to someone → In progress →
 // Being checked → Done), and one sentence on what happens now and what the viewer should do. It
@@ -17,7 +18,9 @@ export default function TaskFlow({ task, taskType, names }) {
     )
   }
 
-  const reviewed = Boolean(taskType?.requires_review || task.reviewer)
+  const reviewed = goesForReview(task, taskType)
+  // A checker is named, but this kind of work is not set to be checked: it will be marked done.
+  const checkerIgnored = Boolean(task.reviewer) && !reviewed && !['done', 'cancelled'].includes(task.status)
   const steps = [
     { key: 'created', label: 'Created' },
     { key: 'assigned', label: 'Given to someone' },
@@ -105,6 +108,13 @@ export default function TaskFlow({ task, taskType, names }) {
         })}
       </ol>
       {now && <p className="tf-now"><strong>Now:</strong> {now}</p>}
+      {checkerIgnored && (
+        <div className="alert warn" style={{ marginTop: 10 }}>
+          A checker is named, but <strong>{taskType?.name ?? 'this kind of task'}</strong> is not set to be checked, so it will be marked
+          done as soon as it is handed in. To make it wait for a check, an admin turns on “Someone checks it before it counts as done” for
+          this kind under Task types.
+        </div>
+      )}
     </div>
   )
 }

@@ -29,6 +29,8 @@ const GATEWAY_URL = process.env.GATEWAY_URL || process.env.API_URL || 'http://lo
 
 export default defineConfig({
   plugins: [react()],
+  // Which server the dev proxy talks to, for the environment flag (src/app/layout/EnvFlag.jsx).
+  define: { __API_TARGET__: JSON.stringify(process.env.API_URL || '') },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

@@ -56,6 +56,9 @@ export default function NeedsYou() {
   const may = (rule) => Boolean(orgId) && hasAccess(user, rule)
 
   const tasks = useQuery(['attention', orgId, 'tasks'], (o) => attentionApi.myTasks(orgId, o), { enabled: may(ACCESS.tasks) })
+  // Work handed in for this person to check, and work they gave out that is still going on.
+  const toReview = useQuery(['attention', orgId, 'tasks-to-review'], (o) => attentionApi.tasksToReview(orgId, o), { enabled: may(ACCESS.tasks) })
+  const given = useQuery(['attention', orgId, 'tasks-given'], (o) => attentionApi.tasksInProgress(orgId, o), { enabled: may(ACCESS.tasks) })
   const quotes = useQuery(['attention', orgId, 'quotations'], (o) => attentionApi.quotationsToApprove(orgId, o), {
     enabled: may(ACCESS.approveQuotations) && may(ACCESS.opportunities),
   })
@@ -88,6 +91,21 @@ export default function NeedsYou() {
   }
   if (t?.due_today > 0) {
     items.push({ key: 'today', figure: t.due_today, title: `${plural(t.due_today, 'task')} due today`, hint: 'Assigned to you', to: '/tasks' })
+  }
+  const checking = (toReview.data?.data ?? []).filter((task) => task.reviewer?.id === user?.id)
+  if (checking.length > 0) {
+    items.push({
+      key: 'to-review', figure: checking.length, title: `${plural(checking.length, 'task')} waiting for your check`,
+      hint: checking.length === 1 ? checking[0].title : 'Handed in. Approve it or send it back.', to: checking.length === 1 ? `/tasks/${checking[0].id}` : '/tasks',
+    })
+  }
+  const givenOut = (given.data?.data ?? []).filter((task) => task.created_by?.id === user?.id && task.assignee?.id && task.assignee.id !== user?.id)
+  if (givenOut.length > 0) {
+    const stuck = givenOut.filter((task) => task.status === 'blocked').length
+    items.push({
+      key: 'given', tone: stuck > 0 ? 'late' : undefined, figure: givenOut.length, title: `${plural(givenOut.length, 'task')} you gave, still in progress`,
+      hint: stuck > 0 ? `${stuck} stuck. They may need your help.` : 'Waiting on the people you gave them to', to: '/tasks',
+    })
   }
   const quoteList = quotes.data?.data ?? []
   if (quoteList.length) {
@@ -126,8 +144,8 @@ export default function NeedsYou() {
   }
 
   const longest = Math.max(0, ...items.map((i) => queueLength(i.figure) ?? 0))
-  const sources = [tasks, quotes, billing, invoices, roles, leave, unclaimed, followUps]
-  const asked = [may(ACCESS.tasks), may(ACCESS.approveQuotations) && may(ACCESS.opportunities), may(ACCESS.billingSchedules), may(ACCESS.invoices), may(ACCESS.approveRoleChanges), may(ACCESS.approveLeaves), may(ACCESS.manageLeads), may(ACCESS.manageLeads)]
+  const sources = [tasks, toReview, given, quotes, billing, invoices, roles, leave, unclaimed, followUps]
+  const asked = [may(ACCESS.tasks), may(ACCESS.tasks), may(ACCESS.tasks), may(ACCESS.approveQuotations) && may(ACCESS.opportunities), may(ACCESS.billingSchedules), may(ACCESS.invoices), may(ACCESS.approveRoleChanges), may(ACCESS.approveLeaves), may(ACCESS.manageLeads), may(ACCESS.manageLeads)]
   const anyAsked = asked.some(Boolean)
   const stillLoading = sources.some((q, i) => asked[i] && q.loading)
   if (!anyAsked) return null

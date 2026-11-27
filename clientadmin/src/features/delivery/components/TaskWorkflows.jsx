@@ -1,7 +1,10 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { workflowsApi } from '@/features/delivery/api.js'
+import DepartmentSetup from '@/features/delivery/components/DepartmentSetup.jsx'
+import { DEPARTMENT_WORKFLOWS } from '@/features/delivery/departmentWorkflows.js'
 import { disciplineLabel } from '@/features/delivery/taskFields.js'
+import useDeliveryNames from '@/features/delivery/useDeliveryNames.js'
 import { TASK_STATUS_LABELS } from '@/features/delivery/utils.js'
 import { invalidate, useQuery } from '@/shared/api/useQuery.js'
 import ErrorBanner from '@/shared/components/ErrorBanner.jsx'
@@ -16,6 +19,8 @@ export default function TaskWorkflows({ orgId, types, installed, canDesign }) {
     { enabled: Boolean(orgId) }
   )
   const navigate = useNavigate()
+  const names = useDeliveryNames(orgId)
+  const [setup, setSetup] = useState(null) // the department template being set up
   const [busy, setBusy] = useState(null) // a template code, or 'new'
   const [error, setError] = useState(null)
   const [newName, setNewName] = useState('')
@@ -51,6 +56,12 @@ export default function TaskWorkflows({ orgId, types, installed, canDesign }) {
       setBusy(null)
     }
   }
+
+  const serverCodes = new Set((templates ?? []).map((t) => t.code))
+  const departmentTemplates = DEPARTMENT_WORKFLOWS.filter((t) => !serverCodes.has(t.code))
+  const departments = Object.entries(
+    departmentTemplates.reduce((groups, t) => ({ ...groups, [t.home]: [...(groups[t.home] || []), t] }), {})
+  )
 
   return (
     <div className="panel">
@@ -96,6 +107,54 @@ export default function TaskWorkflows({ orgId, types, installed, canDesign }) {
         </form>
       )}
 
+      {canDesign && departmentTemplates.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div className="detail-label">By department</div>
+          <p className="muted small" style={{ marginTop: 2 }}>
+            “Set up” asks which team does the work, then saves and publishes the workflow, makes or picks the task type,
+            links them and adds the routing rule. Nothing already there is changed. It all happens in this company, for
+            everyone, as soon as you press it.
+          </p>
+          {setup && (
+            <DepartmentSetup
+              key={setup.code}
+              orgId={orgId}
+              template={setup}
+              units={(names.units || []).filter((u) => u.status !== 'inactive')}
+              types={types}
+              onClose={() => setSetup(null)}
+            />
+          )}
+          {departments.map(([department, list]) => (
+            <div key={department} style={{ marginBottom: 10 }}>
+              <div className="small" style={{ fontWeight: 600, margin: '6px 0' }}>{department}</div>
+              <div className="type-cards">
+                {list.map((t) => (
+                  <article key={t.code} className="type-card" style={{ cursor: 'default' }}>
+                    <div className="row-actions" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <strong>{t.name}</strong>
+                      <span className="muted small">{disciplineLabel(t.discipline)}</span>
+                    </div>
+                    <div className="small">{t.summary}</div>
+                    <div className="chips">
+                      {t.stages.map((s) => (
+                        <span key={s.code} className="chip subtle" title={TASK_STATUS_LABELS[s.status_category] || s.status_category}>{s.name}</span>
+                      ))}
+                    </div>
+                    <div className="row-actions" style={{ alignItems: 'baseline' }}>
+                      <button type="button" className="btn secondary small-btn" onClick={() => setSetup(t)}>
+                        {installedCodes.has(t.code) ? 'Finish setting up' : 'Set up'}
+                      </button>
+                      {installedCodes.has(t.code) && <span className="muted small">Workflow is in “Yours”</span>}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="type-cards">
         {(templates ?? []).map((t) => (
           <article key={t.code} className="type-card" style={{ cursor: 'default' }}>
@@ -130,3 +189,4 @@ export default function TaskWorkflows({ orgId, types, installed, canDesign }) {
     </div>
   )
 }
+

@@ -11,6 +11,8 @@ import PageIntro, { usePageIntros } from '@/app/layout/PageIntro.jsx'
 import { preloadPage } from '@/app/pages.js'
 import { PageSkeleton } from '@/shared/components/Skeleton.jsx'
 import TopProgress from '@/shared/components/TopProgress.jsx'
+import EnvFlag from '@/app/layout/EnvFlag.jsx'
+import ErrorBoundary from '@/shared/components/ErrorBoundary.jsx'
 import '@/app/layout/sidebar-rail.css'
 import fillipMark from '@/assets/brand/fillip-mark.png'
 
@@ -202,6 +204,7 @@ export default function Layout() {
   return (
     <div className={`app-shell with-sidebar${open ? ' sidebar-open' : ''}${rail ? ' sidebar-rail' : ''}`}>
       <TopProgress />
+      <EnvFlag />
       <aside className="sidebar" aria-label="Main navigation">
         <Brand />
         <button type="button" className="sidebar-search" onClick={() => setPalette(true)}>
@@ -211,7 +214,7 @@ export default function Layout() {
         </button>
         <nav className="sidebar-nav">
           {sections.map((section) => {
-            const isOpen = rail || !showHeaders || section === currentSection || (openState[section.id] ?? !section.defaultCollapsed)
+            const isOpen = rail || !showHeaders || section === currentSection || (openState[section.id] ?? (!section.defaultCollapsed && (!section.openFor || hasAccess(user, section.openFor))))
             return (
               <div key={section.id} className={`nav-section${isOpen ? ' open' : ''}`}>
                 {showHeaders && (
@@ -320,9 +323,11 @@ export default function Layout() {
           {current && !subPage && current.to !== '/' && (
             <PageIntro item={current} section={currentSection} canOpen={canOpen} intros={intros} />
           )}
-          <Suspense fallback={<PageSkeleton />}>
-            <Outlet />
-          </Suspense>
+          <ErrorBoundary key={location.pathname}>
+            <Suspense fallback={<PageSkeleton />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
 
